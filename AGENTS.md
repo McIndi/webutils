@@ -25,6 +25,11 @@ This document captures decisions and conventions that apply across the static ap
 - Include a version in storage keys (example: `.v1`).
 - If the schema changes, increment the version and optionally migrate old data.
 
+## Destructive actions
+- Destructive actions must always ask for confirmation before executing.
+- Use a reusable confirmation dialog pattern rather than ad-hoc `confirm()` prompts.
+- For an example, see the Kanban app confirmation dialog markup and its shared helper that opens the dialog and resolves a boolean (search for the confirm dialog section in the Kanban file).
+
 ## Files
 - Landing page: `src/index.html`.
 - Kanban board: `src/kanban.html` (uses localStorage key `webutils.kanban.v1`).
