@@ -284,6 +284,23 @@
         color: #fff;
       }
 
+      .confirm-form {
+        padding: 18px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .confirm-form h3 {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+
+      .confirm-form p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
       @media (max-width: 720px) {
         .controls {
           flex-direction: column;
@@ -361,6 +378,19 @@
       </form>
     </dialog>
 
+    <dialog id="confirm-dialog">
+      <form method="dialog" class="confirm-form">
+        <h3 id="confirm-title">Confirm action</h3>
+        <p id="confirm-message">Are you sure you want to continue?</p>
+        <div class="note-actions">
+          <button value="cancel" type="submit">Cancel</button>
+          <button value="confirm" type="submit" class="primary" id="confirm-accept">
+            Confirm
+          </button>
+        </div>
+      </form>
+    </dialog>
+
     <script>
       const STORAGE_KEY = "webutils.kanban.v1";
       const form = document.getElementById("task-form");
@@ -369,8 +399,13 @@
       const resetButton = document.getElementById("reset-board");
       const noteDialog = document.getElementById("note-editor");
       const noteEditorText = document.getElementById("note-editor-text");
+      const confirmDialog = document.getElementById("confirm-dialog");
+      const confirmTitle = document.getElementById("confirm-title");
+      const confirmMessage = document.getElementById("confirm-message");
+      const confirmAccept = document.getElementById("confirm-accept");
 
       let editingId = null;
+      let confirmResolve = null;
 
       const state = {
         cards: [],
@@ -419,7 +454,16 @@
         removeBtn.type = "button";
         removeBtn.className = "danger";
         removeBtn.textContent = "Remove";
-        removeBtn.addEventListener("click", () => removeCard(id));
+        removeBtn.addEventListener("click", async () => {
+          const confirmed = await requestConfirmation({
+            title: "Remove this card?",
+            message: "This will delete the card and its notes.",
+            confirmText: "Remove",
+          });
+          if (confirmed) {
+            removeCard(id);
+          }
+        });
 
         const time = document.createElement("span");
         const date = new Date(createdAt);
@@ -535,12 +579,52 @@
         editingId = null;
       });
 
-      const clearDone = () => {
+      const requestConfirmation = ({ title, message, confirmText }) => {
+        if (!confirmDialog || typeof confirmDialog.showModal !== "function") {
+          return Promise.resolve(window.confirm(message || title));
+        }
+
+        confirmTitle.textContent = title;
+        confirmMessage.textContent = message;
+        confirmAccept.textContent = confirmText || "Confirm";
+
+        return new Promise((resolve) => {
+          confirmResolve = resolve;
+          confirmDialog.showModal();
+        });
+      };
+
+      confirmDialog.addEventListener("close", () => {
+        if (!confirmResolve) {
+          return;
+        }
+        const confirmed = confirmDialog.returnValue === "confirm";
+        confirmResolve(confirmed);
+        confirmResolve = null;
+      });
+
+      const clearDone = async () => {
+        const confirmed = await requestConfirmation({
+          title: "Clear done cards?",
+          message: "This will permanently remove all cards in the Done lane.",
+          confirmText: "Clear done",
+        });
+        if (!confirmed) {
+          return;
+        }
         state.cards = state.cards.filter((card) => card.lane !== "done");
         render();
       };
 
-      const resetBoard = () => {
+      const resetBoard = async () => {
+        const confirmed = await requestConfirmation({
+          title: "Reset the entire board?",
+          message: "This will delete every card and reset the board to its starter state.",
+          confirmText: "Reset board",
+        });
+        if (!confirmed) {
+          return;
+        }
         state.cards = [];
         localStorage.removeItem(STORAGE_KEY);
         load();
