@@ -1,0 +1,705 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Zip Workbench - WebUtils</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.css"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <style>
+      :root {
+        --bg: #f4f2ee;
+        --ink: #1f1f1f;
+        --muted: #6a635d;
+        --panel: #fffaf3;
+        --stroke: #e1d7cf;
+        --accent: #2b7a78;
+        --accent-soft: rgba(43, 122, 120, 0.15);
+        --warn: #c2412d;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        color: var(--ink);
+        background: radial-gradient(900px 600px at 10% -10%, #f7d9c4 0%, transparent 60%),
+          radial-gradient(700px 500px at 120% 10%, #cfe8e6 0%, transparent 60%),
+          var(--bg);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      header {
+        width: 100%;
+        padding: 24px 28px 10px;
+        display: grid;
+        gap: 8px;
+      }
+
+      header h1 {
+        margin: 0;
+        font-size: clamp(1.8rem, 4vw, 2.6rem);
+      }
+
+      header p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .toolbar {
+        width: 100%;
+        padding: 0 28px 12px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .toolbar input[type="file"] {
+        display: none;
+      }
+
+      .toolbar label,
+      .toolbar button,
+      .toolbar a {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        padding: 8px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        text-decoration: none;
+        color: var(--ink);
+      }
+
+      .toolbar .primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
+      .toolbar .danger {
+        color: var(--warn);
+        border-color: var(--warn);
+      }
+
+      .toolbar .status {
+        margin-left: auto;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .workspace {
+        width: 100%;
+        flex: 1;
+        padding: 0 20px 24px;
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 16px;
+        min-height: 0;
+      }
+
+      .pane {
+        background: var(--panel);
+        border: 1px solid var(--stroke);
+        border-radius: 16px;
+        padding: 14px;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .pane h2 {
+        margin: 0 0 12px;
+        font-size: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }
+
+      .tree {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 6px;
+        font-size: 0.95rem;
+        overflow: auto;
+      }
+
+      .tree li {
+        display: grid;
+        gap: 6px;
+      }
+
+      .tree button {
+        border: none;
+        background: none;
+        text-align: left;
+        padding: 6px 8px;
+        border-radius: 8px;
+        cursor: pointer;
+        color: var(--ink);
+        font: inherit;
+      }
+
+      .tree button:hover,
+      .tree button.active {
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      .tree .folder {
+        font-weight: 600;
+        color: var(--muted);
+      }
+
+      .tree .nested {
+        padding-left: 14px;
+        border-left: 1px dashed var(--stroke);
+      }
+
+      .editor-header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .editor-header .path {
+        font-weight: 600;
+      }
+
+      .editor-header .hint {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 0;
+        border-radius: 12px;
+        border: 1px solid var(--stroke);
+        padding: 12px;
+        font: 0.95rem/1.5 "Consolas", "Courier New", monospace;
+        background: #fff;
+        resize: vertical;
+      }
+
+      .CodeMirror {
+        min-height: 0;
+        height: 100%;
+        border: 1px solid var(--stroke);
+        border-radius: 12px;
+        font: 0.95rem/1.5 "Consolas", "Courier New", monospace;
+        background: #fff;
+      }
+
+      .empty {
+        color: var(--muted);
+        line-height: 1.6;
+        flex: 1;
+      }
+
+      dialog {
+        border: none;
+        border-radius: 16px;
+        padding: 0;
+        width: min(520px, 92vw);
+        box-shadow: 0 20px 40px rgba(31, 31, 31, 0.25);
+      }
+
+      dialog::backdrop {
+        background: rgba(31, 31, 31, 0.35);
+      }
+
+      .confirm-form {
+        padding: 18px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .confirm-form h3 {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+
+      .confirm-form p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .confirm-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      .confirm-actions button {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        padding: 8px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      .confirm-actions .primary {
+        background: var(--warn);
+        border-color: var(--warn);
+        color: #fff;
+      }
+
+      @media (max-width: 900px) {
+        .workspace {
+          grid-template-columns: 1fr;
+          padding: 0 16px 20px;
+        }
+
+        header,
+        .toolbar {
+          padding-left: 16px;
+          padding-right: 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Zip Workbench</h1>
+      <p>Inspect, edit, and re-download a ZIP file entirely in your browser.</p>
+    </header>
+
+    <div class="toolbar">
+      <label class="primary" for="zip-input">Upload ZIP</label>
+      <input id="zip-input" type="file" accept=".zip" />
+      <a id="download-link" href="#" download="archive.zip">Download ZIP</a>
+      <button id="clear-zip" class="danger" type="button">Clear ZIP</button>
+      <a href="index.html">Back to index</a>
+      <span class="status" id="status">No ZIP loaded.</span>
+    </div>
+
+    <section class="workspace">
+      <aside class="pane">
+        <h2>Files</h2>
+        <div id="tree-container" class="empty">Upload a ZIP to see its contents.</div>
+      </aside>
+      <main class="pane">
+        <h2>Editor</h2>
+        <div id="editor-area" class="empty">Select a file to edit its contents.</div>
+      </main>
+    </section>
+
+    <dialog id="confirm-dialog">
+      <form method="dialog" class="confirm-form">
+        <h3 id="confirm-title">Confirm action</h3>
+        <p id="confirm-message">Are you sure you want to continue?</p>
+        <div class="confirm-actions">
+          <button value="cancel" type="submit">Cancel</button>
+          <button value="confirm" type="submit" class="primary" id="confirm-accept">
+            Confirm
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js"></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.js"
+      integrity="sha512-8RnEqURPUc5aqFEN04aQEiPlSAdE0jlFS/9iGgUyNtwFnSKCXhmB6ZTNl7LnDtDWKabJIASzXrzD0K+LYexU9g=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/javascript/javascript.min.js"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/xml/xml.min.js"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/css/css.min.js"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/htmlmixed/htmlmixed.min.js"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/markdown/markdown.min.js"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script>
+      const STORAGE_KEY = "webutils.zip-workbench.v1";
+      const zipInput = document.getElementById("zip-input");
+      const downloadLink = document.getElementById("download-link");
+      const clearButton = document.getElementById("clear-zip");
+      const treeContainer = document.getElementById("tree-container");
+      const editorArea = document.getElementById("editor-area");
+      const statusEl = document.getElementById("status");
+      const confirmDialog = document.getElementById("confirm-dialog");
+      const confirmTitle = document.getElementById("confirm-title");
+      const confirmMessage = document.getElementById("confirm-message");
+      const confirmAccept = document.getElementById("confirm-accept");
+
+      const textDecoder = new TextDecoder("utf-8");
+      const textEncoder = new TextEncoder();
+
+      let confirmResolve = null;
+      let persistTimer = null;
+      let editorInstance = null;
+
+      const state = {
+        files: new Map(),
+        selectedPath: null,
+        zipName: "archive.zip",
+        zipBytes: null,
+      };
+
+      const requestConfirmation = ({ title, message, confirmText }) => {
+        if (!confirmDialog || typeof confirmDialog.showModal !== "function") {
+          return Promise.resolve(window.confirm(message || title));
+        }
+        confirmTitle.textContent = title;
+        confirmMessage.textContent = message;
+        confirmAccept.textContent = confirmText || "Confirm";
+        return new Promise((resolve) => {
+          confirmResolve = resolve;
+          confirmDialog.showModal();
+        });
+      };
+
+      confirmDialog.addEventListener("close", () => {
+        if (!confirmResolve) {
+          return;
+        }
+        const confirmed = confirmDialog.returnValue === "confirm";
+        confirmResolve(confirmed);
+        confirmResolve = null;
+      });
+
+      const toBase64 = (bytes) => {
+        let binary = "";
+        const chunkSize = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+        }
+        return btoa(binary);
+      };
+
+      const fromBase64 = (value) => {
+        const binary = atob(value);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+        return bytes;
+      };
+
+      const isTextData = (data) => {
+        const sample = data.subarray(0, 2000);
+        for (const byte of sample) {
+          if (byte === 0) {
+            return false;
+          }
+        }
+        return true;
+      };
+
+      const setStatus = (text) => {
+        statusEl.textContent = text;
+      };
+
+      const clearWorkspace = () => {
+        state.files.clear();
+        state.selectedPath = null;
+        state.zipBytes = null;
+        treeContainer.textContent = "Upload a ZIP to see its contents.";
+        treeContainer.className = "empty";
+        editorArea.textContent = "Select a file to edit its contents.";
+        editorArea.className = "empty";
+        downloadLink.setAttribute("href", "#");
+        downloadLink.setAttribute("download", "archive.zip");
+        setStatus("No ZIP loaded.");
+      };
+
+      const buildTree = (paths) => {
+        const root = {};
+        paths.forEach((path) => {
+          const parts = path.split("/");
+          let current = root;
+          parts.forEach((part, index) => {
+            if (!current[part]) {
+              current[part] = { __children: {}, __isFile: index === parts.length - 1 };
+            }
+            if (index === parts.length - 1) {
+              current[part].__isFile = true;
+            }
+            current = current[part].__children;
+          });
+        });
+        return root;
+      };
+
+      const renderTree = () => {
+        const paths = Array.from(state.files.keys()).sort();
+        if (paths.length === 0) {
+          treeContainer.textContent = "This ZIP has no files.";
+          treeContainer.className = "empty";
+          return;
+        }
+        treeContainer.className = "";
+
+        const root = buildTree(paths);
+
+        const createList = (node, prefix = "") => {
+          const list = document.createElement("ul");
+          list.className = "tree";
+          Object.keys(node).forEach((key) => {
+            const entry = node[key];
+            const item = document.createElement("li");
+            const currentPath = prefix ? `${prefix}/${key}` : key;
+
+            if (entry.__isFile) {
+              const button = document.createElement("button");
+              button.textContent = key;
+              button.className = state.selectedPath === currentPath ? "active" : "";
+              button.addEventListener("click", () => selectFile(currentPath));
+              item.appendChild(button);
+            } else {
+              const label = document.createElement("div");
+              label.textContent = key;
+              label.className = "folder";
+              item.appendChild(label);
+            }
+
+            const children = Object.keys(entry.__children || {});
+            if (children.length > 0) {
+              const nested = createList(entry.__children, currentPath);
+              nested.classList.add("nested");
+              item.appendChild(nested);
+            }
+
+            list.appendChild(item);
+          });
+          return list;
+        };
+
+        treeContainer.innerHTML = "";
+        treeContainer.appendChild(createList(root));
+      };
+
+      const renderEditor = () => {
+        editorArea.innerHTML = "";
+        if (editorInstance) {
+          editorInstance.toTextArea();
+          editorInstance = null;
+        }
+        if (!state.selectedPath) {
+          editorArea.textContent = "Select a file to edit its contents.";
+          editorArea.className = "empty";
+          return;
+        }
+
+        const fileEntry = state.files.get(state.selectedPath);
+        if (!fileEntry) {
+          editorArea.textContent = "File not found.";
+          editorArea.className = "empty";
+          return;
+        }
+
+        const header = document.createElement("div");
+        header.className = "editor-header";
+
+        const pathEl = document.createElement("div");
+        pathEl.className = "path";
+        pathEl.textContent = state.selectedPath;
+
+        const hint = document.createElement("div");
+        hint.className = "hint";
+
+        header.append(pathEl, hint);
+
+        if (!fileEntry.isText) {
+          hint.textContent = "Binary file: editing disabled.";
+          editorArea.append(header);
+          return;
+        }
+
+        hint.textContent = "Changes auto-save into the ZIP.";
+
+        const textarea = document.createElement("textarea");
+        textarea.value = fileEntry.text;
+        editorArea.append(header, textarea);
+        editorArea.className = "";
+
+        editorInstance = CodeMirror.fromTextArea(textarea, {
+          lineNumbers: true,
+          lineWrapping: true,
+          mode: getModeForPath(state.selectedPath),
+        });
+
+        editorInstance.on("change", (cm) => {
+          fileEntry.text = cm.getValue();
+          fileEntry.data = textEncoder.encode(fileEntry.text);
+          schedulePersist();
+        });
+      };
+
+      const getModeForPath = (path) => {
+        const lower = path.toLowerCase();
+        if (lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".cjs")) {
+          return "javascript";
+        }
+        if (lower.endsWith(".json")) {
+          return { name: "javascript", json: true };
+        }
+        if (lower.endsWith(".html") || lower.endsWith(".htm")) {
+          return "htmlmixed";
+        }
+        if (lower.endsWith(".css")) {
+          return "css";
+        }
+        if (lower.endsWith(".md") || lower.endsWith(".markdown")) {
+          return "markdown";
+        }
+        if (lower.endsWith(".xml") || lower.endsWith(".svg")) {
+          return "xml";
+        }
+        return null;
+      };
+
+      const updateDownloadLink = () => {
+        if (!state.zipBytes) {
+          downloadLink.setAttribute("href", "#");
+          return;
+        }
+        const blob = new Blob([state.zipBytes], { type: "application/zip" });
+        const url = URL.createObjectURL(blob);
+        downloadLink.href = url;
+        downloadLink.download = state.zipName || "archive.zip";
+      };
+
+      const persistZip = () => {
+        if (state.files.size === 0) {
+          localStorage.removeItem(STORAGE_KEY);
+          return;
+        }
+
+        const zipInputData = {};
+        state.files.forEach((entry, path) => {
+          zipInputData[path] = entry.data;
+        });
+
+        state.zipBytes = fflate.zipSync(zipInputData, { level: 6 });
+        localStorage.setItem(STORAGE_KEY, toBase64(state.zipBytes));
+        updateDownloadLink();
+        setStatus(`Loaded ${state.files.size} files.`);
+      };
+
+      const schedulePersist = () => {
+        if (persistTimer) {
+          clearTimeout(persistTimer);
+        }
+        persistTimer = setTimeout(() => {
+          persistZip();
+          persistTimer = null;
+        }, 600);
+      };
+
+      const loadZipBytes = (bytes) => {
+        const entries = fflate.unzipSync(bytes);
+        state.files.clear();
+        Object.keys(entries).forEach((path) => {
+          const data = entries[path];
+          const isText = isTextData(data);
+          state.files.set(path, {
+            data,
+            isText,
+            text: isText ? textDecoder.decode(data) : "",
+          });
+        });
+
+        state.selectedPath = null;
+        renderTree();
+        renderEditor();
+        persistZip();
+      };
+
+      const selectFile = (path) => {
+        state.selectedPath = path;
+        renderTree();
+        renderEditor();
+      };
+
+      const handleUpload = (file) => {
+        if (!file) {
+          return;
+        }
+        state.zipName = file.name || "archive.zip";
+        const reader = new FileReader();
+        reader.onload = () => {
+          const buffer = reader.result;
+          loadZipBytes(new Uint8Array(buffer));
+        };
+        reader.readAsArrayBuffer(file);
+      };
+
+      zipInput.addEventListener("change", (event) => {
+        const file = event.target.files[0];
+        if (file) {
+          handleUpload(file);
+        }
+        zipInput.value = "";
+      });
+
+      clearButton.addEventListener("click", async () => {
+        const confirmed = await requestConfirmation({
+          title: "Clear the current ZIP?",
+          message: "This will remove the ZIP from the app and clear saved data.",
+          confirmText: "Clear ZIP",
+        });
+        if (!confirmed) {
+          return;
+        }
+        localStorage.removeItem(STORAGE_KEY);
+        clearWorkspace();
+      });
+
+      const loadFromStorage = () => {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (!stored) {
+          clearWorkspace();
+          return;
+        }
+        try {
+          const bytes = fromBase64(stored);
+          state.zipName = "archive.zip";
+          loadZipBytes(bytes);
+        } catch (error) {
+          clearWorkspace();
+        }
+      };
+
+      loadFromStorage();
+    </script>
+  </body>
+</html>
