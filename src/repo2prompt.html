@@ -194,6 +194,52 @@
         font-size: 0.8rem;
       }
 
+      .file-controls {
+        display: grid;
+        gap: 8px;
+      }
+
+      .file-controls button {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        padding: 6px 10px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+
+      .file-controls button:hover {
+        background-color: var(--accent-soft);
+      }
+
+      .file-controls details {
+        border: 1px solid var(--stroke);
+        border-radius: 10px;
+        padding: 8px;
+      }
+
+      .file-controls summary {
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      .file-controls #extension-filters {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        margin-top: 8px;
+      }
+
+      .file-controls #extension-filters label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.9rem;
+      }
+
       .output-header {
         display: flex;
         flex-wrap: nowrap;
@@ -331,6 +377,25 @@
     <main>
       <section class="panel">
         <h2>Files</h2>
+        <div class="file-controls">
+          <div style="display: flex; gap: 8px;">
+            <button id="select-all" type="button" style="flex: 1;">Select All</button>
+            <button id="deselect-all" type="button" style="flex: 1;">Deselect All</button>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button id="select-visible" type="button" style="flex: 1;">Select Visible</button>
+            <button id="deselect-visible" type="button" style="flex: 1;">Deselect Visible</button>
+          </div>
+          <div style="font-size: 0.85rem; color: var(--muted);" id="file-count">Loading...</div>
+          <details>
+            <summary>Filter by extension</summary>
+            <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+              <button id="filter-select-all" type="button" style="flex: 1; font-size: 0.8rem; padding: 4px 8px;">All</button>
+              <button id="filter-deselect-all" type="button" style="flex: 1; font-size: 0.8rem; padding: 4px 8px;">None</button>
+            </div>
+            <div id="extension-filters"></div>
+          </details>
+        </div>
         <div class="empty" id="file-empty">Load a ZIP to see text files.</div>
         <ul class="file-list" id="file-list"></ul>
       </section>
@@ -386,7 +451,18 @@
       const state = {
         url: "",
         files: [],
+        extensionFilter: new Set(),
+        visibleFiles: [],
       };
+
+      const selectAllButton = document.getElementById("select-all");
+      const deselectAllButton = document.getElementById("deselect-all");
+      const selectVisibleButton = document.getElementById("select-visible");
+      const deselectVisibleButton = document.getElementById("deselect-visible");
+      const filterSelectAllButton = document.getElementById("filter-select-all");
+      const filterDeselectAllButton = document.getElementById("filter-deselect-all");
+      const fileCountDisplay = document.getElementById("file-count");
+      const extensionFiltersContainer = document.getElementById("extension-filters");
 
       const requestConfirmation = ({ title, message, confirmText }) => {
         if (!confirmDialog || typeof confirmDialog.showModal !== "function") {
@@ -436,7 +512,12 @@
 
       const saveState = () => {
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          const stateToSave = {
+            url: state.url,
+            files: state.files,
+            extensionFilter: Array.from(state.extensionFilter),
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
         } catch (error) {
           setStatus("Storage full. Consider clearing or reloading the ZIP.");
         }
@@ -451,9 +532,11 @@
           const parsed = JSON.parse(stored);
           state.url = parsed.url || "";
           state.files = Array.isArray(parsed.files) ? parsed.files : [];
+          state.extensionFilter = new Set(Array.isArray(parsed.extensionFilter) ? parsed.extensionFilter : []);
         } catch (error) {
           state.url = "";
           state.files = [];
+          state.extensionFilter = new Set();
         }
       };
 
@@ -490,16 +573,68 @@
         outputSize.textContent = formatBytes(bytes);
       };
 
+      const getExtension = (path) => {
+        const lastDot = path.lastIndexOf(".");
+        return lastDot > 0 ? path.slice(lastDot) : "(no extension)";
+      };
+
+      const getUniqueExtensions = () => {
+        const extensions = new Set();
+        state.files.forEach((file) => {
+          extensions.add(getExtension(file.path));
+        });
+        return Array.from(extensions).sort();
+      };
+
+      const renderExtensionFilters = () => {
+        extensionFiltersContainer.innerHTML = "";
+        const extensions = getUniqueExtensions();
+        extensions.forEach((ext) => {
+          const label = document.createElement("label");
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.value = ext;
+          checkbox.checked = state.extensionFilter.has(ext);
+          checkbox.addEventListener("change", () => {
+            if (checkbox.checked) {
+              state.extensionFilter.add(ext);
+            } else {
+              state.extensionFilter.delete(ext);
+            }
+            renderFiles();
+          });
+          label.append(checkbox, document.createTextNode(ext));
+          extensionFiltersContainer.appendChild(label);
+        });
+      };
+
       const renderFiles = () => {
         fileList.innerHTML = "";
         if (state.files.length === 0) {
           fileEmpty.style.display = "block";
+          fileCountDisplay.textContent = "No files";
           updateOutput();
           return;
         }
 
         fileEmpty.style.display = "none";
-        state.files.forEach((file) => {
+        const visibleFiles = state.files.filter((file) => {
+          return state.extensionFilter.has(getExtension(file.path));
+        });
+
+        state.visibleFiles = visibleFiles;
+        fileCountDisplay.textContent = `${visibleFiles.length} of ${state.files.length} file${state.files.length === 1 ? "" : "s"}`;
+
+        if (visibleFiles.length === 0) {
+          const emptyMsg = document.createElement("li");
+          emptyMsg.className = "empty";
+          emptyMsg.textContent = "No files match the selected extensions.";
+          fileList.appendChild(emptyMsg);
+          updateOutput();
+          return;
+        }
+
+        visibleFiles.forEach((file) => {
           const row = document.createElement("li");
           row.className = "file-row";
 
@@ -554,7 +689,9 @@
               });
             });
           state.files = files;
+          state.extensionFilter = new Set(getUniqueExtensions());
           saveState();
+          renderExtensionFilters();
           renderFiles();
           setStatus(`Loaded ${files.length} text file${files.length === 1 ? "" : "s"}.`);
         } catch (error) {
@@ -641,6 +778,62 @@
       });
 
       loadButton.addEventListener("click", handleLoad);
+      selectAllButton.addEventListener("click", () => {
+        state.files.forEach((file) => {
+          file.selected = true;
+        });
+        renderFiles();
+        saveState();
+        setStatus("Selected all files.");
+      });
+
+      deselectAllButton.addEventListener("click", () => {
+        state.files.forEach((file) => {
+          file.selected = false;
+        });
+        saveState();
+        renderFiles();
+        setStatus("Deselected all files.");
+      });
+
+      selectVisibleButton.addEventListener("click", () => {
+        state.visibleFiles.forEach((file) => {
+          file.selected = true;
+        });
+        renderFiles();
+        saveState();
+        setStatus(`Selected ${state.visibleFiles.length} visible file${state.visibleFiles.length === 1 ? "" : "s"}.`);
+      });
+
+      deselectVisibleButton.addEventListener("click", () => {
+        state.visibleFiles.forEach((file) => {
+          file.selected = false;
+        });
+        renderFiles();
+        saveState();
+        setStatus(`Deselected ${state.visibleFiles.length} visible file${state.visibleFiles.length === 1 ? "" : "s"}.`);
+      });
+
+      filterSelectAllButton.addEventListener("click", () => {
+        const checkboxes = extensionFiltersContainer.querySelectorAll("input[type='checkbox']");
+        checkboxes.forEach((checkbox) => {
+          checkbox.checked = true;
+          state.extensionFilter.add(checkbox.value);
+        });
+        renderFiles();
+        saveState();
+      });
+
+      filterDeselectAllButton.addEventListener("click", () => {
+        const checkboxes = extensionFiltersContainer.querySelectorAll("input[type='checkbox']");
+        checkboxes.forEach((checkbox) => {
+          checkbox.checked = false;
+          state.extensionFilter.delete(checkbox.value);
+        });
+        renderFiles();
+        saveState();
+      });
+
       fileInput.addEventListener("change", (event) => {
         const file = event.target.files[0];
         if (file) {
@@ -684,6 +877,10 @@
       if (state.url) {
         urlInput.value = state.url;
       }
+      if (state.files.length > 0) {
+        state.extensionFilter = new Set(getUniqueExtensions());
+      }
+      renderExtensionFilters();
       renderFiles();
     </script>
   </body>
