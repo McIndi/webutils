@@ -13,6 +13,7 @@
         --muted: #6b5d54;
         --accent: #ff6a3d;
         --accent-dark: #c64d2c;
+        --danger: #c2412d;
         --card: #fff7ef;
         --stroke: #e1d7cf;
       }
@@ -179,6 +180,180 @@
         gap: 12px;
       }
 
+      .data-card {
+        gap: 16px;
+      }
+
+      .nav-card {
+        gap: 16px;
+      }
+
+      .app-list {
+        display: grid;
+        gap: 14px;
+      }
+
+      .app-row {
+        display: grid;
+        gap: 6px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        border: 1px solid var(--stroke);
+        background: #fff;
+      }
+
+      .app-row a {
+        font-weight: 600;
+        color: var(--ink);
+        text-decoration: none;
+      }
+
+      .app-row a:hover {
+        color: var(--accent-dark);
+      }
+
+      .app-row a[download]:hover {
+        color: var(--accent);
+      }
+
+      .app-meta {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .data-grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      }
+
+      .data-block {
+        background: #fff;
+        border: 1px solid var(--stroke);
+        border-radius: 14px;
+        padding: 14px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .data-block h4 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .checkboxes {
+        display: grid;
+        gap: 8px;
+      }
+
+      .checkboxes label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.95rem;
+      }
+
+      .button {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        padding: 10px 14px;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      .button.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
+      .button.ghost {
+        background: transparent;
+        border-color: var(--ink);
+        color: var(--ink);
+      }
+
+      .button.danger {
+        background: var(--danger);
+        border-color: var(--danger);
+        color: #fff;
+      }
+
+      .file-input {
+        border: 1px dashed var(--stroke);
+        border-radius: 12px;
+        padding: 10px;
+        background: #fff;
+      }
+
+      .muted {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .data-status {
+        background: #fff;
+        border: 1px solid var(--stroke);
+        border-radius: 12px;
+        padding: 10px 12px;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      dialog {
+        border: none;
+        border-radius: 16px;
+        padding: 0;
+        width: min(520px, 92vw);
+        box-shadow: 0 20px 40px rgba(28, 28, 28, 0.25);
+      }
+
+      dialog::backdrop {
+        background: rgba(28, 28, 28, 0.35);
+      }
+
+      .confirm-form {
+        padding: 18px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .confirm-form h3 {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+
+      .confirm-form p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .confirm-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      .confirm-actions button {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        padding: 8px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      .confirm-actions .primary {
+        background: var(--danger);
+        border-color: var(--danger);
+        color: #fff;
+      }
+
       .dot {
         width: 10px;
         height: 10px;
@@ -216,10 +391,6 @@
             computing. Each utility ships as a single HTML file so it is portable, fast, and
             easy to drop anywhere.
           </p>
-          <div class="cta-row">
-            <a class="cta" href="kanban.html">Open the Kanban Task Board</a>
-            <a class="cta ghost" href="#about">What is this?</a>
-          </div>
         </div>
         <ul class="list">
           <li><span class="dot"></span>Zero-install, no build step.</li>
@@ -230,34 +401,312 @@
     </header>
 
     <main id="about">
-      <section class="card-grid">
-        <article class="card">
-          <h3>Kanban Task Board</h3>
-          <p>
-            A lightweight, note-friendly task board that keeps your work in motion.
-            Create cards, attach notes, and drag between columns.
-          </p>
-          <a href="kanban.html">Launch app <span>-></span></a>
-        </article>
-        <article class="card">
-          <h3>Upcoming tools</h3>
-          <p>
-            Shortcuts for file renaming, quick calculators, text transformers, and
-            more. Every tool stays a single file so you can keep them anywhere.
-          </p>
-          <a href="#">Stay tuned <span>-></span></a>
-        </article>
-        <article class="card">
-          <h3>How it works</h3>
-          <p>
-            Everything is built with vanilla HTML, CSS, and JS. Data is stored in
-            `localStorage` so nothing leaves your machine.
-          </p>
-          <a href="#about">Learn the approach <span>-></span></a>
-        </article>
+      <section class="card nav-card" id="app-nav">
+        <h3>Utilities</h3>
+        <p class="muted">Jump into an app and see how much data it currently stores.</p>
+        <div class="app-list" id="app-list"></div>
+      </section>
+
+      <section class="card data-card" id="data-controls">
+        <h3>Data controls</h3>
+        <p class="muted">
+          Backup, restore, or reset saved data across WebUtils apps. Destructive actions
+          require confirmation.
+        </p>
+        <div class="data-grid">
+          <div class="data-block">
+            <h4>Export snapshot</h4>
+            <div id="export-list" class="checkboxes"></div>
+            <button class="button primary" id="export-button" type="button">Export selected</button>
+          </div>
+          <div class="data-block">
+            <h4>Restore snapshot</h4>
+            <input
+              class="file-input"
+              id="import-file"
+              type="file"
+              accept=".json,application/json"
+            />
+            <button class="button ghost" id="import-button" type="button">Import snapshot</button>
+            <small class="muted">Importing overwrites data for matching apps.</small>
+          </div>
+          <div class="data-block">
+            <h4>Clear all data</h4>
+            <p class="muted">Removes saved data for every app in this collection.</p>
+            <button class="button danger" id="clear-all" type="button">Clear all app data</button>
+          </div>
+        </div>
+        <div class="data-status" id="data-status">No data actions yet.</div>
       </section>
     </main>
 
+    <dialog id="confirm-dialog">
+      <form method="dialog" class="confirm-form">
+        <h3 id="confirm-title">Confirm action</h3>
+        <p id="confirm-message">Are you sure you want to continue?</p>
+        <div class="confirm-actions">
+          <button value="cancel" type="submit">Cancel</button>
+          <button value="confirm" type="submit" class="primary" id="confirm-accept">
+            Confirm
+          </button>
+        </div>
+      </form>
+    </dialog>
+
     <footer>Made for quick, quiet productivity. No accounts required.</footer>
+    <script>
+      const APP_REGISTRY = [
+        {
+          id: "kanban",
+          label: "Kanban task board",
+          key: "webutils.kanban.v1",
+          href: "kanban.html",
+          description: "Plan work with lanes, cards, and editable notes.",
+        },
+        {
+          id: "zip-workbench",
+          label: "Zip Workbench",
+          key: "webutils.zip-workbench.v1",
+          href: "zip-workbench.html",
+          description: "Browse, edit, and re-download ZIP contents.",
+        },
+        {
+          id: "regex-workbench",
+          label: "Regex Workbench",
+          key: "webutils.regex-workbench.v1",
+          href: "regex-workbench.html",
+          description: "Test and save regex patterns with live highlighting.",
+        },
+      ];
+
+      const appList = document.getElementById("app-list");
+      const exportList = document.getElementById("export-list");
+      const exportButton = document.getElementById("export-button");
+      const importFile = document.getElementById("import-file");
+      const importButton = document.getElementById("import-button");
+      const clearAllButton = document.getElementById("clear-all");
+      const dataStatus = document.getElementById("data-status");
+
+      const confirmDialog = document.getElementById("confirm-dialog");
+      const confirmTitle = document.getElementById("confirm-title");
+      const confirmMessage = document.getElementById("confirm-message");
+      const confirmAccept = document.getElementById("confirm-accept");
+      let confirmResolve = null;
+
+      const requestConfirmation = ({ title, message, confirmText }) => {
+        if (!confirmDialog || typeof confirmDialog.showModal !== "function") {
+          return Promise.resolve(window.confirm(message || title));
+        }
+        confirmTitle.textContent = title;
+        confirmMessage.textContent = message;
+        confirmAccept.textContent = confirmText || "Confirm";
+        return new Promise((resolve) => {
+          confirmResolve = resolve;
+          confirmDialog.showModal();
+        });
+      };
+
+      confirmDialog.addEventListener("close", () => {
+        if (!confirmResolve) {
+          return;
+        }
+        const confirmed = confirmDialog.returnValue === "confirm";
+        confirmResolve(confirmed);
+        confirmResolve = null;
+      });
+
+      const setStatus = (text) => {
+        dataStatus.textContent = text;
+      };
+
+      const formatBytes = (bytes) => {
+        if (bytes <= 0) {
+          return "0 B";
+        }
+        const units = ["B", "KB", "MB", "GB"];
+        const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+        const value = bytes / 1024 ** index;
+        return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
+      };
+
+      const estimateStoredBytes = (value) => {
+        if (!value) {
+          return 0;
+        }
+        return new TextEncoder().encode(value).length;
+      };
+
+      const renderAppNav = () => {
+        appList.innerHTML = "";
+        APP_REGISTRY.forEach((app) => {
+          const row = document.createElement("div");
+          row.className = "app-row";
+
+          const link = document.createElement("a");
+          link.href = app.href;
+          link.textContent = app.label;
+
+          const downloadLink = document.createElement("a");
+          downloadLink.href = app.href;
+          downloadLink.download = app.href;
+          downloadLink.textContent = "Download";
+          downloadLink.style.fontSize = "0.85rem";
+          downloadLink.style.color = "var(--muted)";
+          downloadLink.style.marginLeft = "auto";
+
+          const description = document.createElement("div");
+          description.textContent = app.description;
+
+          const storedValue = localStorage.getItem(app.key);
+          const bytes = estimateStoredBytes(storedValue);
+          const meta = document.createElement("div");
+          meta.className = "app-meta";
+          meta.textContent = storedValue ? `Stored data: ${formatBytes(bytes)}` : "No data saved";
+
+          const topRow = document.createElement("div");
+          topRow.style.display = "flex";
+          topRow.style.gap = "12px";
+          topRow.style.alignItems = "center";
+          topRow.append(link, downloadLink);
+
+          row.append(topRow, description, meta);
+          appList.appendChild(row);
+        });
+      };
+
+      const renderExportList = () => {
+        exportList.innerHTML = "";
+        APP_REGISTRY.forEach((app) => {
+          const label = document.createElement("label");
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.value = app.id;
+          checkbox.checked = true;
+          label.append(checkbox, document.createTextNode(app.label));
+          exportList.appendChild(label);
+        });
+      };
+
+      const buildSnapshot = (selectedIds) => {
+        const snapshot = {
+          version: 1,
+          createdAt: new Date().toISOString(),
+          apps: {},
+        };
+
+        APP_REGISTRY.forEach((app) => {
+          if (!selectedIds.has(app.id)) {
+            return;
+          }
+          const value = localStorage.getItem(app.key);
+          if (value !== null) {
+            snapshot.apps[app.id] = { key: app.key, value };
+          }
+        });
+
+        return snapshot;
+      };
+
+      const downloadSnapshot = (snapshot) => {
+        const blob = new Blob([JSON.stringify(snapshot, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        link.href = url;
+        link.download = `webutils-snapshot-${timestamp}.json`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      };
+
+      exportButton.addEventListener("click", () => {
+        const selected = new Set(
+          Array.from(exportList.querySelectorAll("input[type='checkbox']"))
+            .filter((checkbox) => checkbox.checked)
+            .map((checkbox) => checkbox.value)
+        );
+
+        if (selected.size === 0) {
+          setStatus("Select at least one app to export.");
+          return;
+        }
+
+        try {
+          const snapshot = buildSnapshot(selected);
+          const count = Object.keys(snapshot.apps).length;
+          if (count === 0) {
+            setStatus("No saved data found for the selected apps.");
+            return;
+          }
+          downloadSnapshot(snapshot);
+          setStatus(`Exported ${count} app data sets.`);
+        } catch (error) {
+          setStatus("Export failed. Check browser storage permissions.");
+        }
+      });
+
+      importButton.addEventListener("click", async () => {
+        const file = importFile.files[0];
+        if (!file) {
+          setStatus("Choose a snapshot file to import.");
+          return;
+        }
+
+        const confirmed = await requestConfirmation({
+          title: "Import snapshot?",
+          message: "This will overwrite saved data for apps included in the snapshot.",
+          confirmText: "Import",
+        });
+
+        if (!confirmed) {
+          return;
+        }
+
+        try {
+          const text = await file.text();
+          const snapshot = JSON.parse(text);
+          if (!snapshot || typeof snapshot !== "object" || !snapshot.apps) {
+            setStatus("Snapshot format not recognized.");
+            return;
+          }
+
+          let restored = 0;
+          APP_REGISTRY.forEach((app) => {
+            const entry = snapshot.apps[app.id];
+            if (entry && typeof entry.value === "string") {
+              localStorage.setItem(app.key, entry.value);
+              restored += 1;
+            }
+          });
+
+          setStatus(`Imported data for ${restored} app(s).`);
+        } catch (error) {
+          setStatus("Import failed. The file may be invalid.");
+        } finally {
+          importFile.value = "";
+        }
+      });
+
+      clearAllButton.addEventListener("click", async () => {
+        const confirmed = await requestConfirmation({
+          title: "Clear all app data?",
+          message: "This removes saved data for every app in WebUtils.",
+          confirmText: "Clear all",
+        });
+        if (!confirmed) {
+          return;
+        }
+
+        APP_REGISTRY.forEach((app) => localStorage.removeItem(app.key));
+        setStatus("Cleared all saved app data.");
+        renderAppNav();
+      });
+
+      renderExportList();
+      renderAppNav();
+    </script>
   </body>
 </html>

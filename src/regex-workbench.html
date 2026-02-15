@@ -1,0 +1,918 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Regex Workbench - WebUtils</title>
+    <style>
+      :root {
+        --bg: #f6f1ea;
+        --ink: #1f1b16;
+        --muted: #6e6257;
+        --panel: #fff8f1;
+        --stroke: #e3d7cd;
+        --accent: #2e7d68;
+        --accent-dark: #1f5b4b;
+        --warn: #c2412d;
+        --highlight: #ffe2a8;
+        --highlight-border: #f5c46a;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Trebuchet MS", "Verdana", sans-serif;
+        color: var(--ink);
+        background: radial-gradient(900px 600px at 12% -10%, #fbd7c2 0%, transparent 60%),
+          radial-gradient(700px 500px at 120% 10%, #d2ebe7 0%, transparent 60%),
+          var(--bg);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      header {
+        width: 100%;
+        padding: 24px 28px 10px;
+        display: grid;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+
+      header h1 {
+        margin: 0;
+        font-family: "Georgia", "Times New Roman", serif;
+        font-size: clamp(1.6rem, 3vw, 2.2rem);
+      }
+
+      header p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+        font-size: 0.9rem;
+      }
+
+      .toolbar {
+        width: 100%;
+        padding: 0 28px 12px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        flex-shrink: 0;
+      }
+
+      .toolbar a {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        padding: 8px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        text-decoration: none;
+        color: var(--ink);
+      }
+
+      main {
+        width: 100%;
+        flex: 1;
+        padding: 0 20px 20px;
+        display: grid;
+        gap: 14px;
+        min-height: 0;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--stroke);
+        border-radius: 18px;
+        padding: 16px;
+        display: grid;
+        gap: 14px;
+      }
+
+      .panel-compact {
+        padding: 14px;
+        gap: 10px;
+      }
+
+      .workspace-tabs {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        gap: 8px;
+        min-height: 0;
+      }
+
+      .tab-buttons {
+        display: flex;
+        gap: 8px;
+        border-bottom: 1px solid var(--stroke);
+        padding-bottom: 10px;
+      }
+
+      .tab-button {
+        padding: 8px 12px;
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        font-weight: 600;
+        font-size: 0.85rem;
+        cursor: pointer;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -10px;
+        transition: all 0.15s ease;
+      }
+
+      .tab-button.active {
+        color: var(--ink);
+        border-bottom-color: var(--accent);
+      }
+
+      .tab-button:hover:not(.active) {
+        color: var(--ink);
+      }
+
+      .tab-content {
+        display: none;
+        min-height: 0;
+        flex: 1;
+      }
+
+      .tab-content.active {
+        display: grid;
+      }
+
+      .panel h2 {
+        margin: 0;
+        font-size: 1.1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }
+
+      .regex-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: minmax(240px, 1fr) auto;
+        align-items: end;
+      }
+
+      label {
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      input[type="text"],
+      textarea {
+        width: 100%;
+        font: inherit;
+        border-radius: 12px;
+        border: 1px solid var(--stroke);
+        padding: 10px 12px;
+        background: #fff;
+      }
+
+      textarea {
+        min-height: 160px;
+        resize: vertical;
+        font-family: "Consolas", "Courier New", monospace;
+      }
+
+      .sample-textarea {
+        min-height: 0;
+        flex: 1;
+      }
+
+      .flags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .flags label {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid var(--stroke);
+        border-radius: 999px;
+        padding: 6px 10px;
+        background: #fff;
+        font-size: 0.85rem;
+        color: var(--ink);
+      }
+
+      .button {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        padding: 10px 14px;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      .button.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
+      .button.ghost {
+        background: transparent;
+        border-color: var(--ink);
+        color: var(--ink);
+      }
+
+      .button.danger {
+        background: var(--warn);
+        border-color: var(--warn);
+        color: #fff;
+      }
+
+      .status {
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      .status.error {
+        color: var(--warn);
+      }
+
+      .workspace {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      }
+
+      .workspace-full {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        min-height: 0;
+      }
+
+      .preview {
+        background: #fff;
+        border: 1px solid var(--stroke);
+        border-radius: 14px;
+        padding: 12px;
+        min-height: 180px;
+        white-space: pre-wrap;
+        font-family: "Consolas", "Courier New", monospace;
+      }
+
+      .preview mark {
+        background: var(--highlight);
+        border-bottom: 2px solid var(--highlight-border);
+        padding: 0 2px;
+      }
+
+      .zero-width {
+        display: inline-block;
+        width: 6px;
+        border-left: 2px solid var(--warn);
+        margin: 0 1px;
+        height: 1em;
+        vertical-align: middle;
+      }
+
+      .preset-grid {
+        display: grid;
+        gap: 12px;
+      }
+
+      .preset-row {
+        background: #fff;
+        border: 1px solid var(--stroke);
+        border-radius: 14px;
+        padding: 12px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .capture-groups {
+        max-height: 200px;
+        overflow: auto;
+        background: #fff;
+        border: 1px solid var(--stroke);
+        border-radius: 12px;
+        padding: 12px;
+      }
+
+      .capture-empty {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .capture-group {
+        display: grid;
+        gap: 4px;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--stroke);
+      }
+
+      .capture-group:last-child {
+        border-bottom: none;
+      }
+
+      .capture-name {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: var(--ink);
+        font-family: "Consolas", "Courier New", monospace;
+      }
+
+      .capture-value {
+        color: var(--muted);
+        font-size: 0.85rem;
+        word-break: break-word;
+        font-family: "Consolas", "Courier New", monospace;
+      }
+
+      .stats {
+        display: flex;
+        gap: 16px;
+        padding: 8px 0;
+        font-size: 0.9rem;
+      }
+
+      .stat {
+        display: flex;
+        gap: 4px;
+        flex-direction: column;
+      }
+
+      .stat-value {
+        font-weight: 600;
+        color: var(--accent);
+        font-size: 1.1rem;
+      }
+
+      .stat-label {
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+
+      .preset-row h3 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .preset-meta {
+        color: var(--muted);
+        font-size: 0.85rem;
+        word-break: break-word;
+      }
+
+      .preset-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      dialog {
+        border: none;
+        border-radius: 16px;
+        padding: 0;
+        width: min(520px, 92vw);
+        box-shadow: 0 20px 40px rgba(31, 27, 22, 0.25);
+      }
+
+      dialog::backdrop {
+        background: rgba(31, 27, 22, 0.35);
+      }
+
+      .confirm-form {
+        padding: 18px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .confirm-form h3 {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+
+      .confirm-form p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .confirm-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      .confirm-actions button {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        padding: 8px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      .confirm-actions .primary {
+        background: var(--warn);
+        border-color: var(--warn);
+        color: #fff;
+      }
+
+      @media (max-width: 720px) {
+        header {
+          padding-top: 24px;
+        }
+
+        .regex-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Regex Workbench</h1>
+      <p>Test patterns, highlight matches, and save reusable expressions for later.</p>
+    </header>
+
+    <div class="toolbar">
+      <a href="index.html">Back to index</a>
+    </div>
+
+    <main>
+      <section class="panel panel-compact">
+        <h2>Pattern</h2>
+        <div class="regex-grid">
+          <div>
+            <label for="pattern">Regular expression</label>
+            <input id="pattern" type="text" placeholder="Enter regex pattern..." />
+          </div>
+          <div>
+            <label for="preset-name">Preset name</label>
+            <input id="preset-name" type="text" placeholder="Save as..." />
+          </div>
+        </div>
+        <div class="flags" id="flag-controls">
+          <label><input type="checkbox" value="i" /> i - Ignore case</label>
+          <label><input type="checkbox" value="m" /> m - Multiline</label>
+          <label><input type="checkbox" value="s" /> s - Dot all</label>
+          <label><input type="checkbox" value="u" /> u - Unicode</label>
+          <label><input type="checkbox" value="g" /> g - Global</label>
+        </div>
+        <div class="status" id="regex-status">Start typing to see matches.</div>
+        <div class="preset-actions">
+          <button class="button primary" id="save-preset" type="button">Save preset</button>
+          <button class="button ghost" id="clear-sample" type="button">Clear sample text</button>
+        </div>
+      </section>
+
+      <section class="panel panel-compact">
+        <h2>Capture groups (first match)</h2>
+        <div class="capture-groups" id="capture-groups"></div>
+      </section>
+
+      <section class="panel panel-compact">
+        <h2>Saved presets</h2>
+        <div class="preset-grid" id="preset-list"></div>
+      </section>
+
+      <section class="panel panel-compact workspace-tabs">
+        <div class="tab-buttons">
+          <button class="tab-button active" data-tab="sample">Sample text</button>
+          <button class="tab-button" data-tab="preview">Highlighted matches</button>
+        </div>
+        <div id="sample" class="tab-content active">
+          <textarea id="sample-text" class="sample-textarea" placeholder="Paste or type text to test your regex..."></textarea>
+        </div>
+        <div id="preview" class="tab-content">
+          <div style="display: grid; gap: 10px; min-height: 0;">
+            <div>
+              <div class="stats">
+                <div class="stat">
+                  <span class="stat-value" id="match-count">0</span>
+                  <span class="stat-label">matches</span>
+                </div>
+              </div>
+            </div>
+            <div class="preview" id="match-preview">Add sample text to highlight matches.</div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <dialog id="confirm-dialog">
+      <form method="dialog" class="confirm-form">
+        <h3 id="confirm-title">Confirm action</h3>
+        <p id="confirm-message">Are you sure you want to continue?</p>
+        <div class="confirm-actions">
+          <button value="cancel" type="submit">Cancel</button>
+          <button value="confirm" type="submit" class="primary" id="confirm-accept">
+            Confirm
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <script>
+      const STORAGE_KEY = "webutils.regex-workbench.v1";
+
+      const patternInput = document.getElementById("pattern");
+      const presetNameInput = document.getElementById("preset-name");
+      const sampleText = document.getElementById("sample-text");
+      const matchPreview = document.getElementById("match-preview");
+      const presetList = document.getElementById("preset-list");
+      const savePresetButton = document.getElementById("save-preset");
+      const clearSampleButton = document.getElementById("clear-sample");
+      const regexStatus = document.getElementById("regex-status");
+      const flagControls = document.getElementById("flag-controls");
+
+      const confirmDialog = document.getElementById("confirm-dialog");
+      const confirmTitle = document.getElementById("confirm-title");
+      const confirmMessage = document.getElementById("confirm-message");
+      const confirmAccept = document.getElementById("confirm-accept");
+      let confirmResolve = null;
+
+      // Tab switching
+      document.querySelectorAll(".tab-button").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const tabName = btn.getAttribute("data-tab");
+          document.querySelectorAll(".tab-button").forEach((b) => b.classList.remove("active"));
+          document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
+          btn.classList.add("active");
+          document.getElementById(tabName).classList.add("active");
+        });
+      });
+
+      const state = {
+        pattern: "",
+        flags: "g",
+        sample: "",
+        presets: [],
+      };
+
+      const requestConfirmation = ({ title, message, confirmText }) => {
+        if (!confirmDialog || typeof confirmDialog.showModal !== "function") {
+          return Promise.resolve(window.confirm(message || title));
+        }
+        confirmTitle.textContent = title;
+        confirmMessage.textContent = message;
+        confirmAccept.textContent = confirmText || "Confirm";
+        return new Promise((resolve) => {
+          confirmResolve = resolve;
+          confirmDialog.showModal();
+        });
+      };
+
+      confirmDialog.addEventListener("close", () => {
+        if (!confirmResolve) {
+          return;
+        }
+        const confirmed = confirmDialog.returnValue === "confirm";
+        confirmResolve(confirmed);
+        confirmResolve = null;
+      });
+
+      const saveState = () => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      };
+
+      const loadState = () => {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (!stored) {
+          return;
+        }
+        try {
+          const parsed = JSON.parse(stored);
+          state.pattern = parsed.pattern || "";
+          state.flags = parsed.flags || "g";
+          state.sample = parsed.sample || "";
+          state.presets = Array.isArray(parsed.presets) ? parsed.presets : [];
+        } catch (error) {
+          state.pattern = "";
+          state.flags = "g";
+          state.sample = "";
+          state.presets = [];
+        }
+      };
+
+      const escapeHtml = (value) =>
+        value.replace(/[&<>\""]/g, (char) => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          "\"": "&quot;",
+        })[char]);
+
+      const getFlagsFromUI = () => {
+        const flags = Array.from(flagControls.querySelectorAll("input[type='checkbox']"))
+          .filter((checkbox) => checkbox.checked)
+          .map((checkbox) => checkbox.value)
+          .join("");
+        return flags || "";
+      };
+
+      const syncFlagsToUI = () => {
+        const flagSet = new Set(state.flags.split(""));
+        flagControls.querySelectorAll("input[type='checkbox']").forEach((checkbox) => {
+          checkbox.checked = flagSet.has(checkbox.value);
+        });
+      };
+
+      const describeFlags = (flags) => (flags ? `/${flags}` : "(no flags)");
+
+      const ensureGlobal = (flags) => (flags.includes("g") ? flags : `${flags}g`);
+
+      const highlightMatches = (text, regex) => {
+        let result = "";
+        let lastIndex = 0;
+        let matches = 0;
+        let match;
+        let firstMatch = null;
+
+        while ((match = regex.exec(text)) !== null) {
+          const start = match.index;
+          const value = match[0];
+          const end = start + value.length;
+
+          if (!firstMatch) {
+            firstMatch = match;
+          }
+
+          result += escapeHtml(text.slice(lastIndex, start));
+
+          if (end === start) {
+            result += '<span class="zero-width"></span>';
+            regex.lastIndex += 1;
+            lastIndex = regex.lastIndex;
+            matches += 1;
+            continue;
+          }
+
+          result += `<mark>${escapeHtml(value)}</mark>`;
+          lastIndex = end;
+          matches += 1;
+        }
+
+        result += escapeHtml(text.slice(lastIndex));
+        return { html: result, matches, firstMatch };
+      };
+
+      const renderPreview = () => {
+        const pattern = state.pattern.trim();
+        const text = state.sample;
+        const captureGroups = document.getElementById("capture-groups");
+        const matchCount = document.getElementById("match-count");
+
+        if (!pattern && !text) {
+          matchPreview.textContent = "Add sample text to highlight matches.";
+          regexStatus.textContent = "Start typing to see matches.";
+          matchCount.textContent = "0";
+          captureGroups.innerHTML = '<div class="capture-empty">No pattern entered.</div>';
+          regexStatus.classList.remove("error");
+          return;
+        }
+
+        if (!pattern) {
+          matchPreview.textContent = text || "Add sample text to highlight matches.";
+          regexStatus.textContent = "Enter a regex pattern to highlight matches.";
+          matchCount.textContent = "0";
+          captureGroups.innerHTML = '<div class="capture-empty">No pattern entered.</div>';
+          regexStatus.classList.remove("error");
+          return;
+        }
+
+        try {
+          const flags = ensureGlobal(state.flags);
+          const regex = new RegExp(pattern, flags);
+          const { html, matches, firstMatch } = highlightMatches(text, regex);
+          matchPreview.innerHTML = html || "";
+          matchCount.textContent = matches;
+          regexStatus.textContent = `${matches} match${matches === 1 ? "" : "es"} using /${pattern}/${flags}`;
+          regexStatus.classList.remove("error");
+
+          if (firstMatch && firstMatch.length > 1) {
+            captureGroups.innerHTML = "";
+            const namedGroups = firstMatch.groups || {};
+            let hasNamedGroups = Object.keys(namedGroups).length > 0;
+
+            if (firstMatch.length > 1) {
+              for (let i = 1; i < firstMatch.length; i++) {
+                const value = firstMatch[i];
+                if (value === undefined) {
+                  continue;
+                }
+                const groupDiv = document.createElement("div");
+                groupDiv.className = "capture-group";
+
+                const nameDiv = document.createElement("div");
+                nameDiv.className = "capture-name";
+                nameDiv.textContent = `Group ${i}`;
+                groupDiv.appendChild(nameDiv);
+
+                const valueDiv = document.createElement("div");
+                valueDiv.className = "capture-value";
+                valueDiv.textContent = value || "(empty)";
+                groupDiv.appendChild(valueDiv);
+
+                captureGroups.appendChild(groupDiv);
+              }
+            }
+
+            if (hasNamedGroups) {
+              Object.entries(namedGroups).forEach(([name, value]) => {
+                const groupDiv = document.createElement("div");
+                groupDiv.className = "capture-group";
+
+                const nameDiv = document.createElement("div");
+                nameDiv.className = "capture-name";
+                nameDiv.textContent = `?<${name}>`;
+                groupDiv.appendChild(nameDiv);
+
+                const valueDiv = document.createElement("div");
+                valueDiv.className = "capture-value";
+                valueDiv.textContent = value || "(empty)";
+                groupDiv.appendChild(valueDiv);
+
+                captureGroups.appendChild(groupDiv);
+              });
+            }
+
+            if (captureGroups.children.length === 0) {
+              captureGroups.innerHTML = '<div class="capture-empty">No capturing groups.</div>';
+            }
+          } else {
+            captureGroups.innerHTML = '<div class="capture-empty">No capturing groups.</div>';
+          }
+        } catch (error) {
+          matchPreview.textContent = text || "Add sample text to highlight matches.";
+          regexStatus.textContent = `Regex error: ${error.message}`;
+          matchCount.textContent = "0";
+          captureGroups.innerHTML = '<div class="capture-empty">Invalid regex.</div>';
+          regexStatus.classList.add("error");
+        }
+      };
+
+      const renderPresets = () => {
+        presetList.innerHTML = "";
+        if (state.presets.length === 0) {
+          const empty = document.createElement("div");
+          empty.className = "status";
+          empty.textContent = "No presets saved yet.";
+          presetList.appendChild(empty);
+          return;
+        }
+
+        state.presets.forEach((preset) => {
+          const row = document.createElement("div");
+          row.className = "preset-row";
+
+          const title = document.createElement("h3");
+          title.textContent = preset.name;
+
+          const meta = document.createElement("div");
+          meta.className = "preset-meta";
+          meta.textContent = `/${preset.pattern}/${preset.flags || ""}`;
+
+          const actions = document.createElement("div");
+          actions.className = "preset-actions";
+
+          const applyBtn = document.createElement("button");
+          applyBtn.type = "button";
+          applyBtn.className = "button primary";
+          applyBtn.textContent = "Load";
+          applyBtn.addEventListener("click", () => {
+            state.pattern = preset.pattern;
+            state.flags = preset.flags || "";
+            patternInput.value = state.pattern;
+            syncFlagsToUI();
+            renderPreview();
+            saveState();
+          });
+
+          const deleteBtn = document.createElement("button");
+          deleteBtn.type = "button";
+          deleteBtn.className = "button danger";
+          deleteBtn.textContent = "Delete";
+          deleteBtn.addEventListener("click", async () => {
+            const confirmed = await requestConfirmation({
+              title: "Delete this preset?",
+              message: `This removes the preset "${preset.name}".`,
+              confirmText: "Delete",
+            });
+            if (!confirmed) {
+              return;
+            }
+            state.presets = state.presets.filter((item) => item.id !== preset.id);
+            saveState();
+            renderPresets();
+          });
+
+          actions.append(applyBtn, deleteBtn);
+          row.append(title, meta, actions);
+          presetList.appendChild(row);
+        });
+      };
+
+      const handleSavePreset = async () => {
+        const name = presetNameInput.value.trim();
+        if (!name) {
+          regexStatus.textContent = "Give the preset a name before saving.";
+          regexStatus.classList.add("error");
+          return;
+        }
+
+        if (!state.pattern.trim()) {
+          regexStatus.textContent = "Enter a regex pattern before saving.";
+          regexStatus.classList.add("error");
+          return;
+        }
+
+        const existing = state.presets.find((preset) => preset.name === name);
+        if (existing) {
+          const confirmed = await requestConfirmation({
+            title: "Overwrite existing preset?",
+            message: `A preset named "${name}" already exists. Overwrite it?`,
+            confirmText: "Overwrite",
+          });
+          if (!confirmed) {
+            return;
+          }
+        }
+
+        const preset = {
+          id: existing ? existing.id : crypto.randomUUID(),
+          name,
+          pattern: state.pattern,
+          flags: state.flags,
+          updatedAt: Date.now(),
+        };
+
+        if (existing) {
+          state.presets = state.presets.map((item) => (item.id === existing.id ? preset : item));
+        } else {
+          state.presets.unshift(preset);
+        }
+
+        saveState();
+        renderPresets();
+        regexStatus.textContent = `Saved preset "${name}" (${describeFlags(state.flags)}).`;
+        regexStatus.classList.remove("error");
+      };
+
+      const handleClearSample = async () => {
+        if (!state.sample) {
+          return;
+        }
+        const confirmed = await requestConfirmation({
+          title: "Clear sample text?",
+          message: "This removes the current sample text.",
+          confirmText: "Clear",
+        });
+        if (!confirmed) {
+          return;
+        }
+        state.sample = "";
+        sampleText.value = "";
+        saveState();
+        renderPreview();
+      };
+
+      const syncInputsFromState = () => {
+        patternInput.value = state.pattern;
+        sampleText.value = state.sample;
+        syncFlagsToUI();
+      };
+
+      patternInput.addEventListener("input", () => {
+        state.pattern = patternInput.value;
+        saveState();
+        renderPreview();
+      });
+
+      sampleText.addEventListener("input", () => {
+        state.sample = sampleText.value;
+        saveState();
+        renderPreview();
+      });
+
+      flagControls.addEventListener("change", () => {
+        state.flags = getFlagsFromUI();
+        saveState();
+        renderPreview();
+      });
+
+      savePresetButton.addEventListener("click", handleSavePreset);
+      clearSampleButton.addEventListener("click", handleClearSample);
+
+      loadState();
+      syncInputsFromState();
+      renderPresets();
+      renderPreview();
+    </script>
+  </body>
+</html>
