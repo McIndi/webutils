@@ -37,9 +37,8 @@
 
       header {
         width: 100%;
-        max-width: 1200px;
         padding: 28px 24px 10px;
-        margin: 0 auto;
+        margin: 0;
         display: grid;
         gap: 8px;
       }
@@ -58,8 +57,7 @@
 
       .toolbar {
         width: 100%;
-        max-width: 1200px;
-        margin: 0 auto;
+        margin: 0;
         padding: 0 24px 18px;
         display: flex;
         flex-wrap: wrap;
@@ -113,13 +111,13 @@
 
       main {
         width: 100%;
-        max-width: 1200px;
-        margin: 0 auto;
+        margin: 0;
         padding: 0 24px 32px;
         display: grid;
         gap: 16px;
-        grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+        grid-template-columns: var(--split-pos, 380px) minmax(0, 1fr);
         min-height: 0;
+        position: relative;
       }
 
       .panel {
@@ -129,6 +127,7 @@
         padding: 16px;
         display: grid;
         gap: 14px;
+        align-content: start;
         min-height: 0;
       }
 
@@ -152,18 +151,42 @@
       .file-row {
         display: grid;
         grid-template-columns: auto 1fr;
-        gap: 10px;
+        gap: 8px;
         align-items: start;
-        padding: 8px 10px;
+        padding: 6px 8px;
         border-radius: 12px;
         border: 1px solid var(--stroke);
         background: #fff;
+      }
+
+      main.resizing {
+        user-select: none;
+      }
+
+      .resize-handle {
+        position: absolute;
+        width: 4px;
+        height: 100%;
+        cursor: col-resize;
+        left: calc(var(--split-pos, 380px) - 2px);
+        background: transparent;
+      }
+
+      .resize-handle:hover {
+        background: var(--accent);
       }
 
       .file-row label {
         display: grid;
         gap: 4px;
         font-size: 0.95rem;
+        min-width: 0;
+      }
+
+      .file-title {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .file-meta {
@@ -173,14 +196,19 @@
 
       .output-header {
         display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
+        flex-wrap: nowrap;
+        gap: 8px;
         align-items: center;
+      }
+
+      .output-header h2 {
+        line-height: 1;
       }
 
       .output-header .size {
         color: var(--muted);
         font-size: 0.9rem;
+        white-space: nowrap;
       }
 
       .output-header button {
@@ -264,6 +292,16 @@
           grid-template-columns: 1fr;
         }
       }
+
+      @media (max-width: 720px) {
+        .output-header {
+          flex-wrap: wrap;
+        }
+
+        .output-header button {
+          margin-left: 0;
+        }
+      }
     </style>
   </head>
   <body>
@@ -304,6 +342,7 @@
         </div>
         <textarea id="output" readonly placeholder="Select files to build output."></textarea>
       </section>
+      <div class="resize-handle" id="resize-handle"></div>
     </main>
 
     <dialog id="confirm-dialog">
@@ -332,6 +371,8 @@
       const outputSize = document.getElementById("output-size");
       const outputArea = document.getElementById("output");
       const copyButton = document.getElementById("copy-output");
+      const resizeHandle = document.getElementById("resize-handle");
+      const mainElement = document.querySelector("main");
 
       const confirmDialog = document.getElementById("confirm-dialog");
       const confirmTitle = document.getElementById("confirm-title");
@@ -421,9 +462,25 @@
         if (selected.length === 0) {
           return "";
         }
+        const boundary = createUniqueBoundary(selected);
         return selected
-          .map((file) => `----- ${file.path} -----\n${file.content}`)
+          .map((file, index) => {
+            const prev = index > 0 ? selected[index - 1].path : "";
+            const context = prev ? `${prev} -> ${file.path}` : file.path;
+            const header = `=== FILE BOUNDARY ${boundary} ${context} ===`;
+            return `${header}\n${file.path}\n\n${file.content}`;
+          })
           .join("\n\n");
+      };
+
+      const createUniqueBoundary = (files) => {
+        let token = "";
+        let prefix = "";
+        do {
+          token = Math.random().toString(36).slice(2, 10);
+          prefix = `=== FILE BOUNDARY ${token}`;
+        } while (files.some((file) => file.content.includes(prefix)));
+        return token;
       };
 
       const updateOutput = () => {
@@ -457,7 +514,9 @@
 
           const label = document.createElement("label");
           const title = document.createElement("div");
+          title.className = "file-title";
           title.textContent = file.path;
+          title.title = file.path;
           const meta = document.createElement("div");
           meta.className = "file-meta";
           meta.textContent = `${formatBytes(file.bytes)} | ${file.lines} lines`;
@@ -477,6 +536,9 @@
           Object.keys(entries)
             .sort()
             .forEach((path) => {
+              if (path.endsWith("/")) {
+                return;
+              }
               const data = entries[path];
               if (!isTextData(data)) {
                 return;
@@ -590,6 +652,32 @@
       urlInput.addEventListener("change", () => {
         state.url = urlInput.value.trim();
         saveState();
+      });
+
+      // Resize handle logic
+      let isResizing = false;
+      let startX = 0;
+      let startPos = 380;
+
+      resizeHandle.addEventListener("mousedown", (e) => {
+        isResizing = true;
+        startX = e.clientX;
+        startPos = parseInt(getComputedStyle(mainElement).getPropertyValue("--split-pos"), 10) || 380;
+        mainElement.classList.add("resizing");
+      });
+
+      document.addEventListener("mousemove", (e) => {
+        if (!isResizing) return;
+        const delta = e.clientX - startX;
+        const newPos = Math.max(240, Math.min(startPos + delta, mainElement.clientWidth - 240));
+        mainElement.style.setProperty("--split-pos", `${newPos}px`);
+      });
+
+      document.addEventListener("mouseup", () => {
+        if (isResizing) {
+          isResizing = false;
+          mainElement.classList.remove("resizing");
+        }
       });
 
       loadState();
