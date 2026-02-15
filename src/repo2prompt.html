@@ -1,0 +1,602 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Repo2Prompt - WebUtils</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Work+Sans:wght@400;500;600&display=swap");
+
+      :root {
+        --bg: #f4f0e9;
+        --ink: #1e1b18;
+        --muted: #6f645b;
+        --panel: #fff7ef;
+        --stroke: #e2d6cb;
+        --accent: #2f6f91;
+        --accent-dark: #245775;
+        --accent-soft: rgba(47, 111, 145, 0.16);
+        --warn: #c2412d;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Work Sans", "Segoe UI", sans-serif;
+        color: var(--ink);
+        background: radial-gradient(900px 600px at 10% -10%, #f7d7c0 0%, transparent 60%),
+          radial-gradient(700px 500px at 120% 10%, #cfe7f2 0%, transparent 60%),
+          var(--bg);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      header {
+        width: 100%;
+        max-width: 1200px;
+        padding: 28px 24px 10px;
+        margin: 0 auto;
+        display: grid;
+        gap: 8px;
+      }
+
+      header h1 {
+        margin: 0;
+        font-family: "Fraunces", serif;
+        font-size: clamp(2rem, 4vw, 3rem);
+      }
+
+      header p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .toolbar {
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 24px 18px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .toolbar input[type="url"] {
+        flex: 1 1 320px;
+        min-width: 240px;
+        font: inherit;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid var(--stroke);
+        background: #fff;
+      }
+
+      .toolbar input[type="file"] {
+        display: none;
+      }
+
+      .toolbar button,
+      .toolbar a,
+      .toolbar label {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        padding: 10px 16px;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: 600;
+        text-decoration: none;
+        color: var(--ink);
+      }
+
+      .toolbar .primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
+      .toolbar .danger {
+        color: var(--warn);
+        border-color: var(--warn);
+      }
+
+      .toolbar .status {
+        flex-basis: 100%;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      main {
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 24px 32px;
+        display: grid;
+        gap: 16px;
+        grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+        min-height: 0;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--stroke);
+        border-radius: 16px;
+        padding: 16px;
+        display: grid;
+        gap: 14px;
+        min-height: 0;
+      }
+
+      .panel h2 {
+        margin: 0;
+        font-size: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }
+
+      .file-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 10px;
+        overflow: auto;
+      }
+
+      .file-row {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 10px;
+        align-items: start;
+        padding: 8px 10px;
+        border-radius: 12px;
+        border: 1px solid var(--stroke);
+        background: #fff;
+      }
+
+      .file-row label {
+        display: grid;
+        gap: 4px;
+        font-size: 0.95rem;
+      }
+
+      .file-meta {
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+
+      .output-header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .output-header .size {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .output-header button {
+        margin-left: auto;
+        border: 1px solid var(--stroke);
+        background: var(--accent);
+        color: #fff;
+        padding: 8px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 360px;
+        border-radius: 14px;
+        border: 1px solid var(--stroke);
+        padding: 12px;
+        font: 0.95rem/1.5 "Consolas", "Courier New", monospace;
+        background: #fff;
+        resize: vertical;
+      }
+
+      .empty {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      dialog {
+        border: none;
+        border-radius: 16px;
+        padding: 0;
+        width: min(520px, 92vw);
+        box-shadow: 0 20px 40px rgba(30, 27, 24, 0.25);
+      }
+
+      dialog::backdrop {
+        background: rgba(30, 27, 24, 0.35);
+      }
+
+      .confirm-form {
+        padding: 18px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .confirm-form h3 {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+
+      .confirm-form p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .confirm-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      .confirm-actions button {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        padding: 8px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      .confirm-actions .primary {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+
+      @media (max-width: 900px) {
+        main {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Repo2Prompt</h1>
+      <p>
+        Paste a ZIP URL, pick the files you want, and copy a combined prompt-friendly
+        payload.
+      </p>
+    </header>
+
+    <div class="toolbar">
+      <input
+        id="zip-url"
+        type="url"
+        placeholder="Paste a .zip URL (for example: https://github.com/org/repo/archive/refs/heads/main.zip)"
+        spellcheck="false"
+      />
+      <button class="primary" id="load-zip" type="button">Load ZIP</button>
+      <label for="zip-file">Load from file</label>
+      <input id="zip-file" type="file" accept=".zip" />
+      <button class="danger" id="clear-session" type="button">Clear</button>
+      <a href="index.html">Back to index</a>
+      <div class="status" id="status">No ZIP loaded.</div>
+    </div>
+
+    <main>
+      <section class="panel">
+        <h2>Files</h2>
+        <div class="empty" id="file-empty">Load a ZIP to see text files.</div>
+        <ul class="file-list" id="file-list"></ul>
+      </section>
+      <section class="panel">
+        <div class="output-header">
+          <h2>Output</h2>
+          <span class="size" id="output-size">0 B</span>
+          <button id="copy-output" type="button">Copy output</button>
+        </div>
+        <textarea id="output" readonly placeholder="Select files to build output."></textarea>
+      </section>
+    </main>
+
+    <dialog id="confirm-dialog">
+      <form method="dialog" class="confirm-form">
+        <h3 id="confirm-title">Confirm action</h3>
+        <p id="confirm-message">Are you sure you want to continue?</p>
+        <div class="confirm-actions">
+          <button value="cancel" type="submit">Cancel</button>
+          <button value="confirm" type="submit" class="primary" id="confirm-accept">
+            Confirm
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js"></script>
+    <script>
+      const STORAGE_KEY = "webutils.repo2prompt.v1";
+      const urlInput = document.getElementById("zip-url");
+      const loadButton = document.getElementById("load-zip");
+      const fileInput = document.getElementById("zip-file");
+      const clearButton = document.getElementById("clear-session");
+      const statusEl = document.getElementById("status");
+      const fileList = document.getElementById("file-list");
+      const fileEmpty = document.getElementById("file-empty");
+      const outputSize = document.getElementById("output-size");
+      const outputArea = document.getElementById("output");
+      const copyButton = document.getElementById("copy-output");
+
+      const confirmDialog = document.getElementById("confirm-dialog");
+      const confirmTitle = document.getElementById("confirm-title");
+      const confirmMessage = document.getElementById("confirm-message");
+      const confirmAccept = document.getElementById("confirm-accept");
+
+      const textDecoder = new TextDecoder("utf-8");
+      const textEncoder = new TextEncoder();
+      let confirmResolve = null;
+
+      const state = {
+        url: "",
+        files: [],
+      };
+
+      const requestConfirmation = ({ title, message, confirmText }) => {
+        if (!confirmDialog || typeof confirmDialog.showModal !== "function") {
+          return Promise.resolve(window.confirm(message || title));
+        }
+        confirmTitle.textContent = title;
+        confirmMessage.textContent = message;
+        confirmAccept.textContent = confirmText || "Confirm";
+        return new Promise((resolve) => {
+          confirmResolve = resolve;
+          confirmDialog.showModal();
+        });
+      };
+
+      confirmDialog.addEventListener("close", () => {
+        if (!confirmResolve) {
+          return;
+        }
+        const confirmed = confirmDialog.returnValue === "confirm";
+        confirmResolve(confirmed);
+        confirmResolve = null;
+      });
+
+      const setStatus = (text) => {
+        statusEl.textContent = text;
+      };
+
+      const formatBytes = (bytes) => {
+        if (bytes <= 0) {
+          return "0 B";
+        }
+        const units = ["B", "KB", "MB", "GB"];
+        const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+        const value = bytes / 1024 ** index;
+        return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
+      };
+
+      const isTextData = (data) => {
+        const sample = data.subarray(0, 2000);
+        for (const byte of sample) {
+          if (byte === 0) {
+            return false;
+          }
+        }
+        return true;
+      };
+
+      const saveState = () => {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (error) {
+          setStatus("Storage full. Consider clearing or reloading the ZIP.");
+        }
+      };
+
+      const loadState = () => {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (!stored) {
+          return;
+        }
+        try {
+          const parsed = JSON.parse(stored);
+          state.url = parsed.url || "";
+          state.files = Array.isArray(parsed.files) ? parsed.files : [];
+        } catch (error) {
+          state.url = "";
+          state.files = [];
+        }
+      };
+
+      const buildOutput = () => {
+        const selected = state.files.filter((file) => file.selected);
+        if (selected.length === 0) {
+          return "";
+        }
+        return selected
+          .map((file) => `----- ${file.path} -----\n${file.content}`)
+          .join("\n\n");
+      };
+
+      const updateOutput = () => {
+        const output = buildOutput();
+        outputArea.value = output;
+        const bytes = textEncoder.encode(output).length;
+        outputSize.textContent = formatBytes(bytes);
+      };
+
+      const renderFiles = () => {
+        fileList.innerHTML = "";
+        if (state.files.length === 0) {
+          fileEmpty.style.display = "block";
+          updateOutput();
+          return;
+        }
+
+        fileEmpty.style.display = "none";
+        state.files.forEach((file) => {
+          const row = document.createElement("li");
+          row.className = "file-row";
+
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = Boolean(file.selected);
+          checkbox.addEventListener("change", () => {
+            file.selected = checkbox.checked;
+            updateOutput();
+            saveState();
+          });
+
+          const label = document.createElement("label");
+          const title = document.createElement("div");
+          title.textContent = file.path;
+          const meta = document.createElement("div");
+          meta.className = "file-meta";
+          meta.textContent = `${formatBytes(file.bytes)} | ${file.lines} lines`;
+          label.append(title, meta);
+
+          row.append(checkbox, label);
+          fileList.appendChild(row);
+        });
+
+        updateOutput();
+      };
+
+      const parseZip = (bytes) => {
+        try {
+          const entries = fflate.unzipSync(bytes);
+          const files = [];
+          Object.keys(entries)
+            .sort()
+            .forEach((path) => {
+              const data = entries[path];
+              if (!isTextData(data)) {
+                return;
+              }
+              const content = textDecoder.decode(data);
+              const lines = content.split("\n").length;
+              files.push({
+                path,
+                content,
+                selected: true,
+                bytes: data.length,
+                lines,
+              });
+            });
+          state.files = files;
+          saveState();
+          renderFiles();
+          setStatus(`Loaded ${files.length} text file${files.length === 1 ? "" : "s"}.`);
+        } catch (error) {
+          setStatus("Could not read the ZIP file. Try a different download.");
+        }
+      };
+
+      const handleFileLoad = (file) => {
+        if (!file) {
+          return;
+        }
+        setStatus("Loading ZIP from file...");
+        const reader = new FileReader();
+        reader.onload = () => {
+          state.url = "";
+          urlInput.value = "";
+          saveState();
+          parseZip(new Uint8Array(reader.result));
+        };
+        reader.onerror = () => {
+          setStatus("Could not read the ZIP file.");
+        };
+        reader.readAsArrayBuffer(file);
+      };
+
+      const handleLoad = async () => {
+        const url = urlInput.value.trim();
+        if (!url) {
+          setStatus("Paste a ZIP URL to continue.");
+          return;
+        }
+
+        setStatus("Downloading ZIP...");
+        try {
+          const response = await fetch(url);
+          if (!response.ok) {
+            setStatus(`Download failed (${response.status}). Try loading a ZIP file instead.`);
+            return;
+          }
+          const buffer = await response.arrayBuffer();
+          state.url = url;
+          saveState();
+          parseZip(new Uint8Array(buffer));
+        } catch (error) {
+          setStatus("Download failed. Check the URL or CORS settings, or load a ZIP file.");
+        }
+      };
+
+      const clearSession = async () => {
+        const confirmed = await requestConfirmation({
+          title: "Clear the current session?",
+          message: "This removes the loaded ZIP and clears saved output.",
+          confirmText: "Clear",
+        });
+        if (!confirmed) {
+          return;
+        }
+        state.url = "";
+        state.files = [];
+        localStorage.removeItem(STORAGE_KEY);
+        urlInput.value = "";
+        fileInput.value = "";
+        outputArea.value = "";
+        outputSize.textContent = "0 B";
+        renderFiles();
+        setStatus("No ZIP loaded.");
+      };
+
+      copyButton.addEventListener("click", async () => {
+        const text = outputArea.value;
+        if (!text) {
+          setStatus("No output to copy.");
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(text);
+          setStatus("Output copied to clipboard.");
+        } catch (error) {
+          outputArea.focus();
+          outputArea.select();
+          document.execCommand("copy");
+          setStatus("Output copied to clipboard.");
+        }
+      });
+
+      loadButton.addEventListener("click", handleLoad);
+      fileInput.addEventListener("change", (event) => {
+        const file = event.target.files[0];
+        if (file) {
+          handleFileLoad(file);
+        }
+        fileInput.value = "";
+      });
+      clearButton.addEventListener("click", clearSession);
+      urlInput.addEventListener("change", () => {
+        state.url = urlInput.value.trim();
+        saveState();
+      });
+
+      loadState();
+      if (state.url) {
+        urlInput.value = state.url;
+      }
+      renderFiles();
+    </script>
+  </body>
+</html>

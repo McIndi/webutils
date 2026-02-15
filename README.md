@@ -33,6 +33,17 @@ Inspect, edit, and re-download ZIP files entirely in your browser:
 **Storage key**: `webutils.zip-workbench.v1`  
 **External dependency**: fflate (ZIP library via CDN)
 
+### Repo2Prompt
+Fetch a ZIP URL and assemble a prompt-ready payload:
+- Download a ZIP file from a URL (for example, GitHub archives)
+- Select which text files to include via checkboxes
+- Copy a combined output payload for AI prompts
+- All selections persist to storage
+
+**File**: `src/repo2prompt.html`  
+**Storage key**: `webutils.repo2prompt.v1`  
+**External dependency**: fflate (ZIP library via CDN)
+
 ### Regex Workbench
 Test and save regular expressions with live highlighting:
 - Enter a pattern and flags (i, m, s, u, g)
@@ -112,6 +123,9 @@ For information on:
 
 Most apps use vanilla JavaScript. The Zip Workbench uses:
 - **CodeMirror 6** (syntax highlighting)
+- **fflate** (ZIP file handling)
+
+Repo2Prompt also uses:
 - **fflate** (ZIP file handling)
 
 These are loaded from CDN and optional—the apps work without them.
