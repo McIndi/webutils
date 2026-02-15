@@ -366,6 +366,7 @@
       let confirmResolve = null;
       let persistTimer = null;
       let editorInstance = null;
+      let downloadUrl = null;
 
       const state = {
         files: new Map(),
@@ -428,10 +429,18 @@
         statusEl.textContent = text;
       };
 
+      const revokeDownloadUrl = () => {
+        if (downloadUrl) {
+          URL.revokeObjectURL(downloadUrl);
+          downloadUrl = null;
+        }
+      };
+
       const clearWorkspace = () => {
         state.files.clear();
         state.selectedPath = null;
         state.zipBytes = null;
+        revokeDownloadUrl();
         treeContainer.textContent = "Upload a ZIP to see its contents.";
         treeContainer.className = "empty";
         editorArea.textContent = "Select a file to edit its contents.";
@@ -589,12 +598,14 @@
 
       const updateDownloadLink = () => {
         if (!state.zipBytes) {
+          revokeDownloadUrl();
           downloadLink.setAttribute("href", "#");
           return;
         }
+        revokeDownloadUrl();
         const blob = new Blob([state.zipBytes], { type: "application/zip" });
-        const url = URL.createObjectURL(blob);
-        downloadLink.href = url;
+        downloadUrl = URL.createObjectURL(blob);
+        downloadLink.href = downloadUrl;
         downloadLink.download = state.zipName || "archive.zip";
       };
 
@@ -610,9 +621,13 @@
         });
 
         state.zipBytes = fflate.zipSync(zipInputData, { level: 6 });
-        localStorage.setItem(STORAGE_KEY, toBase64(state.zipBytes));
         updateDownloadLink();
-        setStatus(`Loaded ${state.files.size} files.`);
+        try {
+          localStorage.setItem(STORAGE_KEY, toBase64(state.zipBytes));
+          setStatus(`Loaded ${state.files.size} files.`);
+        } catch (error) {
+          setStatus("Storage full. Download the ZIP to keep changes.");
+        }
       };
 
       const schedulePersist = () => {
