@@ -510,6 +510,7 @@
       const textDecoder = new TextDecoder("utf-8");
       const textEncoder = new TextEncoder();
       let confirmResolve = null;
+      let outputIndex = new Map();
 
       const state = {
         url: "",
@@ -603,20 +604,31 @@
         }
       };
 
-      const buildOutput = () => {
+      const buildOutputData = () => {
         const selected = state.files.filter((file) => file.selected);
         if (selected.length === 0) {
-          return "";
+          return { text: "", index: new Map() };
         }
         const boundary = createUniqueBoundary(selected);
-        return selected
-          .map((file, index) => {
-            const prev = index > 0 ? selected[index - 1].path : "";
-            const context = prev ? `${prev} -> ${file.path}` : file.path;
-            const header = `=== FILE BOUNDARY ${boundary} ${context} ===`;
-            return `${header}\n${file.path}\n\n${file.content}`;
-          })
-          .join("\n\n");
+        let text = "";
+        let offset = 0;
+        const index = new Map();
+
+        selected.forEach((file, fileIndex) => {
+          if (fileIndex > 0) {
+            text += "\n\n";
+            offset += 2;
+          }
+          const prev = fileIndex > 0 ? selected[fileIndex - 1].path : "";
+          const context = prev ? `${prev} -> ${file.path}` : file.path;
+          const header = `=== FILE BOUNDARY ${boundary} ${context} ===`;
+          const block = `${header}\n${file.path}\n\n${file.content}`;
+          index.set(file.path, offset);
+          text += block;
+          offset += block.length;
+        });
+
+        return { text, index };
       };
 
       const createUniqueBoundary = (files) => {
@@ -630,10 +642,25 @@
       };
 
       const updateOutput = () => {
-        const output = buildOutput();
-        outputArea.value = output;
-        const bytes = textEncoder.encode(output).length;
+        const outputData = buildOutputData();
+        outputArea.value = outputData.text;
+        outputIndex = outputData.index;
+        const bytes = textEncoder.encode(outputData.text).length;
         outputSize.textContent = formatBytes(bytes);
+      };
+
+      const scrollOutputToFile = (filePath) => {
+        const start = outputIndex.get(filePath);
+        if (start == null) {
+          return;
+        }
+        outputArea.focus();
+        outputArea.setSelectionRange(start, start);
+        const computedLineHeight = parseFloat(getComputedStyle(outputArea).lineHeight);
+        const lineHeight = Number.isFinite(computedLineHeight) ? computedLineHeight : 18;
+        const lineIndex = outputArea.value.slice(0, start).split("\n").length - 1;
+        const targetTop = Math.max(0, lineIndex * lineHeight - outputArea.clientHeight * 0.2);
+        outputArea.scrollTop = targetTop;
       };
 
       const getExtension = (path) => {
@@ -708,6 +735,19 @@
             file.selected = checkbox.checked;
             updateOutput();
             saveState();
+          });
+
+          row.addEventListener("click", (event) => {
+            if (event.target === checkbox) {
+              return;
+            }
+            file.selected = !file.selected;
+            checkbox.checked = file.selected;
+            updateOutput();
+            saveState();
+            if (file.selected) {
+              scrollOutputToFile(file.path);
+            }
           });
 
           const label = document.createElement("label");
