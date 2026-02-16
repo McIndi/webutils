@@ -1,0 +1,1349 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Notes Wiki | McIndi WebUtils</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.css"
+    />
+    <style>
+      :root {
+        --bg: #f5f1ea;
+        --ink: #111418;
+        --muted: #5f676f;
+        --panel: #fff7ee;
+        --stroke: #e2d8cf;
+        --accent: #1f6f5c;
+        --accent-dark: #165646;
+        --accent-soft: rgba(31, 111, 92, 0.16);
+        --warn: #b9382e;
+        --brand-deep: #0f1720;
+        --brand-fade: rgba(15, 23, 32, 0.08);
+        --shadow: rgba(23, 23, 23, 0.12);
+        --sidebar-width: 260px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Manrope", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        color: var(--ink);
+        background: radial-gradient(800px 520px at 10% -10%, #f0cbb2 0%, transparent 60%),
+          radial-gradient(720px 520px at 120% 10%, #cfe5dc 0%, transparent 60%), var(--bg);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      header {
+        padding: 26px 28px 8px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .brand-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .brand-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        color: var(--brand-deep);
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+      }
+
+      .brand-mark {
+        width: 30px;
+        height: 30px;
+        border-radius: 9px;
+        background: var(--brand-deep);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+        font-size: 0.8rem;
+        box-shadow: 0 10px 20px var(--brand-fade);
+      }
+
+      .brand-subtitle {
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      header h1 {
+        margin: 0;
+        font-family: "Fraunces", "Iowan Old Style", "Palatino", serif;
+        font-size: clamp(1.9rem, 3.2vw, 2.7rem);
+      }
+
+      header p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+        font-size: 0.95rem;
+      }
+
+      .toolbar {
+        width: 100%;
+        padding: 0 28px 12px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .toolbar a,
+      .toolbar button,
+      .toolbar label {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        padding: 8px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        text-decoration: none;
+        color: var(--ink);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .toolbar button.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
+      .toolbar button.danger {
+        background: var(--warn);
+        border-color: var(--warn);
+        color: #fff;
+      }
+
+      .toolbar input[type="file"] {
+        display: none;
+      }
+
+      .status {
+        padding: 0 28px 12px;
+        color: var(--muted);
+        font-size: 0.9rem;
+        min-height: 1.2em;
+      }
+
+      main {
+        width: 100%;
+        flex: 1;
+        padding: 0 20px 24px;
+        display: grid;
+        gap: 16px;
+        min-height: 0;
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-columns: minmax(220px, var(--sidebar-width)) 12px minmax(0, 1fr);
+        gap: 0;
+        min-height: 0;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--stroke);
+        border-radius: 18px;
+        padding: 16px;
+        /* display: grid; */
+        gap: 12px;
+        min-height: 0;
+        min-width: 0;
+        box-shadow: 0 14px 30px var(--shadow);
+      }
+
+      .panel.compact {
+        padding: 14px;
+        gap: 10px;
+      }
+
+      .panel h2 {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+
+      .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .panel-header button {
+        border: none;
+        background: var(--accent-soft);
+        color: var(--accent-dark);
+        padding: 5px 10px;
+        border-radius: 10px;
+        font-weight: 700;
+        cursor: pointer;
+        font-size: 0.85rem;
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .field label {
+        display: block;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      .field input,
+      .field select {
+        font: inherit;
+        padding: 7px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--stroke);
+        background: #fff;
+        width: 100%;
+        max-width: 100%;
+      }
+
+      .panel-resizer {
+        width: 12px;
+        display: flex;
+        align-items: stretch;
+        justify-content: center;
+        cursor: col-resize;
+        background: transparent;
+        border-radius: 999px;
+      }
+
+      .panel-resizer::before {
+        content: "";
+        width: 2px;
+        background: var(--stroke);
+        border-radius: 999px;
+        margin: 6px 0;
+      }
+
+      .note-list {
+        display: grid;
+        gap: 8px;
+        overflow: auto;
+        padding-right: 4px;
+      }
+
+      .note-item {
+        border: 1px solid transparent;
+        border-radius: 12px;
+        padding: 8px 10px;
+        background: #fff;
+        display: grid;
+        gap: 4px;
+        cursor: pointer;
+        transition: border 0.15s ease, transform 0.15s ease;
+      }
+
+      .note-item:hover {
+        border-color: var(--accent);
+        transform: translateY(-1px);
+      }
+
+      .note-item.open {
+        border-color: var(--accent);
+        background: #f2f8f6;
+      }
+
+      .note-title {
+        font-weight: 600;
+        font-size: 0.95rem;
+      }
+
+      .note-meta {
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+
+      .note-panel {
+        display: grid;
+        gap: 16px;
+        min-height: 0;
+      }
+
+      .note-open-list {
+        display: grid;
+        gap: 16px;
+        min-height: 0;
+      }
+
+      .open-note {
+        background: #fff;
+        border: 1px solid var(--stroke);
+        border-radius: 16px;
+        padding: 16px;
+        /* display: grid; */
+        gap: 12px;
+      }
+
+      .open-note-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .open-note-title {
+        margin: 0;
+        font-size: 1.2rem;
+      }
+
+      .open-note-meta {
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      .close-button {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        padding: 6px 10px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--muted);
+      }
+
+      .note-view {
+        display: grid;
+        gap: 12px;
+        min-height: 0;
+      }
+
+      .note-actions {
+        /* display: flex; */
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .note-actions button {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        padding: 8px 12px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      .note-actions .primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
+      .note-actions .danger {
+        background: var(--warn);
+        border-color: var(--warn);
+        color: #fff;
+      }
+
+      .note-display {
+        background: #fff;
+        border-radius: 16px;
+        padding: 16px;
+        border: 1px solid var(--stroke);
+        overflow: auto;
+        min-height: 0;
+      }
+
+      .note-display h1,
+      .note-display h2,
+      .note-display h3 {
+        margin-top: 0;
+      }
+
+      .note-display a {
+        color: var(--accent-dark);
+        font-weight: 600;
+        text-decoration: none;
+      }
+
+      .note-display a:hover {
+        text-decoration: underline;
+      }
+
+      .note-display pre {
+        background: #f6efe6;
+        padding: 12px;
+        border-radius: 12px;
+        overflow: auto;
+      }
+
+      .note-display code {
+        background: #f6efe6;
+        padding: 2px 4px;
+        border-radius: 6px;
+      }
+
+      .empty-state {
+        text-align: center;
+        color: var(--muted);
+        padding: 40px 12px;
+      }
+
+      .edit-field input {
+        font: inherit;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--stroke);
+        background: #fff;
+        width: 100%;
+      }
+
+      .CodeMirror {
+        border: 1px solid var(--stroke);
+        border-radius: 12px;
+        height: 380px;
+        font-size: 0.95rem;
+        background: #fff;
+      }
+
+      .CodeMirror,
+      .CodeMirror * {
+        box-sizing: content-box;
+      }
+
+      .editor-placeholder {
+        min-height: 380px;
+        border: 1px solid var(--stroke);
+        border-radius: 12px;
+        padding: 12px;
+        background: #fff;
+        font-family: "Courier New", monospace;
+      }
+
+      .helper-text {
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .error-text {
+        color: var(--warn);
+        font-size: 0.85rem;
+      }
+
+      footer {
+        text-align: center;
+        color: var(--muted);
+        padding: 20px;
+        font-size: 0.85rem;
+      }
+
+      footer a {
+        color: inherit;
+        text-decoration: none;
+        font-weight: 600;
+      }
+
+      dialog {
+        border: none;
+        border-radius: 16px;
+        padding: 0;
+        width: min(520px, 92vw);
+        box-shadow: 0 20px 40px rgba(34, 33, 31, 0.25);
+      }
+
+      dialog::backdrop {
+        background: rgba(34, 33, 31, 0.35);
+      }
+
+      .confirm-form {
+        padding: 18px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .confirm-form h3 {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+
+      .confirm-form p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .confirm-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      .confirm-actions button {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        padding: 8px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      .confirm-actions .primary {
+        background: var(--warn);
+        border-color: var(--warn);
+        color: #fff;
+      }
+
+      @media (max-width: 900px) {
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 720px) {
+        header,
+        .toolbar,
+        .status {
+          padding-left: 20px;
+          padding-right: 20px;
+        }
+
+        main {
+          padding: 0 16px 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand-bar">
+        <a class="brand-link" href="index.html">
+          <span class="brand-mark">M</span>
+          McIndi WebUtils
+        </a>
+        <span class="brand-subtitle">Offline notes, portable by design.</span>
+      </div>
+      <h1>Notes Wiki</h1>
+      <p>
+        Keep lightweight notes that link themselves. CamelCase words become links that spawn new
+        notes on demand.
+      </p>
+    </header>
+
+    <div class="toolbar">
+      <a href="index.html">Back to index</a>
+      <button class="primary" id="new-note">New note</button>
+      <button id="export-notes">Export JSON</button>
+      <label for="import-file">Import JSON</label>
+      <input id="import-file" type="file" accept="application/json" />
+    </div>
+    <div class="status" id="status"></div>
+
+    <main>
+      <div class="workspace">
+        <section class="panel compact" aria-label="Notes list">
+          <div class="panel-header">
+            <h2>Notes</h2>
+            <button id="sort-toggle" type="button">Updated</button>
+          </div>
+          <div class="field">
+            <label for="search-input">Search</label>
+            <input id="search-input" type="search" placeholder="Find notes" />
+          </div>
+          <div class="note-list" id="note-list"></div>
+        </section>
+
+        <div class="panel-resizer" id="panel-resizer" aria-label="Resize panels"></div>
+
+        <section class="panel note-panel" aria-label="Note detail">
+          <div class="note-open-list" id="open-notes"></div>
+          <div class="note-view" id="empty-state">
+            <div class="empty-state">
+              <h2>Select a note</h2>
+              <p class="helper-text">Pick a note from the left or create a new one.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      Stored locally in your browser. Built by
+      <a href="https://www.mcindi.com" target="_blank" rel="noopener">McIndi Solutions LLC</a>.
+    </footer>
+
+    <dialog id="confirm-dialog">
+      <form method="dialog" class="confirm-form">
+        <h3 id="confirm-title">Confirm action</h3>
+        <p id="confirm-message">Are you sure you want to continue?</p>
+        <div class="confirm-actions">
+          <button value="cancel" type="submit">Cancel</button>
+          <button value="confirm" type="submit" class="primary" id="confirm-accept">
+            Confirm
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/markdown/markdown.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+    <script>
+      const STORAGE_KEY = "webutils.notes.v1";
+      const SIDEBAR_KEY = "webutils.notes.sidebar-width.v1";
+      const state = {
+        notes: [],
+        openIds: [],
+        viewById: {},
+        search: "",
+        sort: "updated",
+      };
+
+      const statusEl = document.getElementById("status");
+      const noteList = document.getElementById("note-list");
+      const searchInput = document.getElementById("search-input");
+      const sortToggle = document.getElementById("sort-toggle");
+      const newNoteBtn = document.getElementById("new-note");
+      const exportBtn = document.getElementById("export-notes");
+      const importFile = document.getElementById("import-file");
+      const panelResizer = document.getElementById("panel-resizer");
+      const openNotes = document.getElementById("open-notes");
+      const emptyState = document.getElementById("empty-state");
+
+      const confirmDialog = document.getElementById("confirm-dialog");
+      const confirmTitle = document.getElementById("confirm-title");
+      const confirmMessage = document.getElementById("confirm-message");
+      const confirmAccept = document.getElementById("confirm-accept");
+
+      let confirmResolve = null;
+      let statusTimer = null;
+      const editorMap = new Map();
+
+      const requestConfirmation = ({ title, message, confirmText }) => {
+        if (!confirmDialog || typeof confirmDialog.showModal !== "function") {
+          return Promise.resolve(window.confirm(message || title));
+        }
+        confirmTitle.textContent = title;
+        confirmMessage.textContent = message;
+        confirmAccept.textContent = confirmText || "Confirm";
+        return new Promise((resolve) => {
+          confirmResolve = resolve;
+          confirmDialog.showModal();
+        });
+      };
+
+      confirmDialog.addEventListener("close", () => {
+        if (!confirmResolve) {
+          return;
+        }
+        const confirmed = confirmDialog.returnValue === "confirm";
+        confirmResolve(confirmed);
+        confirmResolve = null;
+      });
+
+      const setStatus = (text) => {
+        statusEl.textContent = text;
+        if (statusTimer) {
+          window.clearTimeout(statusTimer);
+        }
+        if (text) {
+          statusTimer = window.setTimeout(() => {
+            statusEl.textContent = "";
+          }, 2400);
+        }
+      };
+
+      const formatDate = (value) => {
+        if (!value) {
+          return "";
+        }
+        return new Date(value).toLocaleString();
+      };
+
+      const applySidebarWidth = (width) => {
+        document.documentElement.style.setProperty("--sidebar-width", `${width}px`);
+      };
+
+      const saveState = () => {
+        const payload = {
+          notes: state.notes,
+          openIds: state.openIds,
+          sort: state.sort,
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      };
+
+      const loadState = () => {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          return;
+        }
+        try {
+          const stored = JSON.parse(raw);
+          state.notes = Array.isArray(stored.notes) ? stored.notes : [];
+          state.openIds = Array.isArray(stored.openIds) ? stored.openIds : [];
+          state.openIds = state.openIds.filter((id) => state.notes.some((note) => note.id === id));
+          state.sort = stored.sort || "updated";
+        } catch (error) {
+          console.error("Failed to load notes", error);
+        }
+      };
+
+      const slugify = (value) =>
+        value
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "");
+
+      const getUniqueTitle = (base) => {
+        const existing = new Set(state.notes.map((note) => note.title.toLowerCase()));
+        if (!existing.has(base.toLowerCase())) {
+          return base;
+        }
+        let counter = 2;
+        while (existing.has(`${base} ${counter}`.toLowerCase())) {
+          counter += 1;
+        }
+        return `${base} ${counter}`;
+      };
+
+      const createNote = ({ title, content = "" }) => {
+        const now = Date.now();
+        const safeTitle = getUniqueTitle(title);
+        const note = {
+          id: `${slugify(safeTitle)}-${now}`,
+          title: safeTitle,
+          content,
+          createdAt: now,
+          updatedAt: now,
+        };
+        state.notes.unshift(note);
+        saveState();
+        return note;
+      };
+
+      const findNoteById = (id) => state.notes.find((note) => note.id === id);
+
+      const findNoteByTitle = (title) =>
+        state.notes.find((note) => note.title.toLowerCase() === title.toLowerCase());
+
+      const ensureViewState = (note) => {
+        if (!state.viewById[note.id]) {
+          state.viewById[note.id] = {
+            mode: "display",
+            dirty: false,
+            draftTitle: note.title,
+            draftContent: note.content || "",
+            error: "",
+          };
+        }
+        return state.viewById[note.id];
+      };
+
+      const updateSortLabel = () => {
+        sortToggle.textContent = state.sort === "updated" ? "Updated" : "Title";
+      };
+
+      const getFilteredNotes = () => {
+        const query = state.search.trim().toLowerCase();
+        let notes = [...state.notes];
+        if (query) {
+          notes = notes.filter(
+            (note) =>
+              note.title.toLowerCase().includes(query) ||
+              note.content.toLowerCase().includes(query)
+          );
+        }
+        if (state.sort === "title") {
+          notes.sort((a, b) => a.title.localeCompare(b.title));
+        } else {
+          notes.sort((a, b) => b.updatedAt - a.updatedAt);
+        }
+        return notes;
+      };
+
+      const renderList = () => {
+        noteList.innerHTML = "";
+        const notes = getFilteredNotes();
+        if (!notes.length) {
+          const empty = document.createElement("div");
+          empty.className = "helper-text";
+          empty.textContent = state.search ? "No notes match your search." : "No notes yet.";
+          noteList.appendChild(empty);
+          return;
+        }
+        notes.forEach((note) => {
+          const item = document.createElement("div");
+          item.className = "note-item";
+          if (state.openIds.includes(note.id)) {
+            item.classList.add("open");
+          }
+          const title = document.createElement("div");
+          title.className = "note-title";
+          title.textContent = note.title;
+          const meta = document.createElement("div");
+          meta.className = "note-meta";
+          meta.textContent = `Updated ${formatDate(note.updatedAt)}`;
+          item.appendChild(title);
+          item.appendChild(meta);
+          item.addEventListener("click", () => openNoteFromList(note.id));
+          noteList.appendChild(item);
+        });
+      };
+
+      const openNote = (id, options = {}) => {
+        const note = findNoteById(id);
+        if (!note) {
+          return;
+        }
+        const view = ensureViewState(note);
+        if (!state.openIds.includes(id)) {
+          state.openIds.unshift(id);
+        }
+        if (options.mode) {
+          if (options.mode === "edit" && view.mode !== "edit") {
+            view.draftTitle = note.title;
+            view.draftContent = note.content || "";
+            view.dirty = false;
+            view.error = "";
+          }
+          view.mode = options.mode;
+        }
+        saveState();
+        render();
+      };
+
+      const openNoteFromList = async (id) => {
+        const note = findNoteById(id);
+        if (!note) {
+          return;
+        }
+        ensureViewState(note);
+        const view = state.viewById[id];
+        if (view && view.mode === "edit") {
+          if (view.dirty) {
+            const confirmed = await requestConfirmation({
+              title: "Discard changes?",
+              message: "You have unsaved edits for this note. Discard them and show display mode?",
+              confirmText: "Discard",
+            });
+            if (!confirmed) {
+              return;
+            }
+          }
+          view.mode = "display";
+          view.dirty = false;
+          view.error = "";
+          view.draftTitle = note.title;
+          view.draftContent = note.content || "";
+        }
+        if (!state.openIds.includes(id)) {
+          state.openIds.unshift(id);
+        }
+        saveState();
+        render();
+      };
+
+      const closeNote = async (id) => {
+        const view = state.viewById[id];
+        if (view && view.mode === "edit" && view.dirty) {
+          const confirmed = await requestConfirmation({
+            title: "Discard changes?",
+            message: "You have unsaved edits. Discard them and close this note?",
+            confirmText: "Discard",
+          });
+          if (!confirmed) {
+            return;
+          }
+        }
+        state.openIds = state.openIds.filter((openId) => openId !== id);
+        delete state.viewById[id];
+        saveState();
+        render();
+      };
+
+      const startNewNote = () => {
+        const note = createNote({ title: "Untitled Note" });
+        openNote(note.id, { mode: "edit" });
+      };
+
+      const saveNoteFromView = (id) => {
+        const note = findNoteById(id);
+        const view = state.viewById[id];
+        if (!note || !view) {
+          return;
+        }
+        const title = view.draftTitle.trim();
+        if (!title) {
+          view.error = "Title cannot be empty.";
+          render();
+          return;
+        }
+        const existing = findNoteByTitle(title);
+        if (existing && existing.id !== note.id) {
+          view.error = "A note with that title already exists.";
+          render();
+          return;
+        }
+        note.title = title;
+        note.content = view.draftContent.trim();
+        note.updatedAt = Date.now();
+        view.mode = "display";
+        view.dirty = false;
+        view.error = "";
+        view.draftTitle = note.title;
+        view.draftContent = note.content;
+        saveState();
+        render();
+      };
+
+      const cancelEdit = async (id) => {
+        const note = findNoteById(id);
+        const view = state.viewById[id];
+        if (!note || !view) {
+          return;
+        }
+        if (view.dirty) {
+          const confirmed = await requestConfirmation({
+            title: "Discard changes?",
+            message: "You have unsaved edits. Discard them and return to display mode?",
+            confirmText: "Discard",
+          });
+          if (!confirmed) {
+            return;
+          }
+        }
+        view.mode = "display";
+        view.dirty = false;
+        view.error = "";
+        view.draftTitle = note.title;
+        view.draftContent = note.content || "";
+        render();
+      };
+
+      const deleteNote = async (id) => {
+        const note = findNoteById(id);
+        if (!note) {
+          return;
+        }
+        const confirmed = await requestConfirmation({
+          title: `Delete "${note.title}"?`,
+          message: "This will permanently remove the note.",
+          confirmText: "Delete",
+        });
+        if (!confirmed) {
+          return;
+        }
+        state.notes = state.notes.filter((item) => item.id !== note.id);
+        state.openIds = state.openIds.filter((openId) => openId !== note.id);
+        delete state.viewById[note.id];
+        saveState();
+        render();
+      };
+
+      const renderMarkdown = (text) => {
+        if (window.marked && typeof window.marked.parse === "function") {
+          return window.marked.parse(text || "");
+        }
+        const escaped = (text || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+        return escaped.replace(/\n{2,}/g, "</p><p>").replace(/\n/g, "<br>");
+      };
+
+      const linkifyCamelCase = (container) => {
+        const matcher = /\b[A-Z][a-z]+[A-Z][A-Za-z0-9]*\b/g;
+        const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+        const nodes = [];
+        while (walker.nextNode()) {
+          nodes.push(walker.currentNode);
+        }
+        nodes.forEach((node) => {
+          const parent = node.parentElement;
+          if (!parent) {
+            return;
+          }
+          if (["A", "CODE", "PRE"].includes(parent.tagName)) {
+            return;
+          }
+          const text = node.nodeValue;
+          if (!matcher.test(text)) {
+            return;
+          }
+          matcher.lastIndex = 0;
+          const fragment = document.createDocumentFragment();
+          let lastIndex = 0;
+          let match;
+          while ((match = matcher.exec(text))) {
+            const before = text.slice(lastIndex, match.index);
+            if (before) {
+              fragment.appendChild(document.createTextNode(before));
+            }
+            const link = document.createElement("a");
+            link.href = "#";
+            link.dataset.noteTitle = match[0];
+            link.textContent = match[0];
+            fragment.appendChild(link);
+            lastIndex = match.index + match[0].length;
+          }
+          const after = text.slice(lastIndex);
+          if (after) {
+            fragment.appendChild(document.createTextNode(after));
+          }
+          parent.replaceChild(fragment, node);
+        });
+      };
+
+      const buildEditor = (noteId, textarea, view) => {
+        if (typeof CodeMirror === "undefined") {
+          textarea.addEventListener("input", (event) => {
+            view.draftContent = event.target.value;
+            view.dirty = true;
+          });
+          return;
+        }
+        const editor = CodeMirror.fromTextArea(textarea, {
+          lineNumbers: true,
+          lineWrapping: true,
+          mode: "markdown",
+          viewportMargin: Infinity,
+        });
+        editor.on("change", () => {
+          view.draftContent = editor.getValue();
+          view.dirty = true;
+        });
+        editorMap.set(noteId, editor);
+      };
+
+      const renderOpenNotes = () => {
+        openNotes.innerHTML = "";
+        editorMap.clear();
+        if (!state.openIds.length) {
+          emptyState.hidden = false;
+          return;
+        }
+        emptyState.hidden = true;
+        state.openIds.forEach((id) => {
+          const note = findNoteById(id);
+          if (!note) {
+            return;
+          }
+          const view = ensureViewState(note);
+          const card = document.createElement("article");
+          card.className = "open-note";
+          card.dataset.noteId = note.id;
+
+          const header = document.createElement("div");
+          header.className = "open-note-header";
+
+          const titleWrap = document.createElement("div");
+          const titleEl = document.createElement("h2");
+          titleEl.className = "open-note-title";
+          titleEl.textContent = view.mode === "edit" ? view.draftTitle || note.title : note.title;
+
+          const meta = document.createElement("div");
+          meta.className = "open-note-meta";
+          meta.textContent = `Created ${formatDate(note.createdAt)} - Updated ${formatDate(
+            note.updatedAt
+          )}`;
+          titleWrap.appendChild(titleEl);
+          titleWrap.appendChild(meta);
+
+          const closeButton = document.createElement("button");
+          closeButton.type = "button";
+          closeButton.className = "close-button";
+          closeButton.textContent = "Close";
+          closeButton.addEventListener("click", () => closeNote(note.id));
+
+          header.appendChild(titleWrap);
+          header.appendChild(closeButton);
+          card.appendChild(header);
+
+          if (view.mode === "display") {
+            const actions = document.createElement("div");
+            actions.className = "note-actions";
+
+            const editButton = document.createElement("button");
+            editButton.type = "button";
+            editButton.className = "primary";
+            editButton.textContent = "Edit";
+            editButton.addEventListener("click", () => openNote(note.id, { mode: "edit" }));
+
+            const deleteButton = document.createElement("button");
+            deleteButton.type = "button";
+            deleteButton.className = "danger";
+            deleteButton.textContent = "Delete";
+            deleteButton.addEventListener("click", () => deleteNote(note.id));
+
+            actions.appendChild(editButton);
+            actions.appendChild(deleteButton);
+            card.appendChild(actions);
+
+            const content = document.createElement("div");
+            content.className = "note-display";
+            content.innerHTML = renderMarkdown(note.content || "");
+            linkifyCamelCase(content);
+            card.appendChild(content);
+          } else {
+            const editField = document.createElement("div");
+            editField.className = "edit-field";
+            const titleLabel = document.createElement("label");
+            const titleInputId = `edit-title-${note.id}`;
+            titleLabel.setAttribute("for", titleInputId);
+            titleLabel.textContent = "Title";
+
+            const titleInput = document.createElement("input");
+            titleInput.id = titleInputId;
+            titleInput.type = "text";
+            titleInput.value = view.draftTitle;
+            titleInput.placeholder = "Note title";
+            titleInput.addEventListener("input", (event) => {
+              view.draftTitle = event.target.value;
+              view.dirty = true;
+              titleEl.textContent = view.draftTitle || "Untitled Note";
+            });
+            editField.appendChild(titleLabel);
+            editField.appendChild(titleInput);
+            card.appendChild(editField);
+
+            const contentWrap = document.createElement("div");
+            const contentLabel = document.createElement("label");
+            const contentId = `edit-content-${note.id}`;
+            contentLabel.className = "helper-text";
+            contentLabel.setAttribute("for", contentId);
+            contentLabel.textContent = "Markdown";
+            const textarea = document.createElement("textarea");
+            textarea.id = contentId;
+            textarea.className = "editor-placeholder";
+            textarea.value = view.draftContent || "";
+            contentWrap.appendChild(contentLabel);
+            contentWrap.appendChild(textarea);
+            card.appendChild(contentWrap);
+            buildEditor(note.id, textarea, view);
+
+            const errorText = document.createElement("div");
+            errorText.className = "error-text";
+            errorText.textContent = view.error || "";
+            card.appendChild(errorText);
+
+            const actions = document.createElement("div");
+            actions.className = "note-actions";
+
+            const saveButton = document.createElement("button");
+            saveButton.type = "button";
+            saveButton.className = "primary";
+            saveButton.textContent = "Save";
+            saveButton.addEventListener("click", () => saveNoteFromView(note.id));
+
+            const cancelButton = document.createElement("button");
+            cancelButton.type = "button";
+            cancelButton.textContent = "Cancel";
+            cancelButton.addEventListener("click", () => cancelEdit(note.id));
+
+            const deleteButton = document.createElement("button");
+            deleteButton.type = "button";
+            deleteButton.className = "danger";
+            deleteButton.textContent = "Delete";
+            deleteButton.addEventListener("click", () => deleteNote(note.id));
+
+            actions.appendChild(saveButton);
+            actions.appendChild(cancelButton);
+            actions.appendChild(deleteButton);
+            card.appendChild(actions);
+          }
+
+          openNotes.appendChild(card);
+          const editor = editorMap.get(note.id);
+          if (editor) {
+            requestAnimationFrame(() => editor.refresh());
+          }
+        });
+      };
+
+      const render = () => {
+        updateSortLabel();
+        renderList();
+        renderOpenNotes();
+      };
+
+      newNoteBtn.addEventListener("click", startNewNote);
+
+      searchInput.addEventListener("input", (event) => {
+        state.search = event.target.value;
+        renderList();
+      });
+
+      sortToggle.addEventListener("click", () => {
+        state.sort = state.sort === "updated" ? "title" : "updated";
+        saveState();
+        renderList();
+        updateSortLabel();
+      });
+
+      exportBtn.addEventListener("click", () => {
+        const payload = {
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          notes: state.notes,
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `webutils-notes-${new Date().toISOString().slice(0, 10)}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+      });
+
+      importFile.addEventListener("change", async (event) => {
+        const file = event.target.files[0];
+        if (!file) {
+          return;
+        }
+        const confirmed = await requestConfirmation({
+          title: "Import notes?",
+          message: "Importing will replace your existing notes.",
+          confirmText: "Import",
+        });
+        if (!confirmed) {
+          event.target.value = "";
+          return;
+        }
+        const text = await file.text();
+        try {
+          const payload = JSON.parse(text);
+          const notes = Array.isArray(payload.notes) ? payload.notes : [];
+          const now = Date.now();
+          state.notes = notes.map((note, index) => ({
+            ...note,
+            id: note.id || `${slugify(note.title || "note")}-${now + index}`,
+            title: note.title || "Untitled Note",
+            content: note.content || "",
+            createdAt: note.createdAt || now,
+            updatedAt: note.updatedAt || now,
+          }));
+          state.openIds = state.notes.length ? [state.notes[0].id] : [];
+          state.viewById = {};
+          saveState();
+          render();
+          setStatus(`Imported ${state.notes.length} notes.`);
+        } catch (error) {
+          setStatus("Import failed. Invalid JSON file.");
+        } finally {
+          event.target.value = "";
+        }
+      });
+
+      const init = () => {
+        loadState();
+        const storedWidth = Number.parseInt(localStorage.getItem(SIDEBAR_KEY), 10);
+        if (Number.isFinite(storedWidth)) {
+          applySidebarWidth(storedWidth);
+        }
+        if (!state.notes.length) {
+          createNote({ title: "Welcome", content: "Start with CamelCase links. Try: ProjectIdeas." });
+        }
+        if (!state.openIds.length && state.notes.length) {
+          state.openIds = [state.notes[0].id];
+        }
+        state.openIds.forEach((id) => {
+          const note = findNoteById(id);
+          if (note) {
+            ensureViewState(note);
+          }
+        });
+        render();
+      };
+
+      init();
+
+      openNotes.addEventListener("click", (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) {
+          return;
+        }
+        const link = target.closest("a[data-note-title]");
+        if (!link) {
+          return;
+        }
+        event.preventDefault();
+        const title = link.dataset.noteTitle;
+        const existing = findNoteByTitle(title);
+        if (existing) {
+          openNoteFromList(existing.id);
+          return;
+        }
+        createNote({ title });
+        renderList();
+        setStatus(`Created note "${title}".`);
+      });
+
+      if (panelResizer) {
+        const minWidth = 220;
+        const maxWidth = 480;
+        const defaultWidth = 260;
+        const handlePointerMove = (event) => {
+          if (!panelResizer.hasPointerCapture(event.pointerId)) {
+            return;
+          }
+          const rect = panelResizer.parentElement.getBoundingClientRect();
+          const nextWidth = Math.min(
+            maxWidth,
+            Math.max(minWidth, event.clientX - rect.left)
+          );
+          applySidebarWidth(nextWidth);
+        };
+
+        panelResizer.addEventListener("pointerdown", (event) => {
+          panelResizer.setPointerCapture(event.pointerId);
+          panelResizer.addEventListener("pointermove", handlePointerMove);
+        });
+
+        panelResizer.addEventListener("pointerup", (event) => {
+          if (panelResizer.hasPointerCapture(event.pointerId)) {
+            panelResizer.releasePointerCapture(event.pointerId);
+          }
+          panelResizer.removeEventListener("pointermove", handlePointerMove);
+          const currentWidth = Number.parseInt(
+            getComputedStyle(document.documentElement).getPropertyValue("--sidebar-width"),
+            10
+          );
+          if (Number.isFinite(currentWidth)) {
+            localStorage.setItem(SIDEBAR_KEY, String(currentWidth));
+          }
+        });
+
+        panelResizer.addEventListener("pointercancel", (event) => {
+          if (panelResizer.hasPointerCapture(event.pointerId)) {
+            panelResizer.releasePointerCapture(event.pointerId);
+          }
+          panelResizer.removeEventListener("pointermove", handlePointerMove);
+        });
+
+        panelResizer.addEventListener("dblclick", () => {
+          applySidebarWidth(defaultWidth);
+          localStorage.setItem(SIDEBAR_KEY, String(defaultWidth));
+        });
+      }
+    </script>
+  </body>
+</html>

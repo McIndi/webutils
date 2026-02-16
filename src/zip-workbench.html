@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Zip Workbench - WebUtils</title>
+    <title>Zip Workbench | McIndi WebUtils</title>
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.css"
@@ -12,14 +12,16 @@
     />
     <style>
       :root {
-        --bg: #f4f2ee;
-        --ink: #1f1f1f;
-        --muted: #6a635d;
-        --panel: #fffaf3;
-        --stroke: #e1d7cf;
-        --accent: #2b7a78;
-        --accent-soft: rgba(43, 122, 120, 0.15);
-        --warn: #c2412d;
+        --bg: #f3f1ed;
+        --ink: #111418;
+        --muted: #626a73;
+        --panel: #fbf7f2;
+        --stroke: #e2d8cf;
+        --accent: #c6562a;
+        --accent-soft: rgba(198, 86, 42, 0.16);
+        --warn: #b9382e;
+        --brand-deep: #0f1720;
+        --brand-fade: rgba(15, 23, 32, 0.08);
       }
 
       * {
@@ -28,10 +30,10 @@
 
       body {
         margin: 0;
-        font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        font-family: "Manrope", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
         color: var(--ink);
-        background: radial-gradient(900px 600px at 10% -10%, #f7d9c4 0%, transparent 60%),
-          radial-gradient(700px 500px at 120% 10%, #cfe8e6 0%, transparent 60%),
+        background: radial-gradient(900px 600px at 10% -10%, #f6d9c4 0%, transparent 60%),
+          radial-gradient(700px 500px at 120% 10%, #d4e9e5 0%, transparent 60%),
           var(--bg);
         min-height: 100vh;
         display: flex;
@@ -42,11 +44,50 @@
         width: 100%;
         padding: 24px 28px 10px;
         display: grid;
-        gap: 8px;
+        gap: 10px;
+      }
+
+      .brand-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .brand-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        color: var(--brand-deep);
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+      }
+
+      .brand-mark {
+        width: 30px;
+        height: 30px;
+        border-radius: 9px;
+        background: var(--brand-deep);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+        font-size: 0.8rem;
+        box-shadow: 0 10px 20px var(--brand-fade);
+      }
+
+      .brand-subtitle {
+        font-size: 0.9rem;
+        color: var(--muted);
       }
 
       header h1 {
         margin: 0;
+        font-family: "Fraunces", "Iowan Old Style", "Palatino", serif;
         font-size: clamp(1.8rem, 4vw, 2.6rem);
       }
 
@@ -124,6 +165,29 @@
         text-transform: uppercase;
         letter-spacing: 0.08em;
         color: var(--muted);
+      }
+
+      .pane-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .pane-toolbar button {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        padding: 6px 10px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.85rem;
+      }
+
+      .pane-toolbar .primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
       }
 
       .tree {
@@ -262,6 +326,53 @@
         color: #fff;
       }
 
+      .dialog-form {
+        padding: 18px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .dialog-form h3 {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+
+      .dialog-form label {
+        font-weight: 600;
+        font-size: 0.9rem;
+      }
+
+      .dialog-form input,
+      .dialog-form select {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--stroke);
+        font: inherit;
+      }
+
+      .dialog-form .hint {
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .dialog-form .error {
+        color: var(--warn);
+        font-size: 0.85rem;
+      }
+
+      footer {
+        padding: 12px 28px 24px;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      footer a {
+        color: inherit;
+        text-decoration: none;
+        font-weight: 600;
+      }
+
       @media (max-width: 900px) {
         .workspace {
           grid-template-columns: 1fr;
@@ -278,6 +389,13 @@
   </head>
   <body>
     <header>
+      <div class="brand-bar">
+        <a class="brand-link" href="https://www.mcindi.com" target="_blank" rel="noopener">
+          <span class="brand-mark">M</span>
+          McIndi Solutions
+        </a>
+        <div class="brand-subtitle">WebUtils • Zip Workbench</div>
+      </div>
       <h1>Zip Workbench</h1>
       <p>Inspect, edit, and re-download a ZIP file entirely in your browser.</p>
     </header>
@@ -294,6 +412,10 @@
     <section class="workspace">
       <aside class="pane">
         <h2>Files</h2>
+        <div class="pane-toolbar">
+          <button class="primary" type="button" id="new-file">New File</button>
+          <button type="button" id="new-folder">New Folder</button>
+        </div>
         <div id="tree-container" class="empty">Upload a ZIP to see its contents.</div>
       </aside>
       <main class="pane">
@@ -301,6 +423,10 @@
         <div id="editor-area" class="empty">Select a file to edit its contents.</div>
       </main>
     </section>
+
+    <footer>
+      Built by <a href="https://www.mcindi.com" target="_blank" rel="noopener">McIndi Solutions LLC</a>.
+    </footer>
 
     <dialog id="confirm-dialog">
       <form method="dialog" class="confirm-form">
@@ -310,6 +436,28 @@
           <button value="cancel" type="submit">Cancel</button>
           <button value="confirm" type="submit" class="primary" id="confirm-accept">
             Confirm
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="create-dialog">
+      <form method="dialog" class="dialog-form" id="create-form">
+        <h3 id="create-title">Create</h3>
+        <div>
+          <label for="create-name">Name</label>
+          <input id="create-name" name="name" autocomplete="off" />
+        </div>
+        <div>
+          <label for="create-parent">Parent folder</label>
+          <select id="create-parent" name="parent"></select>
+        </div>
+        <div class="hint" id="create-hint">Use / to nest folders.</div>
+        <div class="error" id="create-error" role="alert"></div>
+        <div class="confirm-actions">
+          <button value="cancel" type="submit">Cancel</button>
+          <button value="confirm" type="submit" class="primary" id="create-accept">
+            Create
           </button>
         </div>
       </form>
@@ -348,17 +496,28 @@
       referrerpolicy="no-referrer"
     ></script>
     <script>
-      const STORAGE_KEY = "webutils.zip-workbench.v1";
+      const STORAGE_KEY_V1 = "webutils.zip-workbench.v1";
+      const STORAGE_KEY_V2 = "webutils.zip-workbench.v2";
       const zipInput = document.getElementById("zip-input");
       const downloadLink = document.getElementById("download-link");
       const clearButton = document.getElementById("clear-zip");
       const treeContainer = document.getElementById("tree-container");
       const editorArea = document.getElementById("editor-area");
       const statusEl = document.getElementById("status");
+      const newFileButton = document.getElementById("new-file");
+      const newFolderButton = document.getElementById("new-folder");
       const confirmDialog = document.getElementById("confirm-dialog");
       const confirmTitle = document.getElementById("confirm-title");
       const confirmMessage = document.getElementById("confirm-message");
       const confirmAccept = document.getElementById("confirm-accept");
+      const createDialog = document.getElementById("create-dialog");
+      const createForm = document.getElementById("create-form");
+      const createTitle = document.getElementById("create-title");
+      const createName = document.getElementById("create-name");
+      const createParent = document.getElementById("create-parent");
+      const createHint = document.getElementById("create-hint");
+      const createError = document.getElementById("create-error");
+      const createAccept = document.getElementById("create-accept");
 
       const textDecoder = new TextDecoder("utf-8");
       const textEncoder = new TextEncoder();
@@ -370,10 +529,13 @@
 
       const state = {
         files: new Map(),
+        folders: new Set(),
         selectedPath: null,
         zipName: "archive.zip",
         zipBytes: null,
       };
+
+      let createMode = "file";
 
       const requestConfirmation = ({ title, message, confirmText }) => {
         if (!confirmDialog || typeof confirmDialog.showModal !== "function") {
@@ -438,6 +600,7 @@
 
       const clearWorkspace = () => {
         state.files.clear();
+        state.folders.clear();
         state.selectedPath = null;
         state.zipBytes = null;
         revokeDownloadUrl();
@@ -450,8 +613,34 @@
         setStatus("No ZIP loaded.");
       };
 
-      const buildTree = (paths) => {
+      const normalizePath = (value) => {
+        return value.replace(/\\/g, "/").replace(/\/+/g, "/").trim();
+      };
+
+      const addImplicitFolders = (path) => {
+        const parts = path.split("/");
+        let current = "";
+        for (let i = 0; i < parts.length - 1; i += 1) {
+          current = current ? `${current}/${parts[i]}` : parts[i];
+          state.folders.add(current);
+        }
+      };
+
+      const buildTree = (paths, folders) => {
         const root = {};
+        folders.forEach((path) => {
+          const parts = path.split("/");
+          let current = root;
+          parts.forEach((part, index) => {
+            if (!current[part]) {
+              current[part] = { __children: {}, __isFile: false, __isFolder: true };
+            }
+            if (index === parts.length - 1) {
+              current[part].__isFolder = true;
+            }
+            current = current[part].__children;
+          });
+        });
         paths.forEach((path) => {
           const parts = path.split("/");
           let current = root;
@@ -470,14 +659,15 @@
 
       const renderTree = () => {
         const paths = Array.from(state.files.keys()).sort();
-        if (paths.length === 0) {
-          treeContainer.textContent = "This ZIP has no files.";
+        const folders = Array.from(state.folders.values()).sort();
+        if (paths.length === 0 && folders.length === 0) {
+          treeContainer.textContent = "This ZIP has no files or folders.";
           treeContainer.className = "empty";
           return;
         }
         treeContainer.className = "";
 
-        const root = buildTree(paths);
+        const root = buildTree(paths, folders);
 
         const createList = (node, prefix = "") => {
           const list = document.createElement("ul");
@@ -610,12 +800,15 @@
       };
 
       const persistZip = () => {
-        if (state.files.size === 0) {
-          localStorage.removeItem(STORAGE_KEY);
+        if (state.files.size === 0 && state.folders.size === 0) {
+          localStorage.removeItem(STORAGE_KEY_V2);
           return;
         }
 
         const zipInputData = {};
+        state.folders.forEach((path) => {
+          zipInputData[`${path}/`] = new Uint8Array(0);
+        });
         state.files.forEach((entry, path) => {
           zipInputData[path] = entry.data;
         });
@@ -623,8 +816,17 @@
         state.zipBytes = fflate.zipSync(zipInputData, { level: 6 });
         updateDownloadLink();
         try {
-          localStorage.setItem(STORAGE_KEY, toBase64(state.zipBytes));
-          setStatus(`Loaded ${state.files.size} files.`);
+          const payload = {
+            zipBase64: toBase64(state.zipBytes),
+            zipName: state.zipName,
+            folders: Array.from(state.folders.values()).sort(),
+          };
+          localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(payload));
+          const folderCount = state.folders.size;
+          const fileCount = state.files.size;
+          const folderLabel = folderCount === 1 ? "folder" : "folders";
+          const fileLabel = fileCount === 1 ? "file" : "files";
+          setStatus(`Loaded ${fileCount} ${fileLabel}, ${folderCount} ${folderLabel}.`);
         } catch (error) {
           setStatus("Storage full. Download the ZIP to keep changes.");
         }
@@ -643,14 +845,23 @@
       const loadZipBytes = (bytes) => {
         const entries = fflate.unzipSync(bytes);
         state.files.clear();
+        state.folders.clear();
         Object.keys(entries).forEach((path) => {
           const data = entries[path];
+          if (path.endsWith("/")) {
+            const folderPath = path.slice(0, -1);
+            if (folderPath) {
+              state.folders.add(folderPath);
+            }
+            return;
+          }
           const isText = isTextData(data);
           state.files.set(path, {
             data,
             isText,
             text: isText ? textDecoder.decode(data) : "",
           });
+          addImplicitFolders(path);
         });
 
         state.selectedPath = null;
@@ -663,6 +874,86 @@
         state.selectedPath = path;
         renderTree();
         renderEditor();
+      };
+
+      const getFolderOptions = () => {
+        const folders = new Set(state.folders.values());
+        state.files.forEach((_, path) => addImplicitFolders(path));
+        return Array.from(folders.values()).sort();
+      };
+
+      const openCreateDialog = (mode) => {
+        createMode = mode;
+        createTitle.textContent = mode === "file" ? "Create new file" : "Create new folder";
+        createAccept.textContent = mode === "file" ? "Create file" : "Create folder";
+        createHint.textContent = mode === "file"
+          ? "Use / to nest folders, for example docs/readme.md."
+          : "Use / to create nested folders, for example docs/assets.";
+        createError.textContent = "";
+        createName.value = "";
+        createParent.innerHTML = "";
+        const rootOption = document.createElement("option");
+        rootOption.value = "";
+        rootOption.textContent = "(root)";
+        createParent.appendChild(rootOption);
+        getFolderOptions().forEach((path) => {
+          const option = document.createElement("option");
+          option.value = path;
+          option.textContent = path;
+          createParent.appendChild(option);
+        });
+        if (state.selectedPath) {
+          const parts = state.selectedPath.split("/");
+          if (parts.length > 1) {
+            createParent.value = parts.slice(0, -1).join("/");
+          }
+        }
+        if (typeof createDialog.showModal === "function") {
+          createDialog.showModal();
+          createName.focus();
+          return;
+        }
+        const fallbackName = window.prompt(
+          mode === "file" ? "New file name" : "New folder name",
+          ""
+        );
+        if (fallbackName) {
+          createEntry(mode, fallbackName, "");
+        }
+      };
+
+      const makePath = (parent, name) => {
+        const trimmed = normalizePath(name);
+        const cleaned = trimmed.replace(/^\/+|\/+$/g, "");
+        if (!cleaned) {
+          return "";
+        }
+        return parent ? `${parent}/${cleaned}` : cleaned;
+      };
+
+      const createEntry = (mode, name, parent) => {
+        const path = makePath(parent, name);
+        if (!path) {
+          createError.textContent = "Enter a valid name.";
+          return;
+        }
+        if (state.files.has(path) || state.folders.has(path)) {
+          createError.textContent = "That path already exists.";
+          return;
+        }
+        if (mode === "file") {
+          const data = textEncoder.encode("");
+          state.files.set(path, { data, isText: true, text: "" });
+          addImplicitFolders(path);
+          state.selectedPath = path;
+          renderTree();
+          renderEditor();
+        } else {
+          state.folders.add(path);
+          renderTree();
+        }
+        schedulePersist();
+        createDialog.close("confirm");
       };
 
       const handleUpload = (file) => {
@@ -686,6 +977,19 @@
         zipInput.value = "";
       });
 
+      newFileButton.addEventListener("click", () => openCreateDialog("file"));
+      newFolderButton.addEventListener("click", () => openCreateDialog("folder"));
+
+      createForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const submitValue = event.submitter ? event.submitter.value : "confirm";
+        if (submitValue === "cancel") {
+          createDialog.close("cancel");
+          return;
+        }
+        createEntry(createMode, createName.value, createParent.value);
+      });
+
       clearButton.addEventListener("click", async () => {
         const confirmed = await requestConfirmation({
           title: "Clear the current ZIP?",
@@ -700,15 +1004,30 @@
       });
 
       const loadFromStorage = () => {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (!stored) {
+        const storedV2 = localStorage.getItem(STORAGE_KEY_V2);
+        if (storedV2) {
+          try {
+            const payload = JSON.parse(storedV2);
+            const bytes = fromBase64(payload.zipBase64 || "");
+            state.zipName = payload.zipName || "archive.zip";
+            loadZipBytes(bytes);
+            return;
+          } catch (error) {
+            clearWorkspace();
+            return;
+          }
+        }
+
+        const storedV1 = localStorage.getItem(STORAGE_KEY_V1);
+        if (!storedV1) {
           clearWorkspace();
           return;
         }
         try {
-          const bytes = fromBase64(stored);
+          const bytes = fromBase64(storedV1);
           state.zipName = "archive.zip";
           loadZipBytes(bytes);
+          schedulePersist();
         } catch (error) {
           clearWorkspace();
         }

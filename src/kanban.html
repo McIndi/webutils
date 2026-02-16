@@ -3,17 +3,19 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Kanban Task Board - WebUtils</title>
+    <title>Kanban Task Board | McIndi WebUtils</title>
     <style>
       :root {
-        --bg: #f3f0ea;
-        --ink: #22211f;
-        --muted: #6a625c;
-        --board: #fff9f2;
-        --stroke: #e4d9cf;
-        --accent: #2a9d8f;
-        --accent-soft: rgba(42, 157, 143, 0.18);
-        --warn: #e76f51;
+        --bg: #f3f1ed;
+        --ink: #111418;
+        --muted: #626a73;
+        --board: #fbf7f2;
+        --stroke: #e2d8cf;
+        --accent: #c6562a;
+        --accent-soft: rgba(198, 86, 42, 0.16);
+        --warn: #b9382e;
+        --brand-deep: #0f1720;
+        --brand-fade: rgba(15, 23, 32, 0.08);
       }
 
       * {
@@ -22,10 +24,10 @@
 
       body {
         margin: 0;
-        font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        font-family: "Manrope", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
         color: var(--ink);
-        background: radial-gradient(800px 500px at 0% -10%, #f7d8c2 0%, transparent 60%),
-          radial-gradient(600px 400px at 120% 0%, #cce9e5 0%, transparent 60%),
+        background: radial-gradient(800px 500px at 0% -10%, #f6d9c4 0%, transparent 60%),
+          radial-gradient(600px 400px at 120% 0%, #d4e9e5 0%, transparent 60%),
           var(--bg);
       }
 
@@ -35,11 +37,49 @@
         margin: 0 auto;
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 10px;
+      }
+
+      .brand-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .brand-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        color: var(--brand-deep);
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+      }
+
+      .brand-mark {
+        width: 30px;
+        height: 30px;
+        border-radius: 9px;
+        background: var(--brand-deep);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+        font-size: 0.8rem;
+        box-shadow: 0 10px 20px var(--brand-fade);
+      }
+
+      .brand-subtitle {
+        font-size: 0.9rem;
+        color: var(--muted);
       }
 
       header h1 {
-        font-family: Georgia, "Times New Roman", serif;
+        font-family: "Fraunces", "Iowan Old Style", "Palatino", serif;
         font-weight: 600;
         font-size: clamp(2rem, 4vw, 3rem);
         margin: 0;
@@ -59,7 +99,7 @@
       }
 
       .controls {
-        display: flex;
+        /* display: flex; */
         gap: 12px;
         flex-wrap: wrap;
         align-items: center;
@@ -229,6 +269,12 @@
         font-size: 0.85rem;
       }
 
+      footer a {
+        color: inherit;
+        text-decoration: none;
+        font-weight: 600;
+      }
+
       dialog {
         border: none;
         border-radius: 16px;
@@ -309,6 +355,13 @@
   </head>
   <body>
     <header>
+      <div class="brand-bar">
+        <a class="brand-link" href="https://www.mcindi.com" target="_blank" rel="noopener">
+          <span class="brand-mark">M</span>
+          McIndi Solutions
+        </a>
+        <div class="brand-subtitle">WebUtils • Kanban Task Board</div>
+      </div>
       <h1>Kanban Task Board</h1>
       <p>Drag cards across columns. Add notes for extra detail.</p>
     </header>
@@ -363,7 +416,10 @@
       </div>
     </section>
 
-    <footer>Saved locally in your browser. Drag and drop to reorder.</footer>
+    <footer>
+      Saved locally in your browser. Drag and drop to reorder. Built by
+      <a href="https://www.mcindi.com" target="_blank" rel="noopener">McIndi Solutions LLC</a>.
+    </footer>
 
     <dialog id="note-editor">
       <form method="dialog" class="note-form">

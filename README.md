@@ -1,6 +1,6 @@
 # WebUtils
 
-A collection of pocket utilities designed for quick, focused work. Each tool ships as a single, self-contained HTML file with zero external dependencies (except for optional CDN libraries like CodeMirror for syntax highlighting). No build step, no installation—just download and open in your browser.
+McIndi WebUtils is a collection of pocket utilities designed for quick, focused work. Each tool ships as a single, self-contained HTML file with zero external dependencies (except for optional CDN libraries like CodeMirror for syntax highlighting). No build step, no installation—just download and open in your browser. Built and maintained by McIndi Solutions LLC.
 
 ## Features
 
@@ -26,11 +26,12 @@ Plan and track work with a traditional kanban layout. Features include:
 Inspect, edit, and re-download ZIP files entirely in your browser:
 - Upload a ZIP file to see its contents as a tree view
 - Edit files in an integrated code editor (CodeMirror for syntax highlighting)
+- Create new files and folders inside the ZIP
 - Re-package and download the modified ZIP
 - Clear the current ZIP to start fresh
 
 **File**: `src/zip-workbench.html`  
-**Storage key**: `webutils.zip-workbench.v1`  
+**Storage key**: `webutils.zip-workbench.v2`  
 **External dependency**: fflate (ZIP library via CDN)
 
 ### Repo2Prompt
@@ -54,6 +55,17 @@ Test and save regular expressions with live highlighting:
 
 **File**: `src/regex-workbench.html`  
 **Storage key**: `webutils.regex-workbench.v1`
+
+### Notes Wiki
+Lightweight notes with Markdown and CamelCase links:
+- Notes list with search and sorting
+- Display mode renders Markdown to HTML
+- Edit mode uses CodeMirror for Markdown
+- CamelCase words link to notes and create missing notes
+- Export and import notes as JSON
+
+**File**: `src/notes.html`  
+**Storage key**: `webutils.notes.v1`
 
 ## Landing Page
 
@@ -129,6 +141,10 @@ Repo2Prompt also uses:
 - **fflate** (ZIP file handling)
 
 These are loaded from CDN and optional—the apps work without them.
+
+Notes Wiki uses:
+- **CodeMirror 5** (Markdown editor)
+- **marked** (Markdown rendering)
 
 ## License
 

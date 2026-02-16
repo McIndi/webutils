@@ -3,18 +3,20 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>WebUtils - Pocket Utilities for Everyday Computing</title>
+    <title>McIndi WebUtils | McIndi Solutions</title>
     <style>
 
       :root {
-        --bg: #f5efe6;
-        --ink: #1c1c1c;
-        --muted: #6b5d54;
-        --accent: #ff6a3d;
-        --accent-dark: #c64d2c;
-        --danger: #c2412d;
-        --card: #fff7ef;
-        --stroke: #e1d7cf;
+        --bg: #f3f1ed;
+        --ink: #111418;
+        --muted: #626a73;
+        --accent: #c6562a;
+        --accent-dark: #a14320;
+        --danger: #b9382e;
+        --card: #fbf7f2;
+        --stroke: #e2d8cf;
+        --brand-deep: #0f1720;
+        --brand-fade: rgba(15, 23, 32, 0.08);
       }
 
       * {
@@ -24,14 +26,14 @@
       body {
         margin: 0;
         color: var(--ink);
-        background: radial-gradient(900px 600px at 10% -10%, #fdd9c7 0%, transparent 60%),
-          radial-gradient(700px 500px at 120% 10%, #d7f2e7 0%, transparent 60%),
+        background: radial-gradient(900px 600px at 10% -10%, #f6d9c4 0%, transparent 60%),
+          radial-gradient(700px 500px at 120% 10%, #d4e9e5 0%, transparent 60%),
           var(--bg);
-        font-family: "Space Grotesk", system-ui, sans-serif;
+        font-family: "Manrope", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
       }
 
       header {
-        padding: 48px 24px 16px;
+        padding: 40px 24px 16px;
         max-width: 1100px;
         margin: 0 auto;
         display: flex;
@@ -39,21 +41,48 @@
         gap: 24px;
       }
 
-      .badge {
-        align-self: flex-start;
-        padding: 6px 12px;
-        border-radius: 999px;
-        background: #1c1c1c;
-        color: #fff;
-        font-size: 12px;
+      .brand-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .brand-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        color: var(--brand-deep);
+        font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
+        font-size: 0.78rem;
+      }
+
+      .brand-mark {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: var(--brand-deep);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+        font-size: 0.85rem;
+        box-shadow: 0 10px 20px var(--brand-fade);
+      }
+
+      .brand-subtitle {
+        font-size: 0.9rem;
+        color: var(--muted);
       }
 
       h1 {
-        font-family: "Fraunces", serif;
+        font-family: "Fraunces", "Iowan Old Style", "Palatino", serif;
         font-weight: 700;
-        font-size: clamp(2.6rem, 5vw, 4.2rem);
+        font-size: clamp(2.5rem, 5vw, 4.1rem);
         margin: 0;
       }
 
@@ -84,7 +113,7 @@
         border-radius: 12px;
         font-weight: 600;
         transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-        box-shadow: 0 12px 24px rgba(198, 77, 44, 0.22);
+        box-shadow: 0 12px 24px rgba(198, 86, 42, 0.22);
       }
 
       .cta:hover {
@@ -132,7 +161,7 @@
         top: -40px;
         width: 120px;
         height: 120px;
-        background: rgba(255, 106, 61, 0.15);
+        background: rgba(198, 86, 42, 0.14);
         border-radius: 999px;
       }
 
@@ -367,6 +396,12 @@
         font-size: 0.9rem;
       }
 
+      footer a {
+        color: inherit;
+        text-decoration: none;
+        font-weight: 600;
+      }
+
       @media (max-width: 720px) {
         header {
           padding-top: 32px;
@@ -381,15 +416,27 @@
   </head>
   <body>
     <header>
-      <div class="badge">WebUtils</div>
+      <div class="brand-bar">
+        <a class="brand-link" href="https://www.mcindi.com" target="_blank" rel="noopener">
+          <span class="brand-mark">M</span>
+          McIndi Solutions
+        </a>
+        <div class="brand-subtitle">WebUtils • Offline-ready utilities</div>
+      </div>
       <div class="hero">
         <div>
-          <h1>Handy web utilities that live in a single file.</h1>
+          <h1>Focused, mission-ready web utilities in a single file.</h1>
           <p>
-            WebUtils is a small collection of static, offline-friendly tools for everyday
-            computing. Each utility ships as a single HTML file so it is portable, fast, and
-            easy to drop anywhere.
+            McIndi WebUtils is a collection of offline-friendly tools for everyday computing.
+            Each utility ships as a single HTML file so it is portable, fast, and easy to drop
+            anywhere.
           </p>
+          <div class="cta-row">
+            <a class="cta" href="#app-nav">Browse utilities</a>
+            <a class="cta ghost" href="https://www.mcindi.com" target="_blank" rel="noopener">
+              Visit McIndi.com
+            </a>
+          </div>
         </div>
         <ul class="list">
           <li><span class="dot"></span>Zero-install, no build step.</li>
@@ -452,7 +499,10 @@
       </form>
     </dialog>
 
-    <footer>Made for quick, quiet productivity. No accounts required.</footer>
+    <footer>
+      Made for quick, quiet productivity. Built by
+      <a href="https://www.mcindi.com" target="_blank" rel="noopener">McIndi Solutions LLC</a>.
+    </footer>
     <script>
       const APP_REGISTRY = [
         {
@@ -482,6 +532,13 @@
           key: "webutils.regex-workbench.v1",
           href: "regex-workbench.html",
           description: "Test and save regex patterns with live highlighting.",
+        },
+        {
+          id: "notes",
+          label: "Notes Wiki",
+          key: "webutils.notes.v1",
+          href: "notes.html",
+          description: "Write Markdown notes with CamelCase links.",
         },
       ];
 

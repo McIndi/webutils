@@ -3,20 +3,22 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Repo2Prompt - WebUtils</title>
+    <title>Repo2Prompt | McIndi WebUtils</title>
     <style>
       @import url("https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Work+Sans:wght@400;500;600&display=swap");
 
       :root {
-        --bg: #f4f0e9;
-        --ink: #1e1b18;
-        --muted: #6f645b;
-        --panel: #fff7ef;
-        --stroke: #e2d6cb;
-        --accent: #2f6f91;
-        --accent-dark: #245775;
-        --accent-soft: rgba(47, 111, 145, 0.16);
-        --warn: #c2412d;
+        --bg: #f3f1ed;
+        --ink: #111418;
+        --muted: #626a73;
+        --panel: #fbf7f2;
+        --stroke: #e2d8cf;
+        --accent: #c6562a;
+        --accent-dark: #a14320;
+        --accent-soft: rgba(198, 86, 42, 0.16);
+        --warn: #b9382e;
+        --brand-deep: #0f1720;
+        --brand-fade: rgba(15, 23, 32, 0.08);
       }
 
       * {
@@ -25,10 +27,10 @@
 
       body {
         margin: 0;
-        font-family: "Work Sans", "Segoe UI", sans-serif;
+        font-family: "Work Sans", "Manrope", "Segoe UI", sans-serif;
         color: var(--ink);
-        background: radial-gradient(900px 600px at 10% -10%, #f7d7c0 0%, transparent 60%),
-          radial-gradient(700px 500px at 120% 10%, #cfe7f2 0%, transparent 60%),
+        background: radial-gradient(900px 600px at 10% -10%, #f6d9c4 0%, transparent 60%),
+          radial-gradient(700px 500px at 120% 10%, #d4e9e5 0%, transparent 60%),
           var(--bg);
         min-height: 100vh;
         display: flex;
@@ -40,12 +42,50 @@
         padding: 28px 24px 10px;
         margin: 0;
         display: grid;
-        gap: 8px;
+        gap: 10px;
+      }
+
+      .brand-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .brand-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        color: var(--brand-deep);
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+      }
+
+      .brand-mark {
+        width: 30px;
+        height: 30px;
+        border-radius: 9px;
+        background: var(--brand-deep);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+        font-size: 0.8rem;
+        box-shadow: 0 10px 20px var(--brand-fade);
+      }
+
+      .brand-subtitle {
+        font-size: 0.9rem;
+        color: var(--muted);
       }
 
       header h1 {
         margin: 0;
-        font-family: "Fraunces", serif;
+        font-family: "Fraunces", "Iowan Old Style", "Palatino", serif;
         font-size: clamp(2rem, 4vw, 3rem);
       }
 
@@ -333,6 +373,18 @@
         border-color: var(--accent);
       }
 
+      footer {
+        padding: 12px 24px 24px;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      footer a {
+        color: inherit;
+        text-decoration: none;
+        font-weight: 600;
+      }
+
       @media (max-width: 900px) {
         main {
           grid-template-columns: 1fr;
@@ -352,6 +404,13 @@
   </head>
   <body>
     <header>
+      <div class="brand-bar">
+        <a class="brand-link" href="https://www.mcindi.com" target="_blank" rel="noopener">
+          <span class="brand-mark">M</span>
+          McIndi Solutions
+        </a>
+        <div class="brand-subtitle">WebUtils • Repo2Prompt</div>
+      </div>
       <h1>Repo2Prompt</h1>
       <p>
         Paste a ZIP URL, pick the files you want, and copy a combined prompt-friendly
@@ -409,6 +468,10 @@
       </section>
       <div class="resize-handle" id="resize-handle"></div>
     </main>
+
+    <footer>
+      Built by <a href="https://www.mcindi.com" target="_blank" rel="noopener">McIndi Solutions LLC</a>.
+    </footer>
 
     <dialog id="confirm-dialog">
       <form method="dialog" class="confirm-form">
