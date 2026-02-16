@@ -205,27 +205,53 @@
         gap: 6px;
       }
 
-      .tree button {
+      .tree-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .tree-entry {
         border: none;
         background: none;
         text-align: left;
         padding: 6px 8px;
         border-radius: 8px;
-        cursor: pointer;
         color: var(--ink);
         font: inherit;
+        flex: 1;
       }
 
-      .tree button:hover,
-      .tree button.active {
+      button.tree-entry {
+        cursor: pointer;
+      }
+
+      .tree-entry.file:hover,
+      .tree-entry.file.active {
         background: var(--accent-soft);
         color: var(--accent);
         font-weight: 600;
       }
 
-      .tree .folder {
+      .tree-entry.folder {
         font-weight: 600;
         color: var(--muted);
+        cursor: default;
+      }
+
+      .delete-link {
+        border: none;
+        background: none;
+        color: var(--warn);
+        font: inherit;
+        padding: 4px 6px;
+        cursor: pointer;
+        border-radius: 6px;
+      }
+
+      .delete-link:hover {
+        background: rgba(185, 56, 46, 0.12);
       }
 
       .tree .nested {
@@ -676,19 +702,38 @@
             const entry = node[key];
             const item = document.createElement("li");
             const currentPath = prefix ? `${prefix}/${key}` : key;
+            const row = document.createElement("div");
+            row.className = "tree-row";
 
             if (entry.__isFile) {
               const button = document.createElement("button");
               button.textContent = key;
-              button.className = state.selectedPath === currentPath ? "active" : "";
+              button.className = `tree-entry file ${
+                state.selectedPath === currentPath ? "active" : ""
+              }`;
               button.addEventListener("click", () => selectFile(currentPath));
-              item.appendChild(button);
+              row.appendChild(button);
             } else {
               const label = document.createElement("div");
               label.textContent = key;
-              label.className = "folder";
-              item.appendChild(label);
+              label.className = "tree-entry folder";
+              row.appendChild(label);
             }
+
+            const deleteButton = document.createElement("button");
+            deleteButton.className = "delete-link";
+            deleteButton.type = "button";
+            deleteButton.textContent = "Delete";
+            deleteButton.addEventListener("click", async (event) => {
+              event.stopPropagation();
+              if (entry.__isFile) {
+                await deleteFile(currentPath);
+              } else {
+                await deleteFolder(currentPath);
+              }
+            });
+            row.appendChild(deleteButton);
+            item.appendChild(row);
 
             const children = Object.keys(entry.__children || {});
             if (children.length > 0) {
@@ -707,11 +752,11 @@
       };
 
       const renderEditor = () => {
-        editorArea.innerHTML = "";
         if (editorInstance) {
           editorInstance.toTextArea();
           editorInstance = null;
         }
+        editorArea.innerHTML = "";
         if (!state.selectedPath) {
           editorArea.textContent = "Select a file to edit its contents.";
           editorArea.className = "empty";
@@ -931,17 +976,27 @@
         return parent ? `${parent}/${cleaned}` : cleaned;
       };
 
-      const createEntry = (mode, name, parent) => {
+      const createEntry = async (mode, name, parent) => {
         const path = makePath(parent, name);
         if (!path) {
           createError.textContent = "Enter a valid name.";
           return;
         }
-        if (state.files.has(path) || state.folders.has(path)) {
-          createError.textContent = "That path already exists.";
-          return;
-        }
         if (mode === "file") {
+          if (state.folders.has(path)) {
+            createError.textContent = "A folder already exists at that path.";
+            return;
+          }
+          if (state.files.has(path)) {
+            const confirmed = await requestConfirmation({
+              title: "Overwrite existing file?",
+              message: `This will replace ${path} with a new empty file.`,
+              confirmText: "Overwrite",
+            });
+            if (!confirmed) {
+              return;
+            }
+          }
           const data = textEncoder.encode("");
           state.files.set(path, { data, isText: true, text: "" });
           addImplicitFolders(path);
@@ -949,11 +1004,69 @@
           renderTree();
           renderEditor();
         } else {
+          if (state.files.has(path) || state.folders.has(path)) {
+            createError.textContent = "That path already exists.";
+            return;
+          }
           state.folders.add(path);
           renderTree();
         }
         schedulePersist();
         createDialog.close("confirm");
+      };
+
+      const deleteFile = async (path) => {
+        const confirmed = await requestConfirmation({
+          title: "Delete this file?",
+          message: `This will remove ${path} from the ZIP.`,
+          confirmText: "Delete file",
+        });
+        if (!confirmed) {
+          return;
+        }
+        state.files.delete(path);
+        if (state.selectedPath === path) {
+          state.selectedPath = null;
+        }
+        renderTree();
+        renderEditor();
+        schedulePersist();
+      };
+
+      const deleteFolder = async (path) => {
+        const descendantPrefix = `${path}/`;
+        const fileCount = Array.from(state.files.keys()).filter((key) =>
+          key.startsWith(descendantPrefix)
+        ).length;
+        const folderCount = Array.from(state.folders.values()).filter((key) =>
+          key === path || key.startsWith(descendantPrefix)
+        ).length;
+        const confirmed = await requestConfirmation({
+          title: "Delete this folder?",
+          message: `This will remove ${folderCount} folder${
+            folderCount === 1 ? "" : "s"
+          } and ${fileCount} file${fileCount === 1 ? "" : "s"}.`,
+          confirmText: "Delete folder",
+        });
+        if (!confirmed) {
+          return;
+        }
+        Array.from(state.files.keys()).forEach((key) => {
+          if (key.startsWith(descendantPrefix)) {
+            state.files.delete(key);
+          }
+        });
+        Array.from(state.folders.values()).forEach((key) => {
+          if (key === path || key.startsWith(descendantPrefix)) {
+            state.folders.delete(key);
+          }
+        });
+        if (state.selectedPath && state.selectedPath.startsWith(descendantPrefix)) {
+          state.selectedPath = null;
+        }
+        renderTree();
+        renderEditor();
+        schedulePersist();
       };
 
       const handleUpload = (file) => {
@@ -999,7 +1112,8 @@
         if (!confirmed) {
           return;
         }
-        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(STORAGE_KEY_V2);
+        localStorage.removeItem(STORAGE_KEY_V1);
         clearWorkspace();
       });
 
