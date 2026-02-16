@@ -412,6 +412,12 @@
         <div class="brand-subtitle">WebUtils • Repo2Prompt</div>
       </div>
       <h1>Repo2Prompt</h1>
+      <div class="toolbar">
+        <a href="index.html">Back to index</a>
+        <label for="zip-file">Load from file</label>
+        <input id="zip-file" type="file" accept=".zip" />
+        <button class="danger" id="clear-session" type="button">Clear</button>
+      </div>
       <p>
         Paste a ZIP URL, pick the files you want, and copy a combined prompt-friendly
         payload.
@@ -426,10 +432,6 @@
         spellcheck="false"
       />
       <button class="primary" id="load-zip" type="button">Load ZIP</button>
-      <label for="zip-file">Load from file</label>
-      <input id="zip-file" type="file" accept=".zip" />
-      <button class="danger" id="clear-session" type="button">Clear</button>
-      <a href="index.html">Back to index</a>
       <div class="status" id="status">No ZIP loaded.</div>
     </div>
 

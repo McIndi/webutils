@@ -835,6 +835,10 @@
           return;
         }
         ensureViewState(note);
+        if (state.openIds.includes(id)) {
+          await closeNote(id);
+          return;
+        }
         const view = state.viewById[id];
         if (view && view.mode === "edit") {
           if (view.dirty) {

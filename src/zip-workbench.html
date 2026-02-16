@@ -129,8 +129,9 @@
       }
 
       .toolbar .danger {
-        color: var(--warn);
+        background: var(--warn);
         border-color: var(--warn);
+        color: #fff;
       }
 
       .toolbar .status {
@@ -427,11 +428,11 @@
     </header>
 
     <div class="toolbar">
+      <a href="index.html">Back to index</a>
       <label class="primary" for="zip-input">Upload ZIP</label>
       <input id="zip-input" type="file" accept=".zip" />
       <a id="download-link" href="#" download="archive.zip">Download ZIP</a>
       <button id="clear-zip" class="danger" type="button">Clear ZIP</button>
-      <a href="index.html">Back to index</a>
       <span class="status" id="status">No ZIP loaded.</span>
     </div>
 

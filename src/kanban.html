@@ -246,20 +246,48 @@
         outline-offset: -6px;
       }
 
-      .toolbar {
+      .page-toolbar {
+        align-items: flex-start;
+        padding: 28px 24px 8px;
+        max-width: 1200px;
+        margin: 0 auto;
         display: flex;
-        gap: 12px;
+        flex-direction: row;
+        gap: 10px;
         flex-wrap: wrap;
-        margin-top: 8px;
       }
 
-      .toolbar button {
+      .page-toolbar a {
         border: 1px solid var(--stroke);
         background: #fff;
-        color: var(--muted);
-        padding: 8px 12px;
+        padding: 8px 14px;
         border-radius: 10px;
         cursor: pointer;
+        font-weight: 600;
+        text-decoration: none;
+        color: var(--ink);
+      }
+
+      .page-toolbar button {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        color: var(--ink);
+        padding: 8px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      .page-toolbar #clear-done {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
+      .page-toolbar #reset-board {
+        background: var(--warn);
+        border-color: var(--warn);
+        color: #fff;
       }
 
       footer {
@@ -366,6 +394,12 @@
       <p>Drag cards across columns. Add notes for extra detail.</p>
     </header>
 
+    <div class="page-toolbar">
+      <a href="index.html">Back to index</a>
+      <button type="button" id="clear-done">Clear done</button>
+      <button type="button" id="reset-board">Reset board</button>
+    </div>
+
     <section class="board">
       <form class="controls" id="task-form">
         <div class="field">
@@ -389,12 +423,6 @@
           <button type="submit">Add card</button>
         </div>
       </form>
-
-      <div class="toolbar">
-        <button type="button" id="clear-done">Clear done</button>
-        <button type="button" id="reset-board">Reset board</button>
-        <a href="index.html">Back to index</a>
-      </div>
 
       <div class="lane-grid" id="lanes">
         <div class="lane" data-lane="backlog">
