@@ -67,6 +67,17 @@ Lightweight notes with Markdown and CamelCase links:
 **File**: `src/notes.html`  
 **Storage key**: `webutils.notes.v1`
 
+### Static Page Generator
+Create standalone HTML pages from Markdown:
+- Live Markdown editing with preview
+- Five templates with distinct layouts and styling
+- Export a full standalone HTML file
+- Auto table of contents from headings
+- Drafts persist in localStorage
+
+**File**: `src/static-page-generator.html`  
+**Storage key**: `webutils.static-page-generator.v1`
+
 ## Landing Page
 
 The landing page (`src/index.html`) serves as a hub for all utilities and includes:
@@ -134,7 +145,7 @@ For information on:
 ## Dependencies
 
 Most apps use vanilla JavaScript. The Zip Workbench uses:
-- **CodeMirror 6** (syntax highlighting)
+- **CodeMirror 5** (syntax highlighting)
 - **fflate** (ZIP file handling)
 
 Repo2Prompt also uses:
@@ -144,6 +155,9 @@ These are loaded from CDN and optional—the apps work without them.
 
 Notes Wiki uses:
 - **CodeMirror 5** (Markdown editor)
+- **marked** (Markdown rendering)
+
+Static Page Generator uses:
 - **marked** (Markdown rendering)
 
 ## License
