@@ -1,0 +1,1196 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Static Page Generator | McIndi WebUtils</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.css"
+    />
+    <style>
+      :root {
+        --bg: #f6f1ea;
+        --ink: #111418;
+        --muted: #5e666f;
+        --panel: #fff7ee;
+        --stroke: #e2d8cf;
+        --accent: #0d6b6f;
+        --accent-dark: #0a5053;
+        --accent-soft: rgba(13, 107, 111, 0.16);
+        --warn: #b9382e;
+        --brand-deep: #0f1720;
+        --brand-fade: rgba(15, 23, 32, 0.08);
+        --shadow: rgba(21, 21, 21, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Space Grotesk", "Manrope", "Segoe UI", sans-serif;
+        color: var(--ink);
+        background: radial-gradient(900px 520px at 8% -10%, #f2d6be 0%, transparent 60%),
+          radial-gradient(740px 520px at 120% 10%, #d2e8e2 0%, transparent 60%),
+          var(--bg);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      header {
+        padding: 26px 28px 8px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .brand-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .brand-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        color: var(--brand-deep);
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+      }
+
+      .brand-mark {
+        width: 30px;
+        height: 30px;
+        border-radius: 9px;
+        background: var(--brand-deep);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+        font-size: 0.8rem;
+        box-shadow: 0 10px 20px var(--brand-fade);
+      }
+
+      .brand-subtitle {
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      header h1 {
+        margin: 0;
+        font-family: "Instrument Serif", "Fraunces", serif;
+        font-size: clamp(2rem, 3.6vw, 3rem);
+      }
+
+      header p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+        font-size: 0.95rem;
+        max-width: 840px;
+      }
+
+      .toolbar {
+        width: 100%;
+        padding: 0 28px 12px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .toolbar a,
+      .toolbar button {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        padding: 8px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        text-decoration: none;
+        color: var(--ink);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .toolbar button.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
+      .toolbar button.ghost {
+        background: transparent;
+        border-color: var(--ink);
+        color: var(--ink);
+      }
+
+      .toolbar button.danger {
+        background: var(--warn);
+        border-color: var(--warn);
+        color: #fff;
+      }
+
+      .status {
+        padding: 0 28px 12px;
+        color: var(--muted);
+        font-size: 0.9rem;
+        min-height: 1.2em;
+      }
+
+      main {
+        width: 100%;
+        flex: 1;
+        padding: 0 20px 24px;
+        display: grid;
+        gap: 16px;
+        min-height: 0;
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.1fr);
+        gap: 16px;
+        min-height: 0;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--stroke);
+        border-radius: 18px;
+        padding: 16px;
+        /* display: grid; */
+        gap: 14px;
+        min-height: 0;
+        box-shadow: 0 14px 30px var(--shadow);
+      }
+
+      .panel h2 {
+        margin: 0;
+        font-size: 1.05rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+      }
+
+      .field label {
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      .field input,
+      .field textarea,
+      .field select {
+        font: inherit;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--stroke);
+        background: #fff;
+        width: 100%;
+      }
+
+      .field textarea {
+        min-height: 240px;
+        resize: vertical;
+        font-family: "Consolas", "Courier New", monospace;
+      }
+
+      .CodeMirror {
+        border: 1px solid var(--stroke);
+        border-radius: 10px;
+        font-family: "Consolas", "Courier New", monospace;
+        min-height: 240px;
+        background: #fff;
+        padding: 2px 0;
+      }
+
+      .CodeMirror-scroll {
+        min-height: 240px;
+      }
+
+      .options-grid {
+        display: grid;
+        gap: 12px;
+      }
+
+      .inline-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .inline-options label {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #fff;
+        border: 1px solid var(--stroke);
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 0.85rem;
+      }
+
+      .theme-select {
+        max-width: 280px;
+      }
+
+      .theme-select select {
+        appearance: none;
+        background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+          linear-gradient(135deg, var(--muted) 50%, transparent 50%),
+          linear-gradient(to right, #fff, #fff);
+        background-position: calc(100% - 18px) calc(50% - 3px),
+          calc(100% - 12px) calc(50% - 3px), 0 0;
+        background-size: 6px 6px, 6px 6px, 100% 100%;
+        background-repeat: no-repeat;
+        padding-right: 34px;
+      }
+
+      .theme-select select:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-soft);
+      }
+
+      .theme-meta {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .preview-shell {
+        background: #fff;
+        border: 1px solid var(--stroke);
+        border-radius: 16px;
+        overflow: hidden;
+        min-height: 0;
+        display: grid;
+        grid-template-rows: auto 1fr;
+      }
+
+      .resizable {
+        resize: vertical;
+        overflow: auto;
+        min-height: 220px;
+        max-height: 70vh;
+      }
+
+      .editor-resize {
+        border-radius: 12px;
+      }
+
+      .preview-resize {
+        border-radius: 16px;
+      }
+
+      .preview-header {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--stroke);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        background: #fdfbf9;
+      }
+
+      .preview-header span {
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      .preview-frame {
+        border: 0;
+        width: 100%;
+        height: 100%;
+        min-height: 420px;
+        background: #fff;
+      }
+
+      dialog {
+        border: none;
+        border-radius: 16px;
+        padding: 0;
+        width: min(520px, 92vw);
+        box-shadow: 0 20px 40px rgba(28, 28, 28, 0.25);
+      }
+
+      dialog::backdrop {
+        background: rgba(28, 28, 28, 0.35);
+      }
+
+      .confirm-form {
+        padding: 18px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .confirm-form h3 {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+
+      .confirm-form p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .confirm-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      .confirm-actions button {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        padding: 8px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      .confirm-actions .primary {
+        background: var(--warn);
+        border-color: var(--warn);
+        color: #fff;
+      }
+
+      @media (max-width: 980px) {
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand-bar">
+        <a class="brand-link" href="index.html">
+          <span class="brand-mark">MC</span>
+          <span>McIndi WebUtils</span>
+        </a>
+        <span class="brand-subtitle">Static page generator</span>
+      </div>
+      <h1>Static Page Generator</h1>
+      <p>
+        Write Markdown, pick a template, and export a polished HTML page. Your draft is saved
+        locally as you work, and the export is a complete standalone document.
+      </p>
+    </header>
+
+    <div class="toolbar">
+      <a href="index.html">Back to index</a>
+      <button class="primary" id="download-html" type="button">Download HTML</button>
+      <button class="ghost" id="copy-html" type="button">Copy HTML</button>
+      <button class="danger" id="reset-draft" type="button">Reset draft</button>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <main>
+      <section class="workspace">
+        <div class="panel">
+          <h2>Content</h2>
+          <div class="field">
+            <label for="page-title">Page title (used in the browser tab)</label>
+            <input id="page-title" type="text" placeholder="Untitled page" />
+          </div>
+          <div class="field">
+            <label for="file-name">Download filename</label>
+            <input id="file-name" type="text" placeholder="my-page.html" />
+          </div>
+          <div class="options-grid">
+            <div class="inline-options">
+              <label>
+                <input type="checkbox" id="toggle-toc" />
+                Auto table of contents
+              </label>
+            </div>
+          </div>
+          <div class="field">
+            <label for="markdown-input">Markdown</label>
+            <div class="resizable editor-resize" id="editor-resize">
+              <textarea id="markdown-input" spellcheck="false"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Templates</h2>
+          <div class="field theme-select">
+            <label for="theme-select">Theme</label>
+            <select id="theme-select"></select>
+          </div>
+          <p class="theme-meta" id="theme-description"></p>
+
+          <div class="preview-shell resizable preview-resize" id="preview-resize">
+            <div class="preview-header">
+              <strong>Live preview</strong>
+              <span>Matches export output</span>
+            </div>
+            <iframe class="preview-frame" id="preview-frame" title="Preview" sandbox=""></iframe>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="confirm-dialog">
+      <form method="dialog" class="confirm-form">
+        <h3 id="confirm-title">Confirm action</h3>
+        <p id="confirm-message">Are you sure you want to continue?</p>
+        <div class="confirm-actions">
+          <button value="cancel" type="submit">Cancel</button>
+          <button value="confirm" type="submit" class="primary" id="confirm-accept">
+            Confirm
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/markdown/markdown.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+    <script>
+      const STORAGE_KEY = "webutils.static-page-generator.v1";
+
+      const THEMES = [
+        {
+          id: "studio",
+          label: "Studio",
+          description: "Bright editorial layout with generous whitespace.",
+          layout: "single",
+          css: `
+            :root {
+              --accent: #0d6b6f;
+              --accent-soft: rgba(13, 107, 111, 0.18);
+              --paper: #f9f4ee;
+              --ink: #1a1d21;
+              --muted: #5c6770;
+              --surface: #ffffff;
+              --surface-2: #f3ece4;
+              --line: #e2d8cf;
+              --code: #f1e9e0;
+              --shadow: rgba(20, 24, 30, 0.12);
+            }
+            body[data-theme="dark"] {
+              --paper: #121519;
+              --ink: #f2f4f7;
+              --muted: #b2b9c5;
+              --surface: #1b2127;
+              --surface-2: #202730;
+              --line: #2b343e;
+              --code: #1c222a;
+              --shadow: rgba(0, 0, 0, 0.45);
+            }
+            * { box-sizing: border-box; }
+            body { margin: 0; font-family: "Space Grotesk", "Manrope", sans-serif; background: var(--paper); color: var(--ink); }
+            body[data-theme="light"] { background: linear-gradient(135deg, rgba(13, 107, 111, 0.08), transparent 60%), var(--paper); }
+            header.hero { padding: 72px 10vw 32px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+            header.hero h1 { font-family: "Instrument Serif", "Fraunces", serif; margin: 0 0 12px; font-size: clamp(2.6rem, 6vw, 4rem); }
+            header.hero p { margin: 0; color: var(--muted); font-size: 1.05rem; }
+            main { max-width: 1200px; margin: 0 auto; padding: 32px 10vw 64px; }
+            h2, h3 { font-family: "Instrument Serif", "Fraunces", serif; }
+            a { color: var(--accent); font-weight: 600; text-decoration: none; }
+            a:hover { text-decoration: underline; }
+            pre { background: var(--code); padding: 14px; border-radius: 12px; overflow: auto; }
+            code { background: var(--code); padding: 2px 6px; border-radius: 6px; }
+            blockquote { margin: 24px 0; padding: 12px 20px; border-left: 4px solid var(--accent); background: var(--surface-2); }
+            table { width: 100%; border-collapse: collapse; margin: 18px 0; }
+            th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; }
+            nav.toc { margin: 24px 0; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+            nav.toc h3 { margin-top: 0; }
+            nav.toc ol { margin: 0; padding-left: 20px; }
+          `,
+        },
+        {
+          id: "atlas",
+          label: "Atlas",
+          description: "Two-column layout with a stitched table of contents.",
+          layout: "split",
+          css: `
+            :root {
+              --accent: #c6562a;
+              --accent-soft: rgba(198, 86, 42, 0.2);
+              --paper: #f8f2ea;
+              --ink: #1c1f23;
+              --muted: #616a73;
+              --surface: #ffffff;
+              --surface-2: #f5e8db;
+              --line: #e2d8cf;
+              --code: #f5e8db;
+              --shadow: rgba(20, 24, 30, 0.12);
+            }
+            body[data-theme="dark"] {
+              --paper: #121417;
+              --ink: #f2f4f7;
+              --muted: #b4bbc7;
+              --surface: #1b2026;
+              --surface-2: #212933;
+              --line: #2b323c;
+              --code: #1c222a;
+              --shadow: rgba(0, 0, 0, 0.45);
+            }
+            * { box-sizing: border-box; }
+            body { margin: 0; font-family: "Space Grotesk", "Manrope", sans-serif; background: var(--paper); color: var(--ink); }
+            body[data-theme="light"] { background: radial-gradient(600px 260px at 20% 0%, rgba(198, 86, 42, 0.18), transparent 65%), var(--paper); }
+            header.hero { padding: 64px 8vw 26px; background: var(--surface-2); }
+            header.hero h1 { font-family: "Instrument Serif", "Fraunces", serif; margin: 0 0 12px; font-size: clamp(2.4rem, 5vw, 3.6rem); }
+            header.hero p { margin: 0; color: var(--muted); }
+            main { display: grid; grid-template-columns: minmax(200px, 280px) 1fr; gap: 28px; padding: 32px 8vw 64px; }
+            article { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 24px; box-shadow: 0 16px 26px var(--shadow); }
+            nav.toc { position: sticky; top: 24px; align-self: start; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+            nav.toc h3 { margin-top: 0; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+            nav.toc ol { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+            nav.toc a { color: var(--ink); text-decoration: none; font-weight: 600; }
+            nav.toc a:hover { color: var(--accent); }
+            h2, h3 { font-family: "Instrument Serif", "Fraunces", serif; }
+            a { color: var(--accent); font-weight: 600; text-decoration: none; }
+            a:hover { text-decoration: underline; }
+            pre { background: var(--code); padding: 14px; border-radius: 12px; overflow: auto; }
+            code { background: var(--code); padding: 2px 6px; border-radius: 6px; }
+          `,
+        },
+        {
+          id: "harbor",
+          label: "Harbor",
+          description: "Soft gradient hero with card-like sections.",
+          layout: "cards",
+          css: `
+            :root {
+              --accent: #1f6f5c;
+              --accent-soft: rgba(31, 111, 92, 0.18);
+              --paper: #f2f7f3;
+              --ink: #16201d;
+              --muted: #576560;
+              --surface: #ffffff;
+              --surface-2: #eaf2ed;
+              --line: #dfe8e2;
+              --code: #eaf2ed;
+              --shadow: rgba(23, 39, 32, 0.18);
+            }
+            body[data-theme="dark"] {
+              --paper: #101614;
+              --ink: #f1f5f3;
+              --muted: #a9b4b0;
+              --surface: #18201d;
+              --surface-2: #202a27;
+              --line: #2a3532;
+              --code: #1b2522;
+              --shadow: rgba(0, 0, 0, 0.45);
+            }
+            * { box-sizing: border-box; }
+            body { margin: 0; font-family: "Space Grotesk", "Manrope", sans-serif; background: var(--paper); color: var(--ink); }
+            body[data-theme="light"] { background: linear-gradient(130deg, rgba(31, 111, 92, 0.2), rgba(31, 111, 92, 0)), var(--paper); }
+            header.hero { padding: 70px 10vw 40px; background: var(--surface-2); }
+            header.hero h1 { font-family: "Instrument Serif", "Fraunces", serif; margin: 0 0 10px; font-size: clamp(2.6rem, 5.5vw, 3.8rem); }
+            header.hero p { margin: 0; color: var(--muted); max-width: 720px; }
+            main { max-width: 1200px; margin: 0 auto; padding: 24px 10vw 70px; }
+            article { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 26px; box-shadow: 0 18px 30px var(--shadow); }
+            article > *:first-child { margin-top: 0; }
+            h2, h3 { font-family: "Instrument Serif", "Fraunces", serif; }
+            a { color: var(--accent); font-weight: 600; text-decoration: none; }
+            a:hover { text-decoration: underline; }
+            pre { background: var(--code); padding: 14px; border-radius: 12px; overflow: auto; }
+            code { background: var(--code); padding: 2px 6px; border-radius: 6px; }
+            nav.toc { margin: 18px 0 24px; padding: 14px 16px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); }
+            nav.toc h3 { margin: 0 0 8px; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+            nav.toc ol { margin: 0; padding-left: 20px; }
+          `,
+        },
+        {
+          id: "folio",
+          label: "Folio",
+          description: "Gallery-style content with a warm border frame.",
+          layout: "frame",
+          css: `
+            :root {
+              --accent: #8c5b2b;
+              --accent-soft: rgba(140, 91, 43, 0.2);
+              --paper: #fbf5ec;
+              --ink: #1f1b18;
+              --muted: #6c6055;
+              --surface: #ffffff;
+              --surface-2: #f4ecdf;
+              --line: rgba(140, 91, 43, 0.2);
+              --code: #f4ecdf;
+              --shadow: rgba(27, 21, 17, 0.12);
+            }
+            body[data-theme="dark"] {
+              --paper: #14100e;
+              --ink: #f4f0ec;
+              --muted: #b7ada4;
+              --surface: #1d1714;
+              --surface-2: #241c18;
+              --line: rgba(255, 232, 208, 0.2);
+              --code: #1d1714;
+              --shadow: rgba(0, 0, 0, 0.45);
+            }
+            * { box-sizing: border-box; }
+            body { margin: 0; font-family: "Space Grotesk", "Manrope", sans-serif; background: var(--paper); color: var(--ink); }
+            body[data-theme="light"] { background: linear-gradient(120deg, rgba(140, 91, 43, 0.12), transparent 60%), var(--paper); }
+            .frame { border: 2px solid var(--line); margin: 28px; border-radius: 24px; background: var(--surface); box-shadow: 0 18px 32px var(--shadow); }
+            header.hero { padding: 56px 8vw 24px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+            header.hero h1 { font-family: "Instrument Serif", "Fraunces", serif; margin: 0 0 8px; font-size: clamp(2.2rem, 4.6vw, 3.2rem); }
+            header.hero p { margin: 0; color: var(--muted); }
+            main { padding: 28px 8vw 56px; }
+            h2, h3 { font-family: "Instrument Serif", "Fraunces", serif; }
+            a { color: var(--accent); font-weight: 600; text-decoration: none; }
+            a:hover { text-decoration: underline; }
+            pre { background: var(--code); padding: 14px; border-radius: 12px; overflow: auto; }
+            code { background: var(--code); padding: 2px 6px; border-radius: 6px; }
+            nav.toc { margin: 18px 0 24px; padding: 14px 16px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); }
+            nav.toc h3 { margin: 0 0 8px; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+            nav.toc ol { margin: 0; padding-left: 20px; }
+          `,
+        },
+        {
+          id: "signal",
+          label: "Signal",
+          description: "Bold masthead with a technical, grid-forward feel.",
+          layout: "grid",
+          css: `
+            :root {
+              --accent: #1d4c8f;
+              --accent-soft: rgba(29, 76, 143, 0.2);
+              --paper: #f2f5fb;
+              --ink: #141b2a;
+              --muted: #5a6474;
+              --surface: #ffffff;
+              --surface-2: #e6ebf5;
+              --line: #d6ddea;
+              --code: #e6ebf5;
+              --shadow: rgba(18, 28, 46, 0.12);
+            }
+            body[data-theme="dark"] {
+              --paper: #0f131b;
+              --ink: #f2f4f7;
+              --muted: #aeb7c4;
+              --surface: #1a202c;
+              --surface-2: #202838;
+              --line: #2b3444;
+              --code: #1a202c;
+              --shadow: rgba(0, 0, 0, 0.45);
+            }
+            * { box-sizing: border-box; }
+            body { margin: 0; font-family: "Space Grotesk", "Manrope", sans-serif; background: var(--paper); color: var(--ink); }
+            body[data-theme="light"] { background: linear-gradient(135deg, rgba(29, 76, 143, 0.16), transparent 65%), var(--paper); }
+            header.hero { padding: 64px 10vw 20px; background: var(--surface-2); }
+            header.hero h1 { font-family: "Instrument Serif", "Fraunces", serif; margin: 0 0 10px; font-size: clamp(2.4rem, 5vw, 3.6rem); }
+            header.hero p { margin: 0; color: var(--muted); }
+            main { padding: 28px 10vw 64px; display: grid; gap: 18px; }
+            article { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 22px; box-shadow: 0 16px 28px var(--shadow); }
+            h2, h3 { font-family: "Instrument Serif", "Fraunces", serif; }
+            a { color: var(--accent); font-weight: 600; text-decoration: none; }
+            a:hover { text-decoration: underline; }
+            pre { background: var(--code); padding: 14px; border-radius: 12px; overflow: auto; }
+            code { background: var(--code); padding: 2px 6px; border-radius: 6px; }
+            nav.toc { margin: 0 0 12px; padding: 14px 16px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); }
+            nav.toc h3 { margin: 0 0 8px; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+            nav.toc ol { margin: 0; padding-left: 20px; }
+          `,
+        },
+      ];
+
+      const SAMPLE_MARKDOWN = `# Aurora Field Guide\n\nWrite in **Markdown**, choose a template, and export a complete HTML page. This generator is made for landing pages, documentation, event recaps, and product one-pagers.\n\n## What you can include\n\n- Headlines, links, and callouts\n- Lists and checklists\n- Code blocks and inline snippets\n- Tables, quotes, and images\n\n> Tip: The first H1 and paragraph become the hero title and subtitle when possible.\n\n## Section layout\n\n### Simple checklist\n\n- Draft the content in Markdown\n- Pick a template style\n- Export as a standalone page\n\n### Code sample\n\n\`\`\`js\nconst publish = (draft) => ({\n  ...draft,\n  exportedAt: new Date().toISOString(),\n});\n\`\`\`\n\n## Sample table\n\n| Feature | Purpose |\n| --- | --- |\n| Themes | Quick layout changes |\n| Export | Standalone HTML file |\n| Storage | Local-only saves |\n\n## Final thoughts\n\nAdd images, links, and sections as needed. The preview will update instantly.`;
+
+      const state = {
+        markdown: "",
+        themeId: "studio",
+        pageTitle: "",
+        fileName: "",
+        showToc: true,
+      };
+
+      const statusEl = document.getElementById("status");
+      const markdownInput = document.getElementById("markdown-input");
+      const pageTitleInput = document.getElementById("page-title");
+      const fileNameInput = document.getElementById("file-name");
+      const themeSelect = document.getElementById("theme-select");
+      const themeDescription = document.getElementById("theme-description");
+      const previewFrame = document.getElementById("preview-frame");
+      const editorResize = document.getElementById("editor-resize");
+      const previewResize = document.getElementById("preview-resize");
+      const toggleToc = document.getElementById("toggle-toc");
+      const downloadButton = document.getElementById("download-html");
+      const copyButton = document.getElementById("copy-html");
+      const resetButton = document.getElementById("reset-draft");
+
+      const confirmDialog = document.getElementById("confirm-dialog");
+      const confirmTitle = document.getElementById("confirm-title");
+      const confirmMessage = document.getElementById("confirm-message");
+      const confirmAccept = document.getElementById("confirm-accept");
+
+      let confirmResolve = null;
+      let renderTimer = null;
+      let lastExportHtml = "";
+      let editor = null;
+      let editorResizeObserver = null;
+
+      const requestConfirmation = ({ title, message, confirmText }) => {
+        if (!confirmDialog || typeof confirmDialog.showModal !== "function") {
+          return Promise.resolve(window.confirm(message || title));
+        }
+        confirmTitle.textContent = title;
+        confirmMessage.textContent = message;
+        confirmAccept.textContent = confirmText || "Confirm";
+        return new Promise((resolve) => {
+          confirmResolve = resolve;
+          confirmDialog.showModal();
+        });
+      };
+
+      confirmDialog.addEventListener("close", () => {
+        if (!confirmResolve) {
+          return;
+        }
+        const confirmed = confirmDialog.returnValue === "confirm";
+        confirmResolve(confirmed);
+        confirmResolve = null;
+      });
+
+      const setStatus = (text) => {
+        statusEl.textContent = text;
+      };
+
+      const saveState = () => {
+        const payload = {
+          markdown: state.markdown,
+          themeId: state.themeId,
+          pageTitle: state.pageTitle,
+          fileName: state.fileName,
+          showToc: state.showToc,
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      };
+
+      const loadState = () => {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          return;
+        }
+        try {
+          const stored = JSON.parse(raw);
+          state.markdown = stored.markdown || "";
+          state.themeId = stored.themeId || "studio";
+          state.pageTitle = stored.pageTitle || "";
+          state.fileName = stored.fileName || "";
+          state.showToc = stored.showToc !== false;
+        } catch (error) {
+          console.error("Failed to load draft", error);
+        }
+      };
+
+      const renderMarkdown = (text) => {
+        if (window.marked && typeof window.marked.parse === "function") {
+          return window.marked.parse(text || "");
+        }
+        const escaped = (text || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+        return escaped.replace(/\n{2,}/g, "</p><p>").replace(/\n/g, "<br>");
+      };
+
+      const slugify = (value) =>
+        value
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "");
+
+      const buildContentParts = (html) => {
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        const nodes = Array.from(doc.body.children);
+        let titleNode = null;
+        let subtitleNode = null;
+        if (nodes[0] && nodes[0].tagName === "H1") {
+          titleNode = nodes.shift();
+          if (nodes[0] && nodes[0].tagName === "P") {
+            subtitleNode = nodes.shift();
+          }
+        }
+        const headings = Array.from(doc.body.querySelectorAll("h2, h3"));
+        const usedIds = new Set();
+        headings.forEach((heading) => {
+          const text = heading.textContent || "";
+          let id = heading.id || slugify(text);
+          if (!id) {
+            return;
+          }
+          let suffix = 2;
+          while (usedIds.has(id)) {
+            id = `${id}-${suffix}`;
+            suffix += 1;
+          }
+          usedIds.add(id);
+          heading.id = id;
+        });
+        const tocItems = headings.map((heading) => ({
+          id: heading.id,
+          text: heading.textContent || "",
+          level: heading.tagName === "H3" ? 3 : 2,
+        }));
+        const tocHtml = tocItems.length
+          ? `<ol>${tocItems
+              .map((item) => {
+                const indent = item.level === 3 ? " class=\"toc-sub\"" : "";
+                return `<li${indent}><a href=\"#${item.id}\">${item.text}</a></li>`;
+              })
+              .join("")}</ol>`
+          : "";
+
+        return {
+          titleHtml: titleNode ? titleNode.innerHTML : "",
+          titleText: titleNode ? titleNode.textContent || "" : "",
+          subtitleHtml: subtitleNode ? subtitleNode.innerHTML : "",
+          bodyHtml: nodes.map((node) => node.outerHTML).join(""),
+          tocHtml,
+        };
+      };
+
+      const buildThemeDocument = ({ theme, parts, pageTitle, showToc }) => {
+        const heroTitle = parts.titleText || pageTitle || "Untitled page";
+        const subtitleHtml = parts.subtitleHtml ? `<p>${parts.subtitleHtml}</p>` : "";
+        const tocBlock = showToc && parts.tocHtml ? `<nav class=\"toc\"><h3>Contents</h3>${parts.tocHtml}</nav>` : "";
+        const contentHtml = parts.bodyHtml || "";
+        const modeToggle = `
+          <div class=\"mode-row\">
+            <button class=\"mode-toggle\" type=\"button\">Dark mode</button>
+          </div>
+        `;
+
+        let layout = "";
+        if (theme.layout === "split") {
+          layout = `
+            <header class="hero">
+              ${modeToggle}
+              <h1>${heroTitle}</h1>
+              ${subtitleHtml}
+            </header>
+            <main>
+              ${tocBlock || ""}
+              <article>${contentHtml}</article>
+            </main>
+          `;
+        } else if (theme.layout === "cards") {
+          layout = `
+            <header class="hero">
+              ${modeToggle}
+              <h1>${heroTitle}</h1>
+              ${subtitleHtml}
+            </header>
+            <main>
+              ${tocBlock || ""}
+              <article>${contentHtml}</article>
+            </main>
+          `;
+        } else if (theme.layout === "frame") {
+          layout = `
+            <div class="frame">
+              <header class="hero">
+                ${modeToggle}
+                <h1>${heroTitle}</h1>
+                ${subtitleHtml}
+              </header>
+              <main>
+                ${tocBlock || ""}
+                ${contentHtml}
+              </main>
+            </div>
+          `;
+        } else if (theme.layout === "grid") {
+          layout = `
+            <header class="hero">
+              ${modeToggle}
+              <h1>${heroTitle}</h1>
+              ${subtitleHtml}
+            </header>
+            <main>
+              ${tocBlock || ""}
+              <article>${contentHtml}</article>
+            </main>
+          `;
+        } else {
+          layout = `
+            <header class="hero">
+              ${modeToggle}
+              <h1>${heroTitle}</h1>
+              ${subtitleHtml}
+            </header>
+            <main>
+              ${tocBlock || ""}
+              ${contentHtml}
+            </main>
+          `;
+        }
+
+        const docTitle = pageTitle || heroTitle || "Untitled page";
+        return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${docTitle}</title>
+    <style>
+      ${theme.css}
+      .mode-row {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 10px;
+      }
+
+      .mode-toggle {
+        border: 1px solid var(--line);
+        background: var(--surface);
+        color: var(--ink);
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-weight: 600;
+        font-family: "Space Grotesk", "Manrope", sans-serif;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .mode-toggle:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 16px var(--shadow);
+      }
+
+      .toc-sub { margin-left: 12px; font-size: 0.95em; }
+    </style>
+  </head>
+  <body>
+    ${layout}
+    <script>
+      (function () {
+        const key = "page-theme";
+        const body = document.body;
+        const button = document.querySelector(".mode-toggle");
+        if (!button) {
+          return;
+        }
+        const applyTheme = (value) => {
+          body.dataset.theme = value;
+          button.textContent = value === "dark" ? "Light mode" : "Dark mode";
+        };
+        const stored = localStorage.getItem(key);
+        applyTheme(stored === "dark" ? "dark" : "light");
+        button.addEventListener("click", () => {
+          const next = body.dataset.theme === "dark" ? "light" : "dark";
+          applyTheme(next);
+          try {
+            localStorage.setItem(key, next);
+          } catch (error) {
+            console.warn("Theme preference not saved", error);
+          }
+        });
+      })();
+    <\/script>
+  </body>
+</html>`;
+      };
+
+      const getThemeById = (id) => THEMES.find((theme) => theme.id === id) || THEMES[0];
+
+      const updatePreview = () => {
+        const theme = getThemeById(state.themeId);
+        const html = renderMarkdown(state.markdown);
+        const parts = buildContentParts(html);
+        const doc = buildThemeDocument({
+          theme,
+          parts,
+          pageTitle: state.pageTitle.trim(),
+          showToc: state.showToc,
+        });
+        lastExportHtml = doc;
+        previewFrame.srcdoc = doc;
+      };
+
+      const scheduleRender = () => {
+        if (renderTimer) {
+          window.cancelAnimationFrame(renderTimer);
+        }
+        renderTimer = window.requestAnimationFrame(() => {
+          updatePreview();
+          renderTimer = null;
+        });
+      };
+
+      const renderThemeOptions = () => {
+        themeSelect.innerHTML = "";
+        THEMES.forEach((theme) => {
+          const option = document.createElement("option");
+          option.value = theme.id;
+          option.textContent = theme.label;
+          themeSelect.appendChild(option);
+        });
+        themeSelect.value = state.themeId;
+        const selectedTheme = getThemeById(state.themeId);
+        themeDescription.textContent = selectedTheme.description;
+      };
+
+      const ensureDefaults = () => {
+        if (!state.markdown) {
+          state.markdown = SAMPLE_MARKDOWN;
+        }
+        if (!state.fileName) {
+          state.fileName = "static-page.html";
+        }
+      };
+
+      const handleDownload = () => {
+        if (!lastExportHtml) {
+          updatePreview();
+        }
+        let name = state.fileName.trim() || "static-page.html";
+        if (!name.toLowerCase().endsWith(".html")) {
+          name += ".html";
+        }
+        const blob = new Blob([lastExportHtml], { type: "text/html" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        setStatus(`Downloaded ${name}.`);
+      };
+
+      const handleCopy = async () => {
+        if (!lastExportHtml) {
+          updatePreview();
+        }
+        try {
+          await navigator.clipboard.writeText(lastExportHtml);
+          setStatus("Copied HTML to clipboard.");
+        } catch (error) {
+          setStatus("Clipboard unavailable. Use Download instead.");
+        }
+      };
+
+      const handleReset = async () => {
+        const confirmed = await requestConfirmation({
+          title: "Reset draft?",
+          message: "This will replace your current markdown and settings with the sample draft.",
+          confirmText: "Reset",
+        });
+        if (!confirmed) {
+          return;
+        }
+        state.markdown = SAMPLE_MARKDOWN;
+        state.themeId = "studio";
+        state.pageTitle = "";
+        state.fileName = "static-page.html";
+        state.showToc = true;
+        syncInputs();
+        saveState();
+        scheduleRender();
+        setStatus("Draft reset to the sample content.");
+      };
+
+      const syncInputs = () => {
+        if (editor) {
+          editor.setValue(state.markdown);
+        } else {
+          markdownInput.value = state.markdown;
+        }
+        pageTitleInput.value = state.pageTitle;
+        fileNameInput.value = state.fileName;
+        toggleToc.checked = state.showToc;
+        themeSelect.value = state.themeId;
+        const selectedTheme = getThemeById(state.themeId);
+        themeDescription.textContent = selectedTheme.description;
+      };
+
+      const initEditor = () => {
+        if (typeof CodeMirror === "undefined" || editor) {
+          return;
+        }
+        editor = CodeMirror.fromTextArea(markdownInput, {
+          lineNumbers: true,
+          lineWrapping: true,
+          mode: "markdown",
+          viewportMargin: Infinity,
+        });
+        editor.on("change", () => {
+          state.markdown = editor.getValue();
+          saveState();
+          scheduleRender();
+        });
+        if (window.ResizeObserver) {
+          editorResizeObserver = new ResizeObserver((entries) => {
+            entries.forEach((entry) => {
+              const height = Math.max(220, Math.floor(entry.contentRect.height));
+              editor.setSize(null, height - 8);
+            });
+          });
+          editorResizeObserver.observe(editorResize);
+        } else {
+          editor.setSize(null, 240);
+        }
+      };
+
+      markdownInput.addEventListener("input", (event) => {
+        if (editor) {
+          return;
+        }
+        state.markdown = event.target.value;
+        saveState();
+        scheduleRender();
+      });
+
+      pageTitleInput.addEventListener("input", (event) => {
+        state.pageTitle = event.target.value;
+        saveState();
+        scheduleRender();
+      });
+
+      fileNameInput.addEventListener("input", (event) => {
+        state.fileName = event.target.value;
+        saveState();
+      });
+
+      toggleToc.addEventListener("change", (event) => {
+        state.showToc = event.target.checked;
+        saveState();
+        scheduleRender();
+      });
+
+      themeSelect.addEventListener("change", (event) => {
+        state.themeId = event.target.value;
+        saveState();
+        const selectedTheme = getThemeById(state.themeId);
+        themeDescription.textContent = selectedTheme.description;
+        scheduleRender();
+      });
+
+      downloadButton.addEventListener("click", handleDownload);
+      copyButton.addEventListener("click", handleCopy);
+      resetButton.addEventListener("click", handleReset);
+
+      loadState();
+      ensureDefaults();
+      syncInputs();
+      initEditor();
+      renderThemeOptions();
+      updatePreview();
+    </script>
+  </body>
+</html>
