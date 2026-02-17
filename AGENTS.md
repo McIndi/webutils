@@ -45,21 +45,21 @@ This document captures decisions, conventions, and architectural patterns that a
 - For an example, see the Kanban app confirmation dialog markup and its shared helper that opens the dialog and resolves a boolean (search for the confirm dialog section in the Kanban file).
 
 ## Files
-- Landing page: `src/index.html`.
-- Kanban board: `src/kanban.html` (uses localStorage key `webutils.kanban.v1`).
-- ZIP Workbench: `src/zip-workbench.html` (uses localStorage key `webutils.zip-workbench.v1`).
-- Regex Workbench: `src/regex-workbench.html` (uses localStorage key `webutils.regex-workbench.v1`).
+- Landing page: `docs/index.html`.
+- Kanban board: `docs/kanban.html` (uses localStorage key `webutils.kanban.v1`).
+- ZIP Workbench: `docs/zip-workbench.html` (uses localStorage key `webutils.zip-workbench.v1`).
+- Regex Workbench: `docs/regex-workbench.html` (uses localStorage key `webutils.regex-workbench.v1`).
 
 ## Adding a New App
 
-1. **Create the HTML file** in `src/my-app.html`:
+1. **Create the HTML file** in `docs/my-app.html`:
    - Include a `<header>` with `<h1>` and `<p>` description
    - Add a `.toolbar` div with a "Back to index" link
    - Use `webutils.my-app.v1` as the storage key
    - Implement `saveState()` and `loadState()` functions
    - Use the confirmation dialog pattern for destructive actions
 
-2. **Register the app** in `src/index.html`:
+2. **Register the app** in `docs/index.html`:
    - Add an entry to the `APP_REGISTRY` array
    - Use the same storage key from step 1
 

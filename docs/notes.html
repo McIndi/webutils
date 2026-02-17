@@ -594,6 +594,8 @@
       <a href="index.html">Back to index</a>
       <button class="primary" id="new-note">New note</button>
       <button id="export-notes">Export JSON</button>
+      <button id="export-markdown-zip">Export Markdown ZIP</button>
+      <button id="export-open-html">Export Open Notes HTML</button>
       <label for="import-file">Import JSON</label>
       <input id="import-file" type="file" accept="application/json" />
     </div>
@@ -652,6 +654,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/markdown/markdown.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.min.js"></script>
     <script>
       const STORAGE_KEY = "webutils.notes.v1";
       const SIDEBAR_KEY = "webutils.notes.sidebar-width.v1";
@@ -672,6 +675,8 @@
       const sortToggle = document.getElementById("sort-toggle");
       const newNoteBtn = document.getElementById("new-note");
       const exportBtn = document.getElementById("export-notes");
+      const exportMarkdownZipBtn = document.getElementById("export-markdown-zip");
+      const exportOpenHtmlBtn = document.getElementById("export-open-html");
       const importFile = document.getElementById("import-file");
       const panelResizer = document.getElementById("panel-resizer");
       const openNotes = document.getElementById("open-notes");
@@ -726,6 +731,23 @@
         }
         return new Date(value).toLocaleString();
       };
+
+      const downloadBlob = (blob, filename) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(url);
+      };
+
+      const escapeHtml = (text) =>
+        String(text || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\"/g, "&quot;")
+          .replace(/'/g, "&#39;");
 
       const applySidebarWidth = (width) => {
         document.documentElement.style.setProperty("--sidebar-width", `${width}px`);
@@ -790,6 +812,28 @@
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "-")
           .replace(/^-|-$/g, "");
+
+      const getExportableNote = (note) => {
+        const view = state.viewById[note.id];
+        const title =
+          view && view.mode === "edit"
+            ? (view.draftTitle || note.title || "Untitled Note").trim() || "Untitled Note"
+            : note.title || "Untitled Note";
+        const content =
+          view && view.mode === "edit"
+            ? String(view.draftContent || "")
+            : String(note.content || "");
+        const tags =
+          view && view.mode === "edit"
+            ? normalizeTags(view.draftTags)
+            : normalizeTags(note.tags || []);
+        return {
+          ...note,
+          title,
+          content,
+          tags,
+        };
+      };
 
       const getUniqueTitle = (base) => {
         const existing = new Set(state.notes.map((note) => note.title.toLowerCase()));
@@ -1392,12 +1436,144 @@
         const blob = new Blob([JSON.stringify(payload, null, 2)], {
           type: "application/json",
         });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `webutils-notes-${new Date().toISOString().slice(0, 10)}.json`;
-        link.click();
-        URL.revokeObjectURL(url);
+        downloadBlob(blob, `webutils-notes-${new Date().toISOString().slice(0, 10)}.json`);
+      });
+
+      exportMarkdownZipBtn.addEventListener("click", () => {
+        if (!state.notes.length) {
+          setStatus("No notes to export.");
+          return;
+        }
+        if (!window.fflate || typeof window.fflate.zipSync !== "function") {
+          setStatus("ZIP export unavailable right now.");
+          return;
+        }
+        const files = {};
+        const nameCounts = new Map();
+        const notesByTitle = [...state.notes].sort((a, b) =>
+          (a.title || "").localeCompare(b.title || "")
+        );
+        notesByTitle.forEach((note, index) => {
+          const exportable = getExportableNote(note);
+          const rawBase = slugify(exportable.title || "") || `note-${index + 1}`;
+          const seen = (nameCounts.get(rawBase) || 0) + 1;
+          nameCounts.set(rawBase, seen);
+          const filename = seen === 1 ? `${rawBase}.md` : `${rawBase}-${seen}.md`;
+          const tagsLine = exportable.tags.length ? `Tags: ${exportable.tags.join(" ")}\n\n` : "";
+          const markdown = `${tagsLine}${exportable.content || ""}`;
+          files[filename] = window.fflate.strToU8(markdown);
+        });
+        const zipped = window.fflate.zipSync(files, { level: 6 });
+        const blob = new Blob([zipped], { type: "application/zip" });
+        downloadBlob(blob, `webutils-notes-markdown-${new Date().toISOString().slice(0, 10)}.zip`);
+        setStatus(`Exported ${state.notes.length} notes as Markdown ZIP.`);
+      });
+
+      exportOpenHtmlBtn.addEventListener("click", () => {
+        const openExportables = state.openIds
+          .map((id) => findNoteById(id))
+          .filter(Boolean)
+          .map((note) => getExportableNote(note));
+        if (!openExportables.length) {
+          setStatus("No open notes to export.");
+          return;
+        }
+        const sections = openExportables
+          .map((note) => {
+            const tags = note.tags.length
+              ? `<p class="tags">${note.tags.map((tag) => `#${escapeHtml(tag)}`).join(" ")}</p>`
+              : "";
+            return `
+      <article class="note">
+        <h2>${escapeHtml(note.title)}</h2>
+        <p class="meta">Updated ${escapeHtml(formatDate(note.updatedAt))}</p>
+        ${tags}
+        <div class="content">${renderMarkdown(note.content || "")}</div>
+      </article>`;
+          })
+          .join("\n");
+
+        const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Open Notes Export</title>
+    <style>
+      :root { color-scheme: light; }
+      body {
+        margin: 0;
+        padding: 24px;
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: #f7f3ec;
+        color: #111418;
+      }
+      .wrap {
+        max-width: 920px;
+        margin: 0 auto;
+        display: grid;
+        gap: 16px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.8rem;
+      }
+      .export-meta {
+        margin: 0;
+        color: #5f676f;
+      }
+      .note {
+        border: 1px solid #e2d8cf;
+        border-radius: 14px;
+        background: #fff;
+        padding: 16px;
+      }
+      .note h2 {
+        margin: 0 0 6px;
+      }
+      .meta {
+        margin: 0;
+        font-size: 0.9rem;
+        color: #5f676f;
+      }
+      .tags {
+        margin: 8px 0 0;
+        color: #165646;
+        font-weight: 600;
+      }
+      .content {
+        margin-top: 12px;
+      }
+      .content pre {
+        overflow: auto;
+        padding: 12px;
+        background: #f6efe6;
+        border-radius: 10px;
+      }
+      .content code {
+        background: #f6efe6;
+        border-radius: 4px;
+        padding: 2px 4px;
+      }
+      .content a {
+        color: #165646;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <h1>Open Notes Export</h1>
+      <p class="export-meta">Exported ${escapeHtml(
+        new Date().toLocaleString()
+      )} · ${openExportables.length} notes</p>
+      ${sections}
+    </main>
+  </body>
+</html>`;
+
+        const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+        downloadBlob(blob, `webutils-open-notes-${new Date().toISOString().slice(0, 10)}.html`);
+        setStatus(`Exported ${openExportables.length} open notes as HTML.`);
       });
 
       importFile.addEventListener("change", async (event) => {

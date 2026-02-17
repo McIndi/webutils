@@ -19,7 +19,7 @@ Plan and track work with a traditional kanban layout. Features include:
 - Clear completed cards or reset the entire board
 - All changes persist to browser storage
 
-**File**: `src/kanban.html`  
+**File**: `docs/kanban.html`  
 **Storage key**: `webutils.kanban.v1`
 
 ### Zip Workbench
@@ -30,7 +30,7 @@ Inspect, edit, and re-download ZIP files entirely in your browser:
 - Re-package and download the modified ZIP
 - Clear the current ZIP to start fresh
 
-**File**: `src/zip-workbench.html`  
+**File**: `docs/zip-workbench.html`  
 **Storage key**: `webutils.zip-workbench.v2`  
 **External dependency**: fflate (ZIP library via CDN)
 
@@ -41,7 +41,7 @@ Fetch a ZIP URL and assemble a prompt-ready payload:
 - Copy a combined output payload for AI prompts
 - All selections persist to storage
 
-**File**: `src/repo2prompt.html`  
+**File**: `docs/repo2prompt.html`  
 **Storage key**: `webutils.repo2prompt.v1`  
 **External dependency**: fflate (ZIP library via CDN)
 
@@ -53,7 +53,7 @@ Test and save regular expressions with live highlighting:
 - Save, load, and delete preset patterns
 - All presets and patterns persist to storage
 
-**File**: `src/regex-workbench.html`  
+**File**: `docs/regex-workbench.html`  
 **Storage key**: `webutils.regex-workbench.v1`
 
 ### Notes Wiki
@@ -63,8 +63,10 @@ Lightweight notes with Markdown and CamelCase links:
 - Edit mode uses CodeMirror for Markdown
 - CamelCase words link to notes and create missing notes
 - Export and import notes as JSON
+- Export all notes as a ZIP of Markdown files
+- Export currently open notes as a standalone HTML page
 
-**File**: `src/notes.html`  
+**File**: `docs/notes.html`  
 **Storage key**: `webutils.notes.v1`
 
 ### Static Page Generator
@@ -75,12 +77,12 @@ Create standalone HTML pages from Markdown:
 - Auto table of contents from headings
 - Drafts persist in localStorage
 
-**File**: `src/static-page-generator.html`  
+**File**: `docs/static-page-generator.html`  
 **Storage key**: `webutils.static-page-generator.v1`
 
 ## Landing Page
 
-The landing page (`src/index.html`) serves as a hub for all utilities and includes:
+The landing page (`docs/index.html`) serves as a hub for all utilities and includes:
 
 - **App navigation**: Links to open each app, plus download buttons to save files locally
 - **Data controls**: Export/import snapshots of saved data across all apps
@@ -90,7 +92,7 @@ The landing page (`src/index.html`) serves as a hub for all utilities and includ
 ## Getting Started
 
 ### Opening an App
-1. Open `src/index.html` in any modern web browser
+1. Open `docs/index.html` in any modern web browser
 2. Click on an app to open it, or click "Download" to save the HTML file to your computer
 3. Once loaded, close and reopen the page anytime; your data persists
 
@@ -156,6 +158,7 @@ These are loaded from CDN and optional—the apps work without them.
 Notes Wiki uses:
 - **CodeMirror 5** (Markdown editor)
 - **marked** (Markdown rendering)
+- **fflate** (ZIP file handling for Markdown exports)
 
 Static Page Generator uses:
 - **marked** (Markdown rendering)
