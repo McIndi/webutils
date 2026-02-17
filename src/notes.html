@@ -224,6 +224,36 @@
         max-width: 100%;
       }
 
+      .tag-filter {
+        border: 1px solid var(--stroke);
+        border-radius: 10px;
+        background: #fff;
+        padding: 8px 10px;
+      }
+
+      .tag-filter summary {
+        cursor: pointer;
+        font-size: 0.85rem;
+        color: var(--muted);
+        font-weight: 600;
+      }
+
+      .tag-filter-options {
+        margin-top: 8px;
+        display: grid;
+        gap: 6px;
+        max-height: 180px;
+        overflow: auto;
+        padding-right: 4px;
+      }
+
+      .tag-filter-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.85rem;
+      }
+
       .panel-resizer {
         width: 12px;
         display: flex;
@@ -278,6 +308,21 @@
       .note-meta {
         font-size: 0.8rem;
         color: var(--muted);
+      }
+
+      .note-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .note-tag {
+        font-size: 0.75rem;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent-dark);
+        font-weight: 600;
       }
 
       .note-panel {
@@ -565,6 +610,10 @@
             <label for="search-input">Search</label>
             <input id="search-input" type="search" placeholder="Find notes" />
           </div>
+          <details class="tag-filter">
+            <summary>Tags</summary>
+            <div class="tag-filter-options" id="tag-filter-options"></div>
+          </details>
           <div class="note-list" id="note-list"></div>
         </section>
 
@@ -611,12 +660,15 @@
         openIds: [],
         viewById: {},
         search: "",
+        selectedTags: [],
         sort: "updated",
+        sidebarWidth: null,
       };
 
       const statusEl = document.getElementById("status");
       const noteList = document.getElementById("note-list");
       const searchInput = document.getElementById("search-input");
+      const tagFilterOptions = document.getElementById("tag-filter-options");
       const sortToggle = document.getElementById("sort-toggle");
       const newNoteBtn = document.getElementById("new-note");
       const exportBtn = document.getElementById("export-notes");
@@ -683,10 +735,32 @@
         const payload = {
           notes: state.notes,
           openIds: state.openIds,
+          selectedTags: state.selectedTags,
           sort: state.sort,
+          sidebarWidth: state.sidebarWidth,
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
       };
+
+      const normalizeTags = (value) => {
+        const text = Array.isArray(value) ? value.join(" ") : String(value || "");
+        const parts = text
+          .trim()
+          .split(/\s+/)
+          .map((part) => part.toLowerCase())
+          .filter(Boolean);
+        return [...new Set(parts)];
+      };
+
+      const sanitizeNote = (note, fallbackIndex, fallbackTime) => ({
+        ...note,
+        id: note.id || `${slugify(note.title || "note")}-${fallbackTime + fallbackIndex}`,
+        title: note.title || "Untitled Note",
+        content: note.content || "",
+        tags: normalizeTags(note.tags),
+        createdAt: note.createdAt || fallbackTime,
+        updatedAt: note.updatedAt || fallbackTime,
+      });
 
       const loadState = () => {
         const raw = localStorage.getItem(STORAGE_KEY);
@@ -695,10 +769,16 @@
         }
         try {
           const stored = JSON.parse(raw);
-          state.notes = Array.isArray(stored.notes) ? stored.notes : [];
+          const now = Date.now();
+          const notes = Array.isArray(stored.notes) ? stored.notes : [];
+          state.notes = notes.map((note, index) => sanitizeNote(note, index, now));
           state.openIds = Array.isArray(stored.openIds) ? stored.openIds : [];
           state.openIds = state.openIds.filter((id) => state.notes.some((note) => note.id === id));
+          state.selectedTags = normalizeTags(stored.selectedTags);
           state.sort = stored.sort || "updated";
+          if (Number.isFinite(stored.sidebarWidth)) {
+            state.sidebarWidth = stored.sidebarWidth;
+          }
         } catch (error) {
           console.error("Failed to load notes", error);
         }
@@ -723,13 +803,14 @@
         return `${base} ${counter}`;
       };
 
-      const createNote = ({ title, content = "" }) => {
+      const createNote = ({ title, content = "", tags = [] }) => {
         const now = Date.now();
         const safeTitle = getUniqueTitle(title);
         const note = {
           id: `${slugify(safeTitle)}-${now}`,
           title: safeTitle,
           content,
+          tags: normalizeTags(tags),
           createdAt: now,
           updatedAt: now,
         };
@@ -750,10 +831,19 @@
             dirty: false,
             draftTitle: note.title,
             draftContent: note.content || "",
+            draftTags: (note.tags || []).join(" "),
             error: "",
           };
         }
         return state.viewById[note.id];
+      };
+
+      const collectAllTags = () => {
+        const all = new Set();
+        state.notes.forEach((note) => {
+          (note.tags || []).forEach((tag) => all.add(tag));
+        });
+        return [...all].sort((a, b) => a.localeCompare(b));
       };
 
       const updateSortLabel = () => {
@@ -770,6 +860,11 @@
               note.content.toLowerCase().includes(query)
           );
         }
+        if (state.selectedTags.length) {
+          notes = notes.filter((note) =>
+            state.selectedTags.every((tag) => (note.tags || []).includes(tag))
+          );
+        }
         if (state.sort === "title") {
           notes.sort((a, b) => a.title.localeCompare(b.title));
         } else {
@@ -778,13 +873,54 @@
         return notes;
       };
 
+      const renderTagFilters = () => {
+        if (!tagFilterOptions) {
+          return;
+        }
+        tagFilterOptions.innerHTML = "";
+        const tags = collectAllTags();
+        state.selectedTags = state.selectedTags.filter((tag) => tags.includes(tag));
+        if (!tags.length) {
+          const empty = document.createElement("div");
+          empty.className = "helper-text";
+          empty.textContent = "No tags yet.";
+          tagFilterOptions.appendChild(empty);
+          return;
+        }
+        tags.forEach((tag) => {
+          const label = document.createElement("label");
+          label.className = "tag-filter-option";
+          const input = document.createElement("input");
+          input.type = "checkbox";
+          input.value = tag;
+          input.checked = state.selectedTags.includes(tag);
+          input.addEventListener("change", () => {
+            if (input.checked) {
+              state.selectedTags = [...new Set([...state.selectedTags, tag])];
+            } else {
+              state.selectedTags = state.selectedTags.filter((item) => item !== tag);
+            }
+            saveState();
+            renderList();
+          });
+          const text = document.createElement("span");
+          text.textContent = tag;
+          label.appendChild(input);
+          label.appendChild(text);
+          tagFilterOptions.appendChild(label);
+        });
+      };
+
       const renderList = () => {
         noteList.innerHTML = "";
         const notes = getFilteredNotes();
         if (!notes.length) {
           const empty = document.createElement("div");
           empty.className = "helper-text";
-          empty.textContent = state.search ? "No notes match your search." : "No notes yet.";
+          empty.textContent =
+            state.search || state.selectedTags.length
+              ? "No notes match your filters."
+              : "No notes yet.";
           noteList.appendChild(empty);
           return;
         }
@@ -802,6 +938,17 @@
           meta.textContent = `Updated ${formatDate(note.updatedAt)}`;
           item.appendChild(title);
           item.appendChild(meta);
+          if (note.tags && note.tags.length) {
+            const tags = document.createElement("div");
+            tags.className = "note-tags";
+            note.tags.forEach((tag) => {
+              const chip = document.createElement("span");
+              chip.className = "note-tag";
+              chip.textContent = tag;
+              tags.appendChild(chip);
+            });
+            item.appendChild(tags);
+          }
           item.addEventListener("click", () => openNoteFromList(note.id));
           noteList.appendChild(item);
         });
@@ -820,6 +967,7 @@
           if (options.mode === "edit" && view.mode !== "edit") {
             view.draftTitle = note.title;
             view.draftContent = note.content || "";
+            view.draftTags = (note.tags || []).join(" ");
             view.dirty = false;
             view.error = "";
           }
@@ -856,6 +1004,7 @@
           view.error = "";
           view.draftTitle = note.title;
           view.draftContent = note.content || "";
+          view.draftTags = (note.tags || []).join(" ");
         }
         if (!state.openIds.includes(id)) {
           state.openIds.unshift(id);
@@ -907,12 +1056,14 @@
         }
         note.title = title;
         note.content = view.draftContent.trim();
+        note.tags = normalizeTags(view.draftTags);
         note.updatedAt = Date.now();
         view.mode = "display";
         view.dirty = false;
         view.error = "";
         view.draftTitle = note.title;
         view.draftContent = note.content;
+        view.draftTags = (note.tags || []).join(" ");
         saveState();
         render();
       };
@@ -938,6 +1089,7 @@
         view.error = "";
         view.draftTitle = note.title;
         view.draftContent = note.content || "";
+        view.draftTags = (note.tags || []).join(" ");
         render();
       };
 
@@ -1069,6 +1221,17 @@
           )}`;
           titleWrap.appendChild(titleEl);
           titleWrap.appendChild(meta);
+          if (note.tags && note.tags.length) {
+            const tagList = document.createElement("div");
+            tagList.className = "note-tags";
+            note.tags.forEach((tag) => {
+              const chip = document.createElement("span");
+              chip.className = "note-tag";
+              chip.textContent = tag;
+              tagList.appendChild(chip);
+            });
+            titleWrap.appendChild(tagList);
+          }
 
           const closeButton = document.createElement("button");
           closeButton.type = "button";
@@ -1125,6 +1288,24 @@
             });
             editField.appendChild(titleLabel);
             editField.appendChild(titleInput);
+
+            const tagsLabel = document.createElement("label");
+            const tagsInputId = `edit-tags-${note.id}`;
+            tagsLabel.setAttribute("for", tagsInputId);
+            tagsLabel.textContent = "Tags (space-separated)";
+
+            const tagsInput = document.createElement("input");
+            tagsInput.id = tagsInputId;
+            tagsInput.type = "text";
+            tagsInput.value = view.draftTags || "";
+            tagsInput.placeholder = "example urgent projectx";
+            tagsInput.addEventListener("input", (event) => {
+              view.draftTags = event.target.value;
+              view.dirty = true;
+            });
+
+            editField.appendChild(tagsLabel);
+            editField.appendChild(tagsInput);
             card.appendChild(editField);
 
             const contentWrap = document.createElement("div");
@@ -1183,6 +1364,7 @@
 
       const render = () => {
         updateSortLabel();
+        renderTagFilters();
         renderList();
         renderOpenNotes();
       };
@@ -1237,14 +1419,8 @@
           const payload = JSON.parse(text);
           const notes = Array.isArray(payload.notes) ? payload.notes : [];
           const now = Date.now();
-          state.notes = notes.map((note, index) => ({
-            ...note,
-            id: note.id || `${slugify(note.title || "note")}-${now + index}`,
-            title: note.title || "Untitled Note",
-            content: note.content || "",
-            createdAt: note.createdAt || now,
-            updatedAt: note.updatedAt || now,
-          }));
+          state.notes = notes.map((note, index) => sanitizeNote(note, index, now));
+          state.selectedTags = [];
           state.openIds = state.notes.length ? [state.notes[0].id] : [];
           state.viewById = {};
           saveState();
@@ -1259,9 +1435,15 @@
 
       const init = () => {
         loadState();
-        const storedWidth = Number.parseInt(localStorage.getItem(SIDEBAR_KEY), 10);
-        if (Number.isFinite(storedWidth)) {
-          applySidebarWidth(storedWidth);
+        if (Number.isFinite(state.sidebarWidth)) {
+          applySidebarWidth(state.sidebarWidth);
+        } else {
+          const storedWidth = Number.parseInt(localStorage.getItem(SIDEBAR_KEY), 10);
+          if (Number.isFinite(storedWidth)) {
+            state.sidebarWidth = storedWidth;
+            applySidebarWidth(storedWidth);
+            saveState();
+          }
         }
         if (!state.notes.length) {
           createNote({ title: "Welcome", content: "Start with CamelCase links. Try: ProjectIdeas." });
@@ -1332,7 +1514,8 @@
             10
           );
           if (Number.isFinite(currentWidth)) {
-            localStorage.setItem(SIDEBAR_KEY, String(currentWidth));
+            state.sidebarWidth = currentWidth;
+            saveState();
           }
         });
 
@@ -1345,7 +1528,8 @@
 
         panelResizer.addEventListener("dblclick", () => {
           applySidebarWidth(defaultWidth);
-          localStorage.setItem(SIDEBAR_KEY, String(defaultWidth));
+          state.sidebarWidth = defaultWidth;
+          saveState();
         });
       }
     </script>
