@@ -148,6 +148,23 @@
         font-size: 0.9rem;
       }
 
+      .toolbar .status-progress {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .toolbar .status-progress[hidden] {
+        display: none;
+      }
+
+      .toolbar .status-progress progress {
+        width: 210px;
+        height: 10px;
+      }
+
       main {
         width: 100%;
         margin: 0;
@@ -431,6 +448,10 @@
         spellcheck="false"
       />
       <button class="primary" id="load-zip" type="button">Load ZIP</button>
+      <span class="status-progress" id="zip-progress" hidden>
+        <progress id="zip-progress-bar" max="100" value="0"></progress>
+        <span id="zip-progress-text">0%</span>
+      </span>
       <div class="status" id="status">No ZIP loaded.</div>
     </div>
 
@@ -495,6 +516,9 @@
       const fileInput = document.getElementById("zip-file");
       const clearButton = document.getElementById("clear-session");
       const statusEl = document.getElementById("status");
+      const progressWrap = document.getElementById("zip-progress");
+      const progressBar = document.getElementById("zip-progress-bar");
+      const progressText = document.getElementById("zip-progress-text");
       const fileList = document.getElementById("file-list");
       const fileEmpty = document.getElementById("file-empty");
       const outputSize = document.getElementById("output-size");
@@ -553,6 +577,22 @@
 
       const setStatus = (text) => {
         statusEl.textContent = text;
+      };
+
+      const setProgress = (value, label) => {
+        const normalized = Math.max(0, Math.min(100, Math.round(value)));
+        progressBar.value = normalized;
+        progressText.textContent = label || `${normalized}%`;
+      };
+
+      const showProgress = (label) => {
+        progressWrap.hidden = false;
+        setProgress(0, label || "0%");
+      };
+
+      const hideProgress = () => {
+        progressWrap.hidden = true;
+        setProgress(0, "0%");
       };
 
       const formatBytes = (bytes) => {
@@ -768,30 +808,123 @@
         updateOutput();
       };
 
-      const parseZip = (bytes) => {
-        try {
-          const entries = fflate.unzipSync(bytes);
-          const files = [];
-          Object.keys(entries)
-            .sort()
-            .forEach((path) => {
-              if (path.endsWith("/")) {
-                return;
-              }
+      const ZIP_WORKER_SOURCE = `
+        self.importScripts("https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js");
+
+        const isTextData = (data) => {
+          const sample = data.subarray(0, 2000);
+          for (const byte of sample) {
+            if (byte === 0) {
+              return false;
+            }
+          }
+          return true;
+        };
+
+        self.onmessage = (event) => {
+          try {
+            const bytes = new Uint8Array(event.data.bytes);
+            const entries = self.fflate.unzipSync(bytes);
+            const paths = Object.keys(entries).sort();
+            const total = paths.length;
+            const decoder = new TextDecoder("utf-8");
+            const files = [];
+            let processed = 0;
+
+            const emitProgress = () => {
+              self.postMessage({ type: "progress", processed, total });
+            };
+
+            if (total > 0) {
+              emitProgress();
+            }
+
+            paths.forEach((path) => {
               const data = entries[path];
-              if (!isTextData(data)) {
-                return;
+              if (!path.endsWith("/") && isTextData(data)) {
+                const content = decoder.decode(data);
+                const lines = content.split("\\n").length;
+                files.push({
+                  path,
+                  content,
+                  bytes: data.length,
+                  lines,
+                });
               }
-              const content = textDecoder.decode(data);
-              const lines = content.split("\n").length;
-              files.push({
-                path,
-                content,
-                selected: true,
-                bytes: data.length,
-                lines,
-              });
+
+              processed += 1;
+              if (processed === total || processed % 20 === 0) {
+                emitProgress();
+              }
             });
+
+            self.postMessage({ type: "done", files, total });
+          } catch (error) {
+            self.postMessage({ type: "error", message: error && error.message ? error.message : "ZIP parse failed." });
+          }
+        };
+      `;
+
+      const parseZipInWorker = (bytes, onProgress) => {
+        return new Promise((resolve, reject) => {
+          const workerBlob = new Blob([ZIP_WORKER_SOURCE], { type: "application/javascript" });
+          const workerUrl = URL.createObjectURL(workerBlob);
+          const worker = new Worker(workerUrl);
+          const cleanup = () => {
+            worker.terminate();
+            URL.revokeObjectURL(workerUrl);
+          };
+
+          worker.addEventListener("message", (event) => {
+            const message = event.data || {};
+            if (message.type === "progress") {
+              if (typeof onProgress === "function") {
+                onProgress(message.processed || 0, message.total || 0);
+              }
+              return;
+            }
+            if (message.type === "done") {
+              cleanup();
+              resolve(message);
+              return;
+            }
+            if (message.type === "error") {
+              cleanup();
+              reject(new Error(message.message || "ZIP parse failed."));
+            }
+          });
+
+          worker.addEventListener("error", (event) => {
+            cleanup();
+            reject(new Error(event.message || "ZIP parse failed."));
+          });
+
+          const transferable = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+          worker.postMessage({ bytes: transferable }, [transferable]);
+        });
+      };
+
+      const parseZip = async (bytes) => {
+        setStatus("Processing ZIP...");
+        showProgress("Preparing...");
+        try {
+          const result = await parseZipInWorker(bytes, (processed, total) => {
+            if (!total) {
+              setProgress(0, "0%");
+              return;
+            }
+            const percent = (processed / total) * 100;
+            setProgress(percent, `${Math.round(percent)}% (${processed}/${total})`);
+          });
+
+          const files = (result.files || []).map((file) => ({
+            path: file.path,
+            content: file.content,
+            selected: true,
+            bytes: file.bytes,
+            lines: file.lines,
+          }));
+
           state.files = files;
           state.extensionFilter = new Set(getUniqueExtensions());
           saveState();
@@ -800,6 +933,8 @@
           setStatus(`Loaded ${files.length} text file${files.length === 1 ? "" : "s"}.`);
         } catch (error) {
           setStatus("Could not read the ZIP file. Try a different download.");
+        } finally {
+          hideProgress();
         }
       };
 
@@ -808,14 +943,16 @@
           return;
         }
         setStatus("Loading ZIP from file...");
+        showProgress("Waiting...");
         const reader = new FileReader();
-        reader.onload = () => {
+        reader.onload = async () => {
           state.url = "";
           urlInput.value = "";
           saveState();
-          parseZip(new Uint8Array(reader.result));
+          await parseZip(new Uint8Array(reader.result));
         };
         reader.onerror = () => {
+          hideProgress();
           setStatus("Could not read the ZIP file.");
         };
         reader.readAsArrayBuffer(file);
@@ -829,17 +966,20 @@
         }
 
         setStatus("Downloading ZIP...");
+        showProgress("Downloading...");
         try {
           const response = await fetch(url);
           if (!response.ok) {
+            hideProgress();
             setStatus(`Download failed (${response.status}). Try loading a ZIP file instead.`);
             return;
           }
           const buffer = await response.arrayBuffer();
           state.url = url;
           saveState();
-          parseZip(new Uint8Array(buffer));
+          await parseZip(new Uint8Array(buffer));
         } catch (error) {
+          hideProgress();
           setStatus("Download failed. Check the URL or CORS settings, or load a ZIP file.");
         }
       };
@@ -860,6 +1000,7 @@
         fileInput.value = "";
         outputArea.value = "";
         outputSize.textContent = "0 B";
+        hideProgress();
         renderFiles();
         setStatus("No ZIP loaded.");
       };

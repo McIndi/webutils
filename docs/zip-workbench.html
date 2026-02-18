@@ -140,6 +140,23 @@
         font-size: 0.9rem;
       }
 
+      .toolbar .status-progress {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .toolbar .status-progress[hidden] {
+        display: none;
+      }
+
+      .toolbar .status-progress progress {
+        width: 180px;
+        height: 10px;
+      }
+
       .workspace {
         width: 100%;
         flex: 1;
@@ -433,6 +450,10 @@
       <input id="zip-input" type="file" accept=".zip" />
       <a id="download-link" href="#" download="archive.zip">Download ZIP</a>
       <button id="clear-zip" class="danger" type="button">Clear ZIP</button>
+      <span class="status-progress" id="zip-progress" hidden>
+        <progress id="zip-progress-bar" max="100" value="0"></progress>
+        <span id="zip-progress-text">0%</span>
+      </span>
       <span class="status" id="status">No ZIP loaded.</span>
     </div>
 
@@ -531,6 +552,9 @@
       const treeContainer = document.getElementById("tree-container");
       const editorArea = document.getElementById("editor-area");
       const statusEl = document.getElementById("status");
+      const progressWrap = document.getElementById("zip-progress");
+      const progressBar = document.getElementById("zip-progress-bar");
+      const progressText = document.getElementById("zip-progress-text");
       const newFileButton = document.getElementById("new-file");
       const newFolderButton = document.getElementById("new-folder");
       const confirmDialog = document.getElementById("confirm-dialog");
@@ -618,6 +642,22 @@
         statusEl.textContent = text;
       };
 
+      const setProgress = (value, label) => {
+        const normalized = Math.max(0, Math.min(100, Math.round(value)));
+        progressBar.value = normalized;
+        progressText.textContent = label || `${normalized}%`;
+      };
+
+      const showProgress = (label) => {
+        progressWrap.hidden = false;
+        setProgress(0, label || "0%");
+      };
+
+      const hideProgress = () => {
+        progressWrap.hidden = true;
+        setProgress(0, "0%");
+      };
+
       const revokeDownloadUrl = () => {
         if (downloadUrl) {
           URL.revokeObjectURL(downloadUrl);
@@ -630,6 +670,7 @@
         state.folders.clear();
         state.selectedPath = null;
         state.zipBytes = null;
+        hideProgress();
         revokeDownloadUrl();
         treeContainer.textContent = "Upload a ZIP to see its contents.";
         treeContainer.className = "empty";
@@ -888,32 +929,149 @@
         }, 600);
       };
 
-      const loadZipBytes = (bytes) => {
-        const entries = fflate.unzipSync(bytes);
-        state.files.clear();
-        state.folders.clear();
-        Object.keys(entries).forEach((path) => {
-          const data = entries[path];
-          if (path.endsWith("/")) {
-            const folderPath = path.slice(0, -1);
-            if (folderPath) {
-              state.folders.add(folderPath);
-            }
-            return;
-          }
-          const isText = isTextData(data);
-          state.files.set(path, {
-            data,
-            isText,
-            text: isText ? textDecoder.decode(data) : "",
-          });
-          addImplicitFolders(path);
-        });
+      const ZIP_WORKER_SOURCE = `
+        self.importScripts("https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js");
 
-        state.selectedPath = null;
-        renderTree();
-        renderEditor();
-        persistZip();
+        const isTextData = (data) => {
+          const sample = data.subarray(0, 2000);
+          for (const byte of sample) {
+            if (byte === 0) {
+              return false;
+            }
+          }
+          return true;
+        };
+
+        self.onmessage = (event) => {
+          try {
+            const bytes = new Uint8Array(event.data.bytes);
+            const entries = self.fflate.unzipSync(bytes);
+            const paths = Object.keys(entries).sort();
+            const total = paths.length;
+            const decoder = new TextDecoder("utf-8");
+            const items = [];
+            const transferList = [];
+            let processed = 0;
+
+            const emitProgress = () => {
+              self.postMessage({ type: "progress", processed, total });
+            };
+
+            if (total > 0) {
+              emitProgress();
+            }
+
+            paths.forEach((path) => {
+              const data = entries[path];
+              if (path.endsWith("/")) {
+                items.push({ path, isFolder: true });
+              } else {
+                const isText = isTextData(data);
+                const copy = data.slice();
+                transferList.push(copy.buffer);
+                items.push({
+                  path,
+                  isFolder: false,
+                  isText,
+                  text: isText ? decoder.decode(copy) : "",
+                  data: copy.buffer,
+                });
+              }
+
+              processed += 1;
+              if (processed === total || processed % 20 === 0) {
+                emitProgress();
+              }
+            });
+
+            self.postMessage({ type: "done", items, total }, transferList);
+          } catch (error) {
+            self.postMessage({ type: "error", message: error && error.message ? error.message : "ZIP parse failed." });
+          }
+        };
+      `;
+
+      const parseZipInWorker = (bytes, onProgress) => {
+        return new Promise((resolve, reject) => {
+          const workerBlob = new Blob([ZIP_WORKER_SOURCE], { type: "application/javascript" });
+          const workerUrl = URL.createObjectURL(workerBlob);
+          const worker = new Worker(workerUrl);
+          const cleanup = () => {
+            worker.terminate();
+            URL.revokeObjectURL(workerUrl);
+          };
+
+          worker.addEventListener("message", (event) => {
+            const message = event.data || {};
+            if (message.type === "progress") {
+              if (typeof onProgress === "function") {
+                onProgress(message.processed || 0, message.total || 0);
+              }
+              return;
+            }
+            if (message.type === "done") {
+              cleanup();
+              resolve(message);
+              return;
+            }
+            if (message.type === "error") {
+              cleanup();
+              reject(new Error(message.message || "ZIP parse failed."));
+            }
+          });
+
+          worker.addEventListener("error", (event) => {
+            cleanup();
+            reject(new Error(event.message || "ZIP parse failed."));
+          });
+
+          const transferable = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+          worker.postMessage({ bytes: transferable }, [transferable]);
+        });
+      };
+
+      const loadZipBytes = async (bytes) => {
+        showProgress("Preparing...");
+        setStatus("Processing ZIP...");
+        try {
+          const result = await parseZipInWorker(bytes, (processed, total) => {
+            if (!total) {
+              setProgress(0, "0%");
+              return;
+            }
+            const percent = (processed / total) * 100;
+            setProgress(percent, `${Math.round(percent)}% (${processed}/${total})`);
+          });
+
+          state.files.clear();
+          state.folders.clear();
+
+          (result.items || []).forEach((entry) => {
+            if (entry.isFolder) {
+              const folderPath = (entry.path || "").replace(/\/+$/, "");
+              if (folderPath) {
+                state.folders.add(folderPath);
+              }
+              return;
+            }
+            const data = new Uint8Array(entry.data || 0);
+            state.files.set(entry.path, {
+              data,
+              isText: Boolean(entry.isText),
+              text: entry.isText ? entry.text || "" : "",
+            });
+            addImplicitFolders(entry.path);
+          });
+
+          state.selectedPath = null;
+          renderTree();
+          renderEditor();
+          persistZip();
+        } catch (error) {
+          setStatus("Could not read the ZIP file. Try a different file.");
+        } finally {
+          hideProgress();
+        }
       };
 
       const selectFile = (path) => {
@@ -1075,10 +1233,16 @@
           return;
         }
         state.zipName = file.name || "archive.zip";
+        setStatus("Reading ZIP file...");
+        showProgress("Waiting...");
         const reader = new FileReader();
-        reader.onload = () => {
+        reader.onload = async () => {
           const buffer = reader.result;
-          loadZipBytes(new Uint8Array(buffer));
+          await loadZipBytes(new Uint8Array(buffer));
+        };
+        reader.onerror = () => {
+          hideProgress();
+          setStatus("Could not read the ZIP file.");
         };
         reader.readAsArrayBuffer(file);
       };
@@ -1118,14 +1282,14 @@
         clearWorkspace();
       });
 
-      const loadFromStorage = () => {
+      const loadFromStorage = async () => {
         const storedV2 = localStorage.getItem(STORAGE_KEY_V2);
         if (storedV2) {
           try {
             const payload = JSON.parse(storedV2);
             const bytes = fromBase64(payload.zipBase64 || "");
             state.zipName = payload.zipName || "archive.zip";
-            loadZipBytes(bytes);
+            await loadZipBytes(bytes);
             return;
           } catch (error) {
             clearWorkspace();
@@ -1141,7 +1305,7 @@
         try {
           const bytes = fromBase64(storedV1);
           state.zipName = "archive.zip";
-          loadZipBytes(bytes);
+          await loadZipBytes(bytes);
           schedulePersist();
         } catch (error) {
           clearWorkspace();

@@ -26,6 +26,7 @@ Plan and track work with a traditional kanban layout. Features include:
 ### Zip Workbench
 Inspect, edit, and re-download ZIP files entirely in your browser:
 - Upload a ZIP file to see its contents as a tree view
+- ZIP parsing runs in a Web Worker with progress feedback to keep the UI responsive
 - Edit files in an integrated code editor (CodeMirror for syntax highlighting)
 - Create new files and folders inside the ZIP
 - Re-package and download the modified ZIP
@@ -38,6 +39,7 @@ Inspect, edit, and re-download ZIP files entirely in your browser:
 ### Repo2Prompt
 Fetch a ZIP URL and assemble a prompt-ready payload:
 - Download a ZIP file from a URL (for example, GitHub archives)
+- ZIP parsing runs in a Web Worker with progress feedback during processing
 - Select which text files to include via checkboxes
 - Copy a combined output payload for AI prompts
 - All selections persist to storage
