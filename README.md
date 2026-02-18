@@ -159,6 +159,7 @@ These are loaded from CDN and optional—the apps work without them.
 Notes Wiki uses:
 - **CodeMirror 5** (Markdown editor)
 - **marked** (Markdown rendering)
+- **DOMPurify** (HTML sanitization for rendered Markdown)
 - **fflate** (ZIP file handling for Markdown exports)
 
 Static Page Generator uses:
