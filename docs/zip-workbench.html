@@ -22,6 +22,7 @@
         --warn: #b9382e;
         --brand-deep: #0f1720;
         --brand-fade: rgba(15, 23, 32, 0.08);
+        --sidebar-width: 280px;
       }
 
       * {
@@ -162,9 +163,27 @@
         flex: 1;
         padding: 0 20px 24px;
         display: grid;
-        grid-template-columns: 280px 1fr;
-        gap: 16px;
+        grid-template-columns: minmax(220px, var(--sidebar-width)) 12px minmax(0, 1fr);
+        gap: 0;
         min-height: 0;
+      }
+
+      .panel-resizer {
+        width: 12px;
+        display: flex;
+        align-items: stretch;
+        justify-content: center;
+        cursor: col-resize;
+        background: transparent;
+        border-radius: 999px;
+      }
+
+      .panel-resizer::before {
+        content: "";
+        width: 2px;
+        background: var(--stroke);
+        border-radius: 999px;
+        margin: 6px 0;
       }
 
       .pane {
@@ -172,6 +191,7 @@
         border: 1px solid var(--stroke);
         border-radius: 16px;
         padding: 14px;
+        min-width: 0;
         min-height: 0;
         display: flex;
         flex-direction: column;
@@ -432,7 +452,12 @@
       @media (max-width: 900px) {
         .workspace {
           grid-template-columns: 1fr;
+          gap: 16px;
           padding: 0 16px 20px;
+        }
+
+        .panel-resizer {
+          display: none;
         }
 
         header,
@@ -480,6 +505,7 @@
         </div>
         <div id="tree-container" class="empty">Upload a ZIP to see its contents.</div>
       </aside>
+      <div class="panel-resizer" id="panel-resizer" aria-label="Resize panels"></div>
       <main class="pane">
         <h2>Editor</h2>
         <div id="editor-area" class="empty">Select a file to edit its contents.</div>
@@ -561,11 +587,14 @@
       const STORAGE_KEY_V1 = "webutils.zip-workbench.v1";
       const STORAGE_KEY_V2 = "webutils.zip-workbench.v2";
       const STORAGE_KEY_V3 = "webutils.zip-workbench.v3";
+      const SIDEBAR_KEY = "webutils.zip-workbench.sidebar-width.v1";
       const STORAGE_DB_NAME = "webutils-storage-v1";
       const STORAGE_STORE_NAME = "app-data";
       const zipInput = document.getElementById("zip-input");
       const downloadLink = document.getElementById("download-link");
       const clearButton = document.getElementById("clear-zip");
+      const workspace = document.querySelector(".workspace");
+      const panelResizer = document.getElementById("panel-resizer");
       const treeContainer = document.getElementById("tree-container");
       const editorArea = document.getElementById("editor-area");
       const statusEl = document.getElementById("status");
@@ -591,6 +620,8 @@
 
       const textDecoder = new TextDecoder("utf-8");
       const textEncoder = new TextEncoder();
+      const defaultSidebarWidth = 280;
+      const minSidebarWidth = 220;
 
       let confirmResolve = null;
       let persistTimer = null;
@@ -1429,6 +1460,65 @@
         clearWorkspace();
       });
 
+      const applySidebarWidth = (width) => {
+        document.documentElement.style.setProperty("--sidebar-width", `${width}px`);
+      };
+
+      const initializeSidebarResize = () => {
+        const storedWidth = Number.parseInt(localStorage.getItem(SIDEBAR_KEY), 10);
+        if (Number.isFinite(storedWidth)) {
+          applySidebarWidth(Math.max(minSidebarWidth, storedWidth));
+        }
+
+        if (!panelResizer || !workspace) {
+          return;
+        }
+
+        const handlePointerMove = (event) => {
+          if (!panelResizer.hasPointerCapture(event.pointerId)) {
+            return;
+          }
+          const rect = workspace.getBoundingClientRect();
+          const maxWidth = Math.max(minSidebarWidth, Math.floor(rect.width - 280));
+          const nextWidth = Math.max(
+            minSidebarWidth,
+            Math.min(maxWidth, Math.floor(event.clientX - rect.left)),
+          );
+          applySidebarWidth(nextWidth);
+        };
+
+        panelResizer.addEventListener("pointerdown", (event) => {
+          panelResizer.setPointerCapture(event.pointerId);
+          panelResizer.addEventListener("pointermove", handlePointerMove);
+        });
+
+        panelResizer.addEventListener("pointerup", (event) => {
+          if (panelResizer.hasPointerCapture(event.pointerId)) {
+            panelResizer.releasePointerCapture(event.pointerId);
+          }
+          panelResizer.removeEventListener("pointermove", handlePointerMove);
+          const currentWidth = Number.parseInt(
+            getComputedStyle(document.documentElement).getPropertyValue("--sidebar-width"),
+            10,
+          );
+          if (Number.isFinite(currentWidth)) {
+            localStorage.setItem(SIDEBAR_KEY, String(currentWidth));
+          }
+        });
+
+        panelResizer.addEventListener("pointercancel", (event) => {
+          if (panelResizer.hasPointerCapture(event.pointerId)) {
+            panelResizer.releasePointerCapture(event.pointerId);
+          }
+          panelResizer.removeEventListener("pointermove", handlePointerMove);
+        });
+
+        panelResizer.addEventListener("dblclick", () => {
+          applySidebarWidth(defaultSidebarWidth);
+          localStorage.setItem(SIDEBAR_KEY, String(defaultSidebarWidth));
+        });
+      };
+
       const loadFromStorage = async () => {
         try {
           const storedV3 = await readStoredPayload();
@@ -1478,6 +1568,7 @@
         }
       };
 
+      initializeSidebarResize();
       loadFromStorage();
     </script>
   </body>

@@ -22,6 +22,7 @@
         --brand-deep: #0f1720;
         --brand-fade: rgba(15, 23, 32, 0.08);
         --shadow: rgba(21, 21, 21, 0.12);
+        --sidebar-width: 420px;
       }
 
       * {
@@ -158,9 +159,27 @@
 
       .workspace {
         display: grid;
-        grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.1fr);
-        gap: 16px;
+        grid-template-columns: minmax(260px, var(--sidebar-width)) 12px minmax(0, 1fr);
+        gap: 0;
         min-height: 0;
+      }
+
+      .panel-resizer {
+        width: 12px;
+        display: flex;
+        align-items: stretch;
+        justify-content: center;
+        cursor: col-resize;
+        background: transparent;
+        border-radius: 999px;
+      }
+
+      .panel-resizer::before {
+        content: "";
+        width: 2px;
+        background: var(--stroke);
+        border-radius: 999px;
+        margin: 6px 0;
       }
 
       .panel {
@@ -373,6 +392,11 @@
       @media (max-width: 980px) {
         .workspace {
           grid-template-columns: 1fr;
+          gap: 16px;
+        }
+
+        .panel-resizer {
+          display: none;
         }
       }
     </style>
@@ -429,6 +453,8 @@
             </div>
           </div>
         </div>
+
+        <div class="panel-resizer" id="panel-resizer" aria-label="Resize panels"></div>
 
         <div class="panel">
           <h2>Templates</h2>
@@ -714,6 +740,7 @@
         pageTitle: "",
         fileName: "",
         showToc: true,
+        sidebarWidth: null,
       };
 
       const statusEl = document.getElementById("status");
@@ -725,6 +752,8 @@
       const previewFrame = document.getElementById("preview-frame");
       const editorResize = document.getElementById("editor-resize");
       const previewResize = document.getElementById("preview-resize");
+      const workspace = document.querySelector(".workspace");
+      const panelResizer = document.getElementById("panel-resizer");
       const toggleToc = document.getElementById("toggle-toc");
       const downloadButton = document.getElementById("download-html");
       const copyButton = document.getElementById("copy-html");
@@ -740,6 +769,8 @@
       let lastExportHtml = "";
       let editor = null;
       let editorResizeObserver = null;
+      const defaultSidebarWidth = 420;
+      const minSidebarWidth = 260;
 
       const requestConfirmation = ({ title, message, confirmText }) => {
         if (!confirmDialog || typeof confirmDialog.showModal !== "function") {
@@ -774,6 +805,7 @@
           pageTitle: state.pageTitle,
           fileName: state.fileName,
           showToc: state.showToc,
+          sidebarWidth: state.sidebarWidth,
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
       };
@@ -790,9 +822,72 @@
           state.pageTitle = stored.pageTitle || "";
           state.fileName = stored.fileName || "";
           state.showToc = stored.showToc !== false;
+          state.sidebarWidth = Number.isFinite(stored.sidebarWidth)
+            ? stored.sidebarWidth
+            : null;
         } catch (error) {
           console.error("Failed to load draft", error);
         }
+      };
+
+      const applySidebarWidth = (width) => {
+        document.documentElement.style.setProperty("--sidebar-width", `${width}px`);
+      };
+
+      const initSidebarResize = () => {
+        if (Number.isFinite(state.sidebarWidth)) {
+          applySidebarWidth(Math.max(minSidebarWidth, state.sidebarWidth));
+        }
+
+        if (!panelResizer || !workspace) {
+          return;
+        }
+
+        const handlePointerMove = (event) => {
+          if (!panelResizer.hasPointerCapture(event.pointerId)) {
+            return;
+          }
+          const rect = workspace.getBoundingClientRect();
+          const maxWidth = Math.max(minSidebarWidth, Math.floor(rect.width - 320));
+          const nextWidth = Math.max(
+            minSidebarWidth,
+            Math.min(maxWidth, Math.floor(event.clientX - rect.left)),
+          );
+          applySidebarWidth(nextWidth);
+        };
+
+        panelResizer.addEventListener("pointerdown", (event) => {
+          panelResizer.setPointerCapture(event.pointerId);
+          panelResizer.addEventListener("pointermove", handlePointerMove);
+        });
+
+        panelResizer.addEventListener("pointerup", (event) => {
+          if (panelResizer.hasPointerCapture(event.pointerId)) {
+            panelResizer.releasePointerCapture(event.pointerId);
+          }
+          panelResizer.removeEventListener("pointermove", handlePointerMove);
+          const currentWidth = Number.parseInt(
+            getComputedStyle(document.documentElement).getPropertyValue("--sidebar-width"),
+            10,
+          );
+          if (Number.isFinite(currentWidth)) {
+            state.sidebarWidth = currentWidth;
+            saveState();
+          }
+        });
+
+        panelResizer.addEventListener("pointercancel", (event) => {
+          if (panelResizer.hasPointerCapture(event.pointerId)) {
+            panelResizer.releasePointerCapture(event.pointerId);
+          }
+          panelResizer.removeEventListener("pointermove", handlePointerMove);
+        });
+
+        panelResizer.addEventListener("dblclick", () => {
+          applySidebarWidth(defaultSidebarWidth);
+          state.sidebarWidth = defaultSidebarWidth;
+          saveState();
+        });
       };
 
       const renderMarkdown = (text) => {
@@ -1188,6 +1283,7 @@
       loadState();
       ensureDefaults();
       syncInputs();
+      initSidebarResize();
       initEditor();
       renderThemeOptions();
       updatePreview();
