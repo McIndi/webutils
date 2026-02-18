@@ -516,6 +516,12 @@
           id: "zip-workbench",
           label: "Zip Workbench",
           key: "webutils.zip-workbench.v2",
+          storage: {
+            type: "indexedDB",
+            dbName: "webutils-storage-v1",
+            storeName: "app-data",
+            recordKey: "webutils.zip-workbench.v3",
+          },
           href: "zip-workbench.html",
           description: "Browse, edit, and re-download ZIP contents.",
         },
@@ -523,6 +529,12 @@
           id: "repo2prompt",
           label: "Repo2Prompt",
           key: "webutils.repo2prompt.v1",
+          storage: {
+            type: "indexedDB",
+            dbName: "webutils-storage-v1",
+            storeName: "app-data",
+            recordKey: "webutils.repo2prompt.v2",
+          },
           href: "repo2prompt.html",
           description: "Fetch a repo ZIP and assemble a prompt-ready payload.",
         },
@@ -606,9 +618,202 @@
         return new TextEncoder().encode(value).length;
       };
 
-      const renderAppNav = () => {
+      const toBase64 = (bytes) => {
+        let binary = "";
+        const chunkSize = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+        }
+        return btoa(binary);
+      };
+
+      const fromBase64 = (value) => {
+        const binary = atob(value);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+        return bytes;
+      };
+
+      const idbConnections = new Map();
+
+      const getStorageDescriptor = (app) => {
+        if (app.storage && app.storage.type === "indexedDB") {
+          return app.storage;
+        }
+        return {
+          type: "localStorage",
+          key: app.key,
+        };
+      };
+
+      const getIdbConnection = (descriptor) => {
+        const cacheKey = `${descriptor.dbName}::${descriptor.storeName}`;
+        if (idbConnections.has(cacheKey)) {
+          return idbConnections.get(cacheKey);
+        }
+        if (!("indexedDB" in window)) {
+          return Promise.reject(new Error("IndexedDB is not available."));
+        }
+        const promise = new Promise((resolve, reject) => {
+          const request = indexedDB.open(descriptor.dbName, 1);
+          request.onupgradeneeded = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains(descriptor.storeName)) {
+              db.createObjectStore(descriptor.storeName);
+            }
+          };
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error || new Error("Storage open failed."));
+        });
+        idbConnections.set(cacheKey, promise);
+        return promise;
+      };
+
+      const readIndexedDbRecord = async (descriptor) => {
+        const db = await getIdbConnection(descriptor);
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(descriptor.storeName, "readonly");
+          const store = tx.objectStore(descriptor.storeName);
+          const request = store.get(descriptor.recordKey);
+          request.onsuccess = () => resolve(request.result ?? null);
+          request.onerror = () => reject(request.error || new Error("Storage read failed."));
+        });
+      };
+
+      const writeIndexedDbRecord = async (descriptor, value) => {
+        const db = await getIdbConnection(descriptor);
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(descriptor.storeName, "readwrite");
+          const store = tx.objectStore(descriptor.storeName);
+          store.put(value, descriptor.recordKey);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error || new Error("Storage write failed."));
+          tx.onabort = () => reject(tx.error || new Error("Storage write failed."));
+        });
+      };
+
+      const deleteIndexedDbRecord = async (descriptor) => {
+        const db = await getIdbConnection(descriptor);
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(descriptor.storeName, "readwrite");
+          const store = tx.objectStore(descriptor.storeName);
+          store.delete(descriptor.recordKey);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error || new Error("Storage clear failed."));
+          tx.onabort = () => reject(tx.error || new Error("Storage clear failed."));
+        });
+      };
+
+      const serializeStructuredValue = (value) => {
+        if (value === null || value === undefined) {
+          return value;
+        }
+        if (value instanceof ArrayBuffer) {
+          return {
+            __type: "ArrayBuffer",
+            base64: toBase64(new Uint8Array(value)),
+          };
+        }
+        if (ArrayBuffer.isView(value)) {
+          const copy = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+          return {
+            __type: "TypedArray",
+            ctor: value.constructor.name,
+            base64: toBase64(copy),
+          };
+        }
+        if (Array.isArray(value)) {
+          return value.map((item) => serializeStructuredValue(item));
+        }
+        if (typeof value === "object") {
+          const output = {};
+          Object.keys(value).forEach((key) => {
+            output[key] = serializeStructuredValue(value[key]);
+          });
+          return output;
+        }
+        return value;
+      };
+
+      const typedArrayMap = {
+        Int8Array,
+        Uint8Array,
+        Uint8ClampedArray,
+        Int16Array,
+        Uint16Array,
+        Int32Array,
+        Uint32Array,
+        Float32Array,
+        Float64Array,
+      };
+
+      const deserializeStructuredValue = (value) => {
+        if (value === null || value === undefined) {
+          return value;
+        }
+        if (Array.isArray(value)) {
+          return value.map((item) => deserializeStructuredValue(item));
+        }
+        if (typeof value === "object") {
+          if (value.__type === "ArrayBuffer") {
+            return fromBase64(value.base64 || "").buffer;
+          }
+          if (value.__type === "TypedArray") {
+            const ctor = typedArrayMap[value.ctor] || Uint8Array;
+            const bytes = fromBase64(value.base64 || "");
+            return new ctor(bytes.buffer);
+          }
+          const output = {};
+          Object.keys(value).forEach((key) => {
+            output[key] = deserializeStructuredValue(value[key]);
+          });
+          return output;
+        }
+        return value;
+      };
+
+      const readAppData = async (app) => {
+        const descriptor = getStorageDescriptor(app);
+        if (descriptor.type === "indexedDB") {
+          return readIndexedDbRecord(descriptor);
+        }
+        return localStorage.getItem(descriptor.key);
+      };
+
+      const writeAppData = async (app, value) => {
+        const descriptor = getStorageDescriptor(app);
+        if (descriptor.type === "indexedDB") {
+          await writeIndexedDbRecord(descriptor, value);
+          return;
+        }
+        localStorage.setItem(descriptor.key, value);
+      };
+
+      const clearAppData = async (app) => {
+        const descriptor = getStorageDescriptor(app);
+        if (descriptor.type === "indexedDB") {
+          await deleteIndexedDbRecord(descriptor);
+          return;
+        }
+        localStorage.removeItem(descriptor.key);
+      };
+
+      const estimateDataBytes = (app, value) => {
+        if (value === null || value === undefined) {
+          return 0;
+        }
+        const descriptor = getStorageDescriptor(app);
+        if (descriptor.type === "indexedDB") {
+          return estimateStoredBytes(JSON.stringify(serializeStructuredValue(value)));
+        }
+        return estimateStoredBytes(value);
+      };
+
+      const renderAppNav = async () => {
         appList.innerHTML = "";
-        APP_REGISTRY.forEach((app) => {
+        for (const app of APP_REGISTRY) {
           const row = document.createElement("div");
           row.className = "app-row";
 
@@ -627,11 +832,18 @@
           const description = document.createElement("div");
           description.textContent = app.description;
 
-          const storedValue = localStorage.getItem(app.key);
-          const bytes = estimateStoredBytes(storedValue);
+          let storedValue = null;
+          try {
+            storedValue = await readAppData(app);
+          } catch (error) {
+            storedValue = null;
+          }
+          const bytes = estimateDataBytes(app, storedValue);
           const meta = document.createElement("div");
           meta.className = "app-meta";
-          meta.textContent = storedValue ? `Stored data: ${formatBytes(bytes)}` : "No data saved";
+          meta.textContent = storedValue !== null && storedValue !== undefined
+            ? `Stored data: ${formatBytes(bytes)}`
+            : "No data saved";
 
           const topRow = document.createElement("div");
           topRow.style.display = "flex";
@@ -641,7 +853,7 @@
 
           row.append(topRow, description, meta);
           appList.appendChild(row);
-        });
+        }
       };
 
       const renderExportList = () => {
@@ -657,22 +869,37 @@
         });
       };
 
-      const buildSnapshot = (selectedIds) => {
+      const buildSnapshot = async (selectedIds) => {
         const snapshot = {
-          version: 1,
+          version: 2,
           createdAt: new Date().toISOString(),
           apps: {},
         };
 
-        APP_REGISTRY.forEach((app) => {
+        for (const app of APP_REGISTRY) {
           if (!selectedIds.has(app.id)) {
-            return;
+            continue;
           }
-          const value = localStorage.getItem(app.key);
+          const descriptor = getStorageDescriptor(app);
+          const value = await readAppData(app);
           if (value !== null) {
-            snapshot.apps[app.id] = { key: app.key, value };
+            if (descriptor.type === "indexedDB") {
+              snapshot.apps[app.id] = {
+                storage: "indexedDB",
+                dbName: descriptor.dbName,
+                storeName: descriptor.storeName,
+                recordKey: descriptor.recordKey,
+                value: serializeStructuredValue(value),
+              };
+            } else {
+              snapshot.apps[app.id] = {
+                storage: "localStorage",
+                key: descriptor.key,
+                value,
+              };
+            }
           }
-        });
+        }
 
         return snapshot;
       };
@@ -692,7 +919,7 @@
         URL.revokeObjectURL(url);
       };
 
-      exportButton.addEventListener("click", () => {
+      exportButton.addEventListener("click", async () => {
         const selected = new Set(
           Array.from(exportList.querySelectorAll("input[type='checkbox']"))
             .filter((checkbox) => checkbox.checked)
@@ -705,7 +932,7 @@
         }
 
         try {
-          const snapshot = buildSnapshot(selected);
+          const snapshot = await buildSnapshot(selected);
           const count = Object.keys(snapshot.apps).length;
           if (count === 0) {
             setStatus("No saved data found for the selected apps.");
@@ -744,15 +971,58 @@
           }
 
           let restored = 0;
-          APP_REGISTRY.forEach((app) => {
+          for (const app of APP_REGISTRY) {
             const entry = snapshot.apps[app.id];
-            if (entry && typeof entry.value === "string") {
-              localStorage.setItem(app.key, entry.value);
+            if (!entry) {
+              continue;
+            }
+            const descriptor = getStorageDescriptor(app);
+            if (descriptor.type === "indexedDB") {
+              if (entry.storage === "indexedDB" && entry.value !== undefined) {
+                await writeAppData(app, deserializeStructuredValue(entry.value));
+                restored += 1;
+                continue;
+              }
+              if (app.id === "zip-workbench" && typeof entry.value === "string") {
+                try {
+                  const legacy = JSON.parse(entry.value);
+                  const legacyBytes = fromBase64(legacy.zipBase64 || "");
+                  await writeAppData(app, {
+                    schemaVersion: 1,
+                    savedAt: new Date().toISOString(),
+                    zipName: legacy.zipName || "archive.zip",
+                    zipBytes: legacyBytes.buffer,
+                  });
+                  restored += 1;
+                } catch (error) {
+                }
+              }
+              if (app.id === "repo2prompt" && typeof entry.value === "string") {
+                try {
+                  const legacy = JSON.parse(entry.value);
+                  if (legacy && typeof legacy === "object") {
+                    await writeAppData(app, {
+                      schemaVersion: 1,
+                      savedAt: new Date().toISOString(),
+                      url: typeof legacy.url === "string" ? legacy.url : "",
+                      files: Array.isArray(legacy.files) ? legacy.files : [],
+                      extensionFilter: Array.isArray(legacy.extensionFilter) ? legacy.extensionFilter : [],
+                    });
+                    restored += 1;
+                  }
+                } catch (error) {
+                }
+              }
+              continue;
+            }
+            if (typeof entry.value === "string") {
+              await writeAppData(app, entry.value);
               restored += 1;
             }
-          });
+          }
 
           setStatus(`Imported data for ${restored} app(s).`);
+          await renderAppNav();
         } catch (error) {
           setStatus("Import failed. The file may be invalid.");
         } finally {
@@ -770,9 +1040,14 @@
           return;
         }
 
-        APP_REGISTRY.forEach((app) => localStorage.removeItem(app.key));
+        try {
+          await Promise.all(APP_REGISTRY.map((app) => clearAppData(app)));
+        } catch (error) {
+          setStatus("Could not clear all app data.");
+          return;
+        }
         setStatus("Cleared all saved app data.");
-        renderAppNav();
+        await renderAppNav();
       });
 
       renderExportList();

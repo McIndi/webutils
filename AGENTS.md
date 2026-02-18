@@ -11,14 +11,15 @@ This document captures decisions, conventions, and architectural patterns that a
 - Portability is a first-class concern: apps can be downloaded, moved, and shared as individual files.
 
 ## Data storage (current standard)
-- Storage is browser localStorage for persistence across reloads.
-- Storage keys are scoped per app using a stable prefix: `webutils.<app>.v1`.
-- Data is stored as JSON (stringified arrays or objects).
+- Storage is browser-native and app-specific: localStorage for most apps, IndexedDB for larger payload apps.
+- localStorage keys are scoped per app using a stable prefix such as `webutils.<app>.v1`.
+- IndexedDB entries should use a predictable record key with the same prefix pattern.
+- Data is stored as JSON for localStorage and structured values for IndexedDB records.
 - Apps read from storage on load and persist on each change.
 
 ## Cross-app data sharing (future-compatible)
-- localStorage is per-origin (host + port + scheme). If apps are served from the same origin, they can access each other’s localStorage entries.
-- To allow shared data in the future, keep storage keys predictable and avoid collisions. Shared data should live under a dedicated key such as `webutils.shared.v1`.
+- Browser storage is per-origin (host + port + scheme). If apps are served from the same origin, they can access shared localStorage and IndexedDB databases.
+- To allow shared data in the future, keep keys predictable and avoid collisions. Shared data should live under a dedicated key such as `webutils.shared.v1`.
 
 ## Privacy and portability
 - All data stays on the user’s device and is never transmitted by the app.
@@ -47,7 +48,8 @@ This document captures decisions, conventions, and architectural patterns that a
 ## Files
 - Landing page: `docs/index.html`.
 - Kanban board: `docs/kanban.html` (uses localStorage key `webutils.kanban.v1`).
-- ZIP Workbench: `docs/zip-workbench.html` (uses localStorage key `webutils.zip-workbench.v1`).
+- ZIP Workbench: `docs/zip-workbench.html` (uses IndexedDB `webutils-storage-v1` / `app-data` / `webutils.zip-workbench.v3`, with migration from legacy localStorage keys).
+- Repo2Prompt: `docs/repo2prompt.html` (uses IndexedDB `webutils-storage-v1` / `app-data` / `webutils.repo2prompt.v2`, with migration from legacy localStorage key `webutils.repo2prompt.v1`).
 - Regex Workbench: `docs/regex-workbench.html` (uses localStorage key `webutils.regex-workbench.v1`).
 
 ## Adding a New App

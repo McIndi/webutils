@@ -546,6 +546,9 @@
     <script>
       const STORAGE_KEY_V1 = "webutils.zip-workbench.v1";
       const STORAGE_KEY_V2 = "webutils.zip-workbench.v2";
+      const STORAGE_KEY_V3 = "webutils.zip-workbench.v3";
+      const STORAGE_DB_NAME = "webutils-storage-v1";
+      const STORAGE_STORE_NAME = "app-data";
       const zipInput = document.getElementById("zip-input");
       const downloadLink = document.getElementById("download-link");
       const clearButton = document.getElementById("clear-zip");
@@ -577,6 +580,7 @@
       let persistTimer = null;
       let editorInstance = null;
       let downloadUrl = null;
+      let storageDbPromise = null;
 
       const state = {
         files: new Map(),
@@ -626,6 +630,62 @@
           bytes[i] = binary.charCodeAt(i);
         }
         return bytes;
+      };
+
+      const getStorageDb = () => {
+        if (storageDbPromise) {
+          return storageDbPromise;
+        }
+        if (!("indexedDB" in window)) {
+          return Promise.reject(new Error("IndexedDB is not available."));
+        }
+        storageDbPromise = new Promise((resolve, reject) => {
+          const request = indexedDB.open(STORAGE_DB_NAME, 1);
+          request.onupgradeneeded = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains(STORAGE_STORE_NAME)) {
+              db.createObjectStore(STORAGE_STORE_NAME);
+            }
+          };
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error || new Error("Failed to open storage."));
+        });
+        return storageDbPromise;
+      };
+
+      const readStoredPayload = async () => {
+        const db = await getStorageDb();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORAGE_STORE_NAME, "readonly");
+          const store = tx.objectStore(STORAGE_STORE_NAME);
+          const request = store.get(STORAGE_KEY_V3);
+          request.onsuccess = () => resolve(request.result || null);
+          request.onerror = () => reject(request.error || new Error("Failed to read storage."));
+        });
+      };
+
+      const writeStoredPayload = async (payload) => {
+        const db = await getStorageDb();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORAGE_STORE_NAME, "readwrite");
+          const store = tx.objectStore(STORAGE_STORE_NAME);
+          store.put(payload, STORAGE_KEY_V3);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error || new Error("Failed to write storage."));
+          tx.onabort = () => reject(tx.error || new Error("Failed to write storage."));
+        });
+      };
+
+      const clearStoredPayload = async () => {
+        const db = await getStorageDb();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORAGE_STORE_NAME, "readwrite");
+          const store = tx.objectStore(STORAGE_STORE_NAME);
+          store.delete(STORAGE_KEY_V3);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error || new Error("Failed to clear storage."));
+          tx.onabort = () => reject(tx.error || new Error("Failed to clear storage."));
+        });
       };
 
       const isTextData = (data) => {
@@ -886,9 +946,13 @@
         downloadLink.download = state.zipName || "archive.zip";
       };
 
-      const persistZip = () => {
+      const persistZip = async () => {
         if (state.files.size === 0 && state.folders.size === 0) {
-          localStorage.removeItem(STORAGE_KEY_V2);
+          try {
+            await clearStoredPayload();
+          } catch (error) {
+            setStatus("Could not clear saved ZIP data from storage.");
+          }
           return;
         }
 
@@ -904,18 +968,22 @@
         updateDownloadLink();
         try {
           const payload = {
-            zipBase64: toBase64(state.zipBytes),
+            schemaVersion: 1,
+            savedAt: new Date().toISOString(),
             zipName: state.zipName,
-            folders: Array.from(state.folders.values()).sort(),
+            zipBytes: state.zipBytes.buffer.slice(
+              state.zipBytes.byteOffset,
+              state.zipBytes.byteOffset + state.zipBytes.byteLength
+            ),
           };
-          localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(payload));
+          await writeStoredPayload(payload);
           const folderCount = state.folders.size;
           const fileCount = state.files.size;
           const folderLabel = folderCount === 1 ? "folder" : "folders";
           const fileLabel = fileCount === 1 ? "file" : "files";
           setStatus(`Loaded ${fileCount} ${fileLabel}, ${folderCount} ${folderLabel}.`);
         } catch (error) {
-          setStatus("Storage full. Download the ZIP to keep changes.");
+          setStatus("Storage full. Download the ZIP to keep changes." + (error && error.message ? ` (${error.message})` : ""));
         }
       };
 
@@ -1066,7 +1134,7 @@
           state.selectedPath = null;
           renderTree();
           renderEditor();
-          persistZip();
+          await persistZip();
         } catch (error) {
           setStatus("Could not read the ZIP file. Try a different file.");
         } finally {
@@ -1277,12 +1345,35 @@
         if (!confirmed) {
           return;
         }
+        try {
+          await clearStoredPayload();
+        } catch (error) {
+          setStatus("Could not clear saved ZIP data.");
+        }
         localStorage.removeItem(STORAGE_KEY_V2);
         localStorage.removeItem(STORAGE_KEY_V1);
         clearWorkspace();
       });
 
       const loadFromStorage = async () => {
+        try {
+          const storedV3 = await readStoredPayload();
+          if (storedV3 && storedV3.zipBytes) {
+            const storedBytes = storedV3.zipBytes instanceof ArrayBuffer
+              ? new Uint8Array(storedV3.zipBytes)
+              : storedV3.zipBytes instanceof Uint8Array
+              ? storedV3.zipBytes
+              : null;
+            if (storedBytes && storedBytes.length > 0) {
+              state.zipName = storedV3.zipName || "archive.zip";
+              await loadZipBytes(storedBytes);
+              return;
+            }
+          }
+        } catch (error) {
+          await clearStoredPayload().catch(() => {});
+        }
+
         const storedV2 = localStorage.getItem(STORAGE_KEY_V2);
         if (storedV2) {
           try {
@@ -1290,6 +1381,7 @@
             const bytes = fromBase64(payload.zipBase64 || "");
             state.zipName = payload.zipName || "archive.zip";
             await loadZipBytes(bytes);
+            localStorage.removeItem(STORAGE_KEY_V2);
             return;
           } catch (error) {
             clearWorkspace();
@@ -1306,7 +1398,7 @@
           const bytes = fromBase64(storedV1);
           state.zipName = "archive.zip";
           await loadZipBytes(bytes);
-          schedulePersist();
+          localStorage.removeItem(STORAGE_KEY_V1);
         } catch (error) {
           clearWorkspace();
         }

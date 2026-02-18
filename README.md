@@ -6,7 +6,7 @@ McIndi WebUtils is a collection of pocket utilities designed for quick, focused 
 
 - **Single-file apps**: Each utility is a standalone HTML file with embedded CSS and JavaScript.
 - **Offline-first**: Works completely offline; no data leaves your device.
-- **Browser-native storage**: All data persists in browser localStorage and can be exported/imported as JSON snapshots.
+- **Browser-native storage**: Data persists in browser storage (localStorage and IndexedDB) and can be exported/imported as JSON snapshots.
 - **Lightweight**: Minimal dependencies; designed to load and run quickly.
 - **Mobile-friendly**: Responsive layouts that work on phones, tablets, and desktop.
 
@@ -33,7 +33,8 @@ Inspect, edit, and re-download ZIP files entirely in your browser:
 - Clear the current ZIP to start fresh
 
 **File**: `docs/zip-workbench.html`  
-**Storage key**: `webutils.zip-workbench.v2`  
+**Storage backend**: IndexedDB (`webutils-storage-v1` / `app-data` / `webutils.zip-workbench.v3`)  
+**Legacy storage key**: `webutils.zip-workbench.v2` (migrated on load)  
 **External dependency**: fflate (ZIP library via CDN)
 
 ### Repo2Prompt
@@ -45,7 +46,8 @@ Fetch a ZIP URL and assemble a prompt-ready payload:
 - All selections persist to storage
 
 **File**: `docs/repo2prompt.html`  
-**Storage key**: `webutils.repo2prompt.v1`  
+**Storage backend**: IndexedDB (`webutils-storage-v1` / `app-data` / `webutils.repo2prompt.v2`)  
+**Legacy storage key**: `webutils.repo2prompt.v1` (migrated on load)  
 **External dependency**: fflate (ZIP library via CDN)
 
 ### Regex Workbench
@@ -117,7 +119,7 @@ The landing page (`docs/index.html`) serves as a hub for all utilities and inclu
 
 ## How It Works
 
-- **Browser storage**: All app data (tasks, ZIP history, regex presets) persists in your browser's localStorage
+- **Browser storage**: App data persists in browser storage (`localStorage` for most apps, `IndexedDB` for Zip Workbench and Repo2Prompt)
 - **Snapshots**: You can export all your data as a JSON file and restore it anytime
 - **No accounts**: Everything is stored locally; no login or syncing required
 - **Confirmation dialogs**: Destructive actions (delete, clear, import) always ask for confirmation to prevent accidents
@@ -127,7 +129,7 @@ The landing page (`docs/index.html`) serves as a hub for all utilities and inclu
 - **No external tracking**: No analytics, pixels, or telemetry.
 - **No servers**: All processing happens in your browser.
 - **No user accounts**: No login, signup, or authentication needed.
-- **Local storage only**: Data never leaves your device unless you explicitly export it.
+- **Local browser storage only**: Data never leaves your device unless you explicitly export it.
 - **Clearable anytime**: Use the browser's dev tools or the landing page controls to wipe data.
 
 ## Browser Support
@@ -136,6 +138,7 @@ Works in any modern browser supporting:
 - ES6+ JavaScript
 - CSS Grid and Flexbox
 - HTML5 localStorage
+- IndexedDB
 - HTML5 file APIs (for ZIP upload/download)
 
 ## Technical Details
