@@ -217,6 +217,25 @@
         gap: 8px;
       }
 
+      .move-control {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .move-control label {
+        color: var(--muted);
+      }
+
+      .move-control select {
+        font: inherit;
+        border: 1px solid var(--stroke);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--ink);
+        padding: 4px 8px;
+      }
+
       .tag {
         padding: 4px 8px;
         border-radius: 999px;
@@ -378,6 +397,29 @@
           flex-direction: column;
           align-items: stretch;
         }
+
+        .card {
+          cursor: default;
+        }
+
+        .card-actions {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .card-actions .meta,
+        .card-actions .buttons {
+          justify-content: space-between;
+        }
+
+        .move-control {
+          justify-content: space-between;
+        }
+
+        .move-control select {
+          min-height: 34px;
+          flex: 1;
+        }
       }
     </style>
   </head>
@@ -523,6 +565,33 @@
         tag.className = "tag";
         tag.textContent = laneLabels[lane];
 
+        const moveControl = document.createElement("div");
+        moveControl.className = "move-control";
+
+        const moveLabel = document.createElement("label");
+        const moveSelectId = `move-${id}`;
+        moveLabel.setAttribute("for", moveSelectId);
+        moveLabel.textContent = "Move to";
+
+        const moveSelect = document.createElement("select");
+        moveSelect.id = moveSelectId;
+        Object.entries(laneLabels).forEach(([laneKey, laneText]) => {
+          const option = document.createElement("option");
+          option.value = laneKey;
+          option.textContent = laneText;
+          if (laneKey === lane) {
+            option.selected = true;
+          }
+          moveSelect.appendChild(option);
+        });
+        moveSelect.addEventListener("change", (event) => {
+          const targetLane = event.target.value;
+          if (targetLane !== lane) {
+            moveCard(id, targetLane);
+          }
+        });
+        moveControl.append(moveLabel, moveSelect);
+
         const buttonGroup = document.createElement("div");
         buttonGroup.className = "buttons";
 
@@ -553,7 +622,7 @@
 
         meta.append(tag, time);
         buttonGroup.append(editBtn, removeBtn);
-        actions.append(meta, buttonGroup);
+        actions.append(meta, moveControl, buttonGroup);
 
         card.append(titleEl, noteEl, actions);
 
