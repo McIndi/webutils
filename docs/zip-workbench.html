@@ -255,7 +255,15 @@
       .tree-entry.folder {
         font-weight: 600;
         color: var(--muted);
-        cursor: default;
+      }
+
+      button.tree-entry.folder {
+        cursor: pointer;
+      }
+
+      .tree-entry.folder .twisty {
+        display: inline-block;
+        width: 1.1em;
       }
 
       .delete-link {
@@ -275,6 +283,10 @@
       .tree .nested {
         padding-left: 14px;
         border-left: 1px dashed var(--stroke);
+      }
+
+      .tree .nested.collapsed {
+        display: none;
       }
 
       .editor-header {
@@ -463,6 +475,8 @@
         <div class="pane-toolbar">
           <button class="primary" type="button" id="new-file">New File</button>
           <button type="button" id="new-folder">New Folder</button>
+          <button type="button" id="collapse-all">Collapse All</button>
+          <button type="button" id="expand-all">Expand All</button>
         </div>
         <div id="tree-container" class="empty">Upload a ZIP to see its contents.</div>
       </aside>
@@ -560,6 +574,8 @@
       const progressText = document.getElementById("zip-progress-text");
       const newFileButton = document.getElementById("new-file");
       const newFolderButton = document.getElementById("new-folder");
+      const collapseAllButton = document.getElementById("collapse-all");
+      const expandAllButton = document.getElementById("expand-all");
       const confirmDialog = document.getElementById("confirm-dialog");
       const confirmTitle = document.getElementById("confirm-title");
       const confirmMessage = document.getElementById("confirm-message");
@@ -585,6 +601,7 @@
       const state = {
         files: new Map(),
         folders: new Set(),
+        collapsedFolders: new Set(),
         selectedPath: null,
         zipName: "archive.zip",
         zipBytes: null,
@@ -728,6 +745,7 @@
       const clearWorkspace = () => {
         state.files.clear();
         state.folders.clear();
+        state.collapsedFolders.clear();
         state.selectedPath = null;
         state.zipBytes = null;
         hideProgress();
@@ -752,6 +770,23 @@
           current = current ? `${current}/${parts[i]}` : parts[i];
           state.folders.add(current);
         }
+      };
+
+      const expandAncestors = (path) => {
+        const parts = path.split("/");
+        let current = "";
+        for (let i = 0; i < parts.length - 1; i += 1) {
+          current = current ? `${current}/${parts[i]}` : parts[i];
+          state.collapsedFolders.delete(current);
+        }
+      };
+
+      const syncCollapsedFolders = () => {
+        Array.from(state.collapsedFolders.values()).forEach((path) => {
+          if (!state.folders.has(path)) {
+            state.collapsedFolders.delete(path);
+          }
+        });
       };
 
       const buildTree = (paths, folders) => {
@@ -788,6 +823,10 @@
       const renderTree = () => {
         const paths = Array.from(state.files.keys()).sort();
         const folders = Array.from(state.folders.values()).sort();
+        syncCollapsedFolders();
+        const hasFolders = folders.length > 0;
+        collapseAllButton.disabled = !hasFolders;
+        expandAllButton.disabled = !hasFolders;
         if (paths.length === 0 && folders.length === 0) {
           treeContainer.textContent = "This ZIP has no files or folders.";
           treeContainer.className = "empty";
@@ -806,6 +845,9 @@
             const currentPath = prefix ? `${prefix}/${key}` : key;
             const row = document.createElement("div");
             row.className = "tree-row";
+            const children = Object.keys(entry.__children || {});
+            const hasChildren = children.length > 0;
+            const isCollapsed = state.collapsedFolders.has(currentPath);
 
             if (entry.__isFile) {
               const button = document.createElement("button");
@@ -816,9 +858,23 @@
               button.addEventListener("click", () => selectFile(currentPath));
               row.appendChild(button);
             } else {
-              const label = document.createElement("div");
-              label.textContent = key;
+              const label = document.createElement("button");
+              label.type = "button";
               label.className = "tree-entry folder";
+              label.setAttribute("aria-expanded", String(hasChildren ? !isCollapsed : true));
+              label.innerHTML = `<span class="twisty">${hasChildren ? (isCollapsed ? "▸" : "▾") : "•"}</span>${key}`;
+              label.addEventListener("click", (event) => {
+                event.stopPropagation();
+                if (!hasChildren) {
+                  return;
+                }
+                if (state.collapsedFolders.has(currentPath)) {
+                  state.collapsedFolders.delete(currentPath);
+                } else {
+                  state.collapsedFolders.add(currentPath);
+                }
+                renderTree();
+              });
               row.appendChild(label);
             }
 
@@ -837,10 +893,12 @@
             row.appendChild(deleteButton);
             item.appendChild(row);
 
-            const children = Object.keys(entry.__children || {});
             if (children.length > 0) {
               const nested = createList(entry.__children, currentPath);
               nested.classList.add("nested");
+              if (isCollapsed) {
+                nested.classList.add("collapsed");
+              }
               item.appendChild(nested);
             }
 
@@ -1113,6 +1171,7 @@
 
           state.files.clear();
           state.folders.clear();
+          state.collapsedFolders.clear();
 
           (result.items || []).forEach((entry) => {
             if (entry.isFolder) {
@@ -1144,6 +1203,7 @@
 
       const selectFile = (path) => {
         state.selectedPath = path;
+        expandAncestors(path);
         renderTree();
         renderEditor();
       };
@@ -1228,6 +1288,7 @@
           state.files.set(path, { data, isText: true, text: "" });
           addImplicitFolders(path);
           state.selectedPath = path;
+          expandAncestors(path);
           renderTree();
           renderEditor();
         } else {
@@ -1288,6 +1349,11 @@
             state.folders.delete(key);
           }
         });
+        Array.from(state.collapsedFolders.values()).forEach((key) => {
+          if (key === path || key.startsWith(descendantPrefix)) {
+            state.collapsedFolders.delete(key);
+          }
+        });
         if (state.selectedPath && state.selectedPath.startsWith(descendantPrefix)) {
           state.selectedPath = null;
         }
@@ -1325,6 +1391,14 @@
 
       newFileButton.addEventListener("click", () => openCreateDialog("file"));
       newFolderButton.addEventListener("click", () => openCreateDialog("folder"));
+      collapseAllButton.addEventListener("click", () => {
+        state.folders.forEach((path) => state.collapsedFolders.add(path));
+        renderTree();
+      });
+      expandAllButton.addEventListener("click", () => {
+        state.collapsedFolders.clear();
+        renderTree();
+      });
 
       createForm.addEventListener("submit", (event) => {
         event.preventDefault();
