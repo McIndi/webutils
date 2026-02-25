@@ -476,6 +476,20 @@
             </div>
             <div id="extension-filters"></div>
           </details>
+          <details>
+            <summary>Filter by regex</summary>
+            <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+              <input
+                id="regex-filter-input"
+                type="text"
+                placeholder="Enter regex pattern (e.g., ^src/.*\.js$)"
+                spellcheck="false"
+                style="flex: 1; padding: 6px 8px; border: 1px solid var(--stroke); border-radius: 8px; font-size: 0.85rem;"
+              />
+              <button id="regex-filter-clear" type="button" style="font-size: 0.8rem; padding: 4px 8px;">Clear</button>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--muted);" id="regex-filter-status"></div>
+          </details>
         </div>
         <div class="empty" id="file-empty">Load a ZIP to see text files.</div>
         <ul class="file-list" id="file-list"></ul>
@@ -545,6 +559,7 @@
         url: "",
         files: [],
         extensionFilter: new Set(),
+        regexFilter: "",
         visibleFiles: [],
       };
 
@@ -554,6 +569,9 @@
       const deselectVisibleButton = document.getElementById("deselect-visible");
       const filterSelectAllButton = document.getElementById("filter-select-all");
       const filterDeselectAllButton = document.getElementById("filter-deselect-all");
+      const regexFilterInput = document.getElementById("regex-filter-input");
+      const regexFilterClearButton = document.getElementById("regex-filter-clear");
+      const regexFilterStatus = document.getElementById("regex-filter-status");
       const fileCountDisplay = document.getElementById("file-count");
       const extensionFiltersContainer = document.getElementById("extension-filters");
 
@@ -683,6 +701,7 @@
             url: state.url,
             files: state.files,
             extensionFilter: Array.from(state.extensionFilter),
+            regexFilter: state.regexFilter,
           };
           await writeStoredPayload(stateToSave);
         } catch (error) {
@@ -696,6 +715,7 @@
         state.extensionFilter = new Set(
           parsed && Array.isArray(parsed.extensionFilter) ? parsed.extensionFilter : []
         );
+        state.regexFilter = parsed && typeof parsed.regexFilter === "string" ? parsed.regexFilter : "";
       };
 
       const loadState = async () => {
@@ -830,7 +850,16 @@
 
         fileEmpty.style.display = "none";
         const visibleFiles = state.files.filter((file) => {
-          return state.extensionFilter.has(getExtension(file.path));
+          const matchesExtension = state.extensionFilter.has(getExtension(file.path));
+          if (!matchesExtension) return false;
+          
+          if (!state.regexFilter) return true;
+          try {
+            const regex = new RegExp(state.regexFilter);
+            return regex.test(file.path);
+          } catch (error) {
+            return false;
+          }
         });
 
         state.visibleFiles = visibleFiles;
@@ -1164,6 +1193,32 @@
         saveState();
       });
 
+      regexFilterInput.addEventListener("input", () => {
+        state.regexFilter = regexFilterInput.value.trim();
+        let statusText = "";
+        if (state.regexFilter) {
+          try {
+            new RegExp(state.regexFilter);
+            statusText = "✓ Valid regex";
+            regexFilterStatus.style.color = "var(--muted)";
+          } catch (error) {
+            statusText = `✗ ${error.message}`;
+            regexFilterStatus.style.color = "var(--warn)";
+          }
+        }
+        regexFilterStatus.textContent = statusText;
+        renderFiles();
+        saveState();
+      });
+
+      regexFilterClearButton.addEventListener("click", () => {
+        state.regexFilter = "";
+        regexFilterInput.value = "";
+        regexFilterStatus.textContent = "";
+        renderFiles();
+        saveState();
+      });
+
       fileInput.addEventListener("change", (event) => {
         const file = event.target.files[0];
         if (file) {
@@ -1210,6 +1265,9 @@
         }
         if (state.files.length > 0 && state.extensionFilter.size === 0) {
           state.extensionFilter = new Set(getUniqueExtensions());
+        }
+        if (state.regexFilter) {
+          regexFilterInput.value = state.regexFilter;
         }
         renderExtensionFilters();
         renderFiles();
