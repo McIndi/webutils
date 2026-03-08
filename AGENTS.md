@@ -47,7 +47,7 @@ This document captures decisions, conventions, and architectural patterns that a
 
 ## Files
 - Landing page: `docs/index.html`.
-- Kanban board: `docs/kanban.html` (uses localStorage key `webutils.kanban.v1`).
+- Kanban board: `docs/kanban.html` (uses localStorage key `webutils.kanban.v2`, with migration from legacy key `webutils.kanban.v1`).
 - ZIP Workbench: `docs/zip-workbench.html` (uses IndexedDB `webutils-storage-v1` / `app-data` / `webutils.zip-workbench.v3`, with migration from legacy localStorage keys).
 - Repo2Prompt: `docs/repo2prompt.html` (uses IndexedDB `webutils-storage-v1` / `app-data` / `webutils.repo2prompt.v2`, with migration from legacy localStorage key `webutils.repo2prompt.v1`).
 - Regex Workbench: `docs/regex-workbench.html` (uses localStorage key `webutils.regex-workbench.v1`).

@@ -14,14 +14,17 @@ McIndi WebUtils is a collection of pocket utilities designed for quick, focused 
 
 ### Kanban Task Board
 Plan and track work with a traditional kanban layout. Features include:
-- Drag-and-drop cards between lanes (Backlog, Doing, Review, Done)
+- Multiple tracks (projects), each with lanes (Backlog, Doing, Review, Done)
+- Track visibility picker to show one or multiple tracks at once
+- Drag-and-drop cards between lanes within the active track
 - Per-card lane selector for mobile-friendly moving between lanes
 - Add, edit, and delete cards with titles and notes
-- Clear completed cards or reset the entire board
+- Clear done archives completed cards to a collapsible Brag File with completion timestamps
+- Delete tracks, or reset the entire board
 - All changes persist to browser storage
 
 **File**: `docs/kanban.html`  
-**Storage key**: `webutils.kanban.v1`
+**Storage key**: `webutils.kanban.v2` (migrates from legacy `webutils.kanban.v1`)
 
 ### Zip Workbench
 Inspect, edit, and re-download ZIP files entirely in your browser:

@@ -303,6 +303,151 @@
         color: #fff;
       }
 
+      .track-toolbar {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 24px 8px;
+        display: grid;
+        grid-template-columns: auto minmax(180px, 1fr) minmax(200px, 1fr) auto auto;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .track-visibility {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 24px 8px;
+      }
+
+      .track-visibility details {
+        background: var(--board);
+        border: 1px solid var(--stroke);
+        border-radius: 12px;
+        padding: 10px 12px;
+      }
+
+      .track-visibility summary {
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      .track-checklist {
+        margin-top: 8px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .track-check {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .track-check label {
+        color: var(--ink);
+      }
+
+      .track-boards {
+        display: grid;
+        gap: 16px;
+      }
+
+      .track-board {
+        background: rgba(255, 255, 255, 0.45);
+        border: 1px solid var(--stroke);
+        border-radius: 16px;
+        padding: 12px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .track-board-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .track-board-header h2 {
+        margin: 0;
+        font-size: 1.05rem;
+      }
+
+      .track-board-header .active-pill {
+        font-size: 0.75rem;
+        color: var(--accent);
+        background: var(--accent-soft);
+        border-radius: 999px;
+        padding: 4px 8px;
+        font-weight: 600;
+      }
+
+      .track-toolbar label {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .track-toolbar input,
+      .track-toolbar select,
+      .track-toolbar button {
+        font: inherit;
+        border: 1px solid var(--stroke);
+        border-radius: 10px;
+        padding: 8px 12px;
+        background: #fff;
+      }
+
+      .track-toolbar button {
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      .track-toolbar #delete-track {
+        background: var(--warn);
+        border-color: var(--warn);
+        color: #fff;
+      }
+
+      .brag-file {
+        background: var(--board);
+        border: 1px solid var(--stroke);
+        border-radius: 16px;
+        padding: 12px;
+      }
+
+      .brag-file summary {
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      .brag-empty {
+        color: var(--muted);
+      }
+
+      .brag-list {
+        display: grid;
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .brag-entry {
+        background: #fff;
+        border: 1px solid var(--stroke);
+        border-radius: 12px;
+        padding: 10px;
+        display: grid;
+        gap: 6px;
+      }
+
+      .brag-entry-title {
+        font-weight: 600;
+      }
+
+      .brag-entry-meta {
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
       .page-toolbar #reset-board {
         background: var(--warn);
         border-color: var(--warn);
@@ -393,6 +538,16 @@
       }
 
       @media (max-width: 720px) {
+        .track-toolbar {
+          grid-template-columns: 1fr;
+          align-items: stretch;
+        }
+
+        .track-board-header {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
         .controls {
           flex-direction: column;
           align-items: stretch;
@@ -442,6 +597,21 @@
       <button type="button" id="reset-board">Reset board</button>
     </div>
 
+    <div class="track-toolbar">
+      <label for="track-select">Track</label>
+      <select id="track-select" aria-label="Select track"></select>
+      <input id="new-track-name" type="text" placeholder="New track name" maxlength="80" />
+      <button type="button" id="add-track">Add track</button>
+      <button type="button" id="delete-track">Delete track</button>
+    </div>
+
+    <div class="track-visibility">
+      <details id="track-visibility-picker">
+        <summary>Show/hide tracks</summary>
+        <div class="track-checklist" id="track-checklist"></div>
+      </details>
+    </div>
+
     <section class="board">
       <form class="controls" id="task-form">
         <div class="field">
@@ -466,24 +636,7 @@
         </div>
       </form>
 
-      <div class="lane-grid" id="lanes">
-        <div class="lane" data-lane="backlog">
-          <h2>Backlog <span class="count" data-count="backlog">0</span></h2>
-          <div class="card-list" data-list="backlog"></div>
-        </div>
-        <div class="lane" data-lane="doing">
-          <h2>Doing <span class="count" data-count="doing">0</span></h2>
-          <div class="card-list" data-list="doing"></div>
-        </div>
-        <div class="lane" data-lane="review">
-          <h2>Review <span class="count" data-count="review">0</span></h2>
-          <div class="card-list" data-list="review"></div>
-        </div>
-        <div class="lane" data-lane="done">
-          <h2>Done <span class="count" data-count="done">0</span></h2>
-          <div class="card-list" data-list="done"></div>
-        </div>
-      </div>
+      <div class="track-boards" id="track-views"></div>
     </section>
 
     <footer>
@@ -516,11 +669,17 @@
     </dialog>
 
     <script>
-      const STORAGE_KEY = "webutils.kanban.v1";
+      const STORAGE_KEY = "webutils.kanban.v2";
+      const LEGACY_STORAGE_KEY = "webutils.kanban.v1";
       const form = document.getElementById("task-form");
-      const lanes = document.querySelectorAll(".lane");
+      const trackViews = document.getElementById("track-views");
       const clearDoneButton = document.getElementById("clear-done");
       const resetButton = document.getElementById("reset-board");
+      const trackSelect = document.getElementById("track-select");
+      const trackChecklist = document.getElementById("track-checklist");
+      const newTrackNameInput = document.getElementById("new-track-name");
+      const addTrackButton = document.getElementById("add-track");
+      const deleteTrackButton = document.getElementById("delete-track");
       const noteDialog = document.getElementById("note-editor");
       const noteEditorText = document.getElementById("note-editor-text");
       const confirmDialog = document.getElementById("confirm-dialog");
@@ -529,11 +688,8 @@
       const confirmAccept = document.getElementById("confirm-accept");
 
       let editingId = null;
+      let editingTrackId = null;
       let confirmResolve = null;
-
-      const state = {
-        cards: [],
-      };
 
       const laneLabels = {
         backlog: "Backlog",
@@ -542,11 +698,111 @@
         done: "Done",
       };
 
-      const createCard = ({ id, title, notes, lane, createdAt }) => {
+      const state = {
+        activeTrackId: null,
+        visibleTrackIds: [],
+        tracks: [],
+        bragFile: [],
+      };
+
+      const createStarterCard = () => ({
+        id: crypto.randomUUID(),
+        title: "Add your first task",
+        notes: "Drag me between lanes and edit notes later.",
+        lane: "backlog",
+        createdAt: Date.now(),
+        completedAt: null,
+      });
+
+      const createTrack = (name, includeStarterCard = false) => ({
+        id: crypto.randomUUID(),
+        name,
+        cards: includeStarterCard ? [createStarterCard()] : [],
+      });
+
+      const setDefaultState = () => {
+        const starterTrack = createTrack("My Project", true);
+        state.tracks = [starterTrack];
+        state.activeTrackId = starterTrack.id;
+        state.visibleTrackIds = [starterTrack.id];
+        state.bragFile = [];
+      };
+
+      const getCurrentTrack = () => state.tracks.find((track) => track.id === state.activeTrackId) || null;
+      const getTrackById = (trackId) => state.tracks.find((track) => track.id === trackId) || null;
+      const getVisibleTracks = () => {
+        const visibleIds = new Set(state.visibleTrackIds);
+        return state.tracks.filter((track) => visibleIds.has(track.id));
+      };
+
+      const normalizeCard = (card = {}) => {
+        const lane = laneLabels[card.lane] ? card.lane : "backlog";
+        return {
+          id: card.id || crypto.randomUUID(),
+          title: String(card.title || "Untitled task"),
+          notes: String(card.notes || ""),
+          lane,
+          createdAt: Number.isFinite(card.createdAt) ? card.createdAt : Date.now(),
+          completedAt: Number.isFinite(card.completedAt)
+            ? card.completedAt
+            : lane === "done"
+              ? Date.now()
+              : null,
+        };
+      };
+
+      const normalizeTrack = (track = {}, index = 0) => {
+        const fallbackName = `Track ${index + 1}`;
+        const cards = Array.isArray(track.cards) ? track.cards.map((card) => normalizeCard(card)) : [];
+        return {
+          id: track.id || crypto.randomUUID(),
+          name: String(track.name || fallbackName),
+          cards,
+        };
+      };
+
+      const renderTrackOptions = () => {
+        trackSelect.innerHTML = "";
+        state.tracks.forEach((track) => {
+          const option = document.createElement("option");
+          option.value = track.id;
+          option.textContent = track.name;
+          if (track.id === state.activeTrackId) {
+            option.selected = true;
+          }
+          trackSelect.appendChild(option);
+        });
+      };
+
+      const renderTrackChecklist = () => {
+        trackChecklist.innerHTML = "";
+        const visibleIds = new Set(state.visibleTrackIds);
+
+        state.tracks.forEach((track) => {
+          const row = document.createElement("div");
+          row.className = "track-check";
+
+          const input = document.createElement("input");
+          input.type = "checkbox";
+          input.id = `show-track-${track.id}`;
+          input.dataset.trackId = track.id;
+          input.checked = visibleIds.has(track.id);
+
+          const label = document.createElement("label");
+          label.setAttribute("for", input.id);
+          label.textContent = track.name;
+
+          row.append(input, label);
+          trackChecklist.appendChild(row);
+        });
+      };
+
+      const createCard = (trackId, { id, title, notes, lane, createdAt }) => {
         const card = document.createElement("article");
         card.className = "card";
         card.draggable = true;
         card.dataset.id = id;
+        card.dataset.trackId = trackId;
 
         const titleEl = document.createElement("div");
         titleEl.className = "card-title";
@@ -569,7 +825,7 @@
         moveControl.className = "move-control";
 
         const moveLabel = document.createElement("label");
-        const moveSelectId = `move-${id}`;
+        const moveSelectId = `move-${trackId}-${id}`;
         moveLabel.setAttribute("for", moveSelectId);
         moveLabel.textContent = "Move to";
 
@@ -585,10 +841,7 @@
           moveSelect.appendChild(option);
         });
         moveSelect.addEventListener("change", (event) => {
-          const targetLane = event.target.value;
-          if (targetLane !== lane) {
-            moveCard(id, targetLane);
-          }
+          moveCard(trackId, id, event.target.value);
         });
         moveControl.append(moveLabel, moveSelect);
 
@@ -599,7 +852,7 @@
         editBtn.type = "button";
         editBtn.className = "primary";
         editBtn.textContent = "Edit notes";
-        editBtn.addEventListener("click", () => openNoteEditor(id));
+        editBtn.addEventListener("click", () => openNoteEditor(trackId, id));
 
         const removeBtn = document.createElement("button");
         removeBtn.type = "button";
@@ -612,23 +865,22 @@
             confirmText: "Remove",
           });
           if (confirmed) {
-            removeCard(id);
+            removeCard(trackId, id);
           }
         });
 
         const time = document.createElement("span");
-        const date = new Date(createdAt);
-        time.textContent = date.toLocaleDateString();
+        time.textContent = new Date(createdAt).toLocaleDateString();
 
         meta.append(tag, time);
         buttonGroup.append(editBtn, removeBtn);
         actions.append(meta, moveControl, buttonGroup);
-
         card.append(titleEl, noteEl, actions);
 
         card.addEventListener("dragstart", (event) => {
           card.classList.add("dragging");
           event.dataTransfer.setData("text/plain", id);
+          event.dataTransfer.setData("application/x-track-id", trackId);
         });
 
         card.addEventListener("dragend", () => {
@@ -638,79 +890,232 @@
         return card;
       };
 
-      const render = () => {
-        document.querySelectorAll(".card-list").forEach((list) => {
-          list.innerHTML = "";
+      const createTrackBoard = (track) => {
+        const panel = document.createElement("section");
+        panel.className = "track-board";
+        panel.dataset.trackId = track.id;
+
+        const header = document.createElement("div");
+        header.className = "track-board-header";
+
+        const title = document.createElement("h2");
+        title.textContent = track.name;
+
+        const activePill = document.createElement("span");
+        activePill.className = "active-pill";
+        activePill.hidden = track.id !== state.activeTrackId;
+        activePill.textContent = "Active";
+
+        header.append(title, activePill);
+
+        const laneGrid = document.createElement("div");
+        laneGrid.className = "lane-grid";
+
+        Object.keys(laneLabels).forEach((laneKey) => {
+          const lane = document.createElement("div");
+          lane.className = "lane";
+          lane.dataset.lane = laneKey;
+          lane.dataset.trackId = track.id;
+
+          const heading = document.createElement("h2");
+          heading.textContent = `${laneLabels[laneKey]} `;
+
+          const count = document.createElement("span");
+          count.className = "count";
+          const laneCards = track.cards.filter((card) => card.lane === laneKey);
+          count.textContent = laneCards.length;
+
+          const list = document.createElement("div");
+          list.className = "card-list";
+          laneCards.forEach((card) => list.appendChild(createCard(track.id, card)));
+
+          heading.appendChild(count);
+          lane.append(heading, list);
+          laneGrid.appendChild(lane);
         });
 
-        Object.keys(laneLabels).forEach((lane) => {
-          const list = document.querySelector(`[data-list='${lane}']`);
-          const laneCards = state.cards.filter((card) => card.lane === lane);
-          laneCards.forEach((card) => list.appendChild(createCard(card)));
-          const count = document.querySelector(`[data-count='${lane}']`);
-          count.textContent = laneCards.length;
+        const bragWrap = document.createElement("details");
+        bragWrap.className = "brag-file";
+
+        const summary = document.createElement("summary");
+        const trackBragEntries = state.bragFile.filter((entry) => entry.trackId === track.id);
+        summary.textContent = `Brag File (${trackBragEntries.length})`;
+
+        const empty = document.createElement("p");
+        empty.className = "brag-empty";
+        empty.textContent = "No archived completed tasks for this track yet.";
+        empty.hidden = trackBragEntries.length > 0;
+
+        const list = document.createElement("div");
+        list.className = "brag-list";
+
+        trackBragEntries
+          .slice()
+          .sort((a, b) => b.completedAt - a.completedAt)
+          .forEach((entry) => {
+            const item = document.createElement("article");
+            item.className = "brag-entry";
+
+            const entryTitle = document.createElement("div");
+            entryTitle.className = "brag-entry-title";
+            entryTitle.textContent = entry.title;
+
+            const notes = document.createElement("small");
+            notes.textContent = entry.notes || "No notes.";
+
+            const meta = document.createElement("div");
+            meta.className = "brag-entry-meta";
+            meta.textContent = `Completed ${new Date(entry.completedAt).toLocaleString()}`;
+
+            item.append(entryTitle, notes, meta);
+            list.appendChild(item);
+          });
+
+        bragWrap.append(summary, empty, list);
+        panel.append(header, laneGrid, bragWrap);
+        return panel;
+      };
+
+      const persist = () => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      };
+
+      const render = () => {
+        if (!state.tracks.length) {
+          setDefaultState();
+        }
+
+        if (!state.tracks.some((track) => track.id === state.activeTrackId)) {
+          state.activeTrackId = state.tracks[0].id;
+        }
+
+        state.visibleTrackIds = state.visibleTrackIds.filter((trackId) =>
+          state.tracks.some((track) => track.id === trackId)
+        );
+
+        if (!state.visibleTrackIds.length) {
+          state.visibleTrackIds = [state.activeTrackId];
+        }
+
+        renderTrackOptions();
+        renderTrackChecklist();
+
+        trackViews.innerHTML = "";
+        getVisibleTracks().forEach((track) => {
+          trackViews.appendChild(createTrackBoard(track));
         });
 
         persist();
       };
 
-      const persist = () => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state.cards));
-      };
-
       const load = () => {
         const stored = localStorage.getItem(STORAGE_KEY);
-        if (!stored) {
-          state.cards = [
-            {
-              id: crypto.randomUUID(),
-              title: "Add your first task",
-              notes: "Drag me between lanes and edit notes later.",
-              lane: "backlog",
-              createdAt: Date.now(),
-            },
-          ];
-          return;
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            if (parsed && Array.isArray(parsed.tracks)) {
+              state.tracks = parsed.tracks.map((track, index) => normalizeTrack(track, index));
+              state.activeTrackId = parsed.activeTrackId;
+              state.visibleTrackIds = Array.isArray(parsed.visibleTrackIds)
+                ? parsed.visibleTrackIds.filter((trackId) => state.tracks.some((track) => track.id === trackId))
+                : [];
+              state.bragFile = Array.isArray(parsed.bragFile)
+                ? parsed.bragFile.map((entry) => ({
+                    id: entry.id || crypto.randomUUID(),
+                    trackId: entry.trackId || "",
+                    title: String(entry.title || "Untitled task"),
+                    notes: String(entry.notes || ""),
+                    completedAt: Number.isFinite(entry.completedAt) ? entry.completedAt : Date.now(),
+                    archivedAt: Number.isFinite(entry.archivedAt) ? entry.archivedAt : Date.now(),
+                  }))
+                : [];
+              return;
+            }
+          } catch (error) {
+            setDefaultState();
+            return;
+          }
         }
 
-        try {
-          state.cards = JSON.parse(stored) || [];
-        } catch (error) {
-          state.cards = [];
+        const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+        if (legacy) {
+          try {
+            const legacyCards = JSON.parse(legacy);
+            const migratedTrack = createTrack("My Project", false);
+            migratedTrack.cards = Array.isArray(legacyCards)
+              ? legacyCards.map((card) => normalizeCard(card))
+              : [];
+
+            state.tracks = [migratedTrack];
+            state.activeTrackId = migratedTrack.id;
+            state.visibleTrackIds = [migratedTrack.id];
+            state.bragFile = [];
+            localStorage.removeItem(LEGACY_STORAGE_KEY);
+            return;
+          } catch (error) {
+            setDefaultState();
+            return;
+          }
         }
+
+        setDefaultState();
       };
 
       const addCard = (title, notes, lane) => {
-        state.cards.unshift({
+        const track = getCurrentTrack();
+        if (!track) {
+          return;
+        }
+        track.cards.unshift({
           id: crypto.randomUUID(),
           title: title.trim(),
           notes: notes.trim(),
           lane,
           createdAt: Date.now(),
+          completedAt: lane === "done" ? Date.now() : null,
         });
         render();
       };
 
-      const removeCard = (id) => {
-        state.cards = state.cards.filter((card) => card.id !== id);
+      const removeCard = (trackId, id) => {
+        const track = getTrackById(trackId);
+        if (!track) {
+          return;
+        }
+        track.cards = track.cards.filter((card) => card.id !== id);
         render();
       };
 
-      const moveCard = (id, targetLane) => {
-        const card = state.cards.find((item) => item.id === id);
-        if (!card) {
+      const moveCard = (trackId, id, targetLane) => {
+        const track = getTrackById(trackId);
+        if (!track || !laneLabels[targetLane]) {
+          return;
+        }
+        const card = track.cards.find((item) => item.id === id);
+        if (!card || card.lane === targetLane) {
           return;
         }
         card.lane = targetLane;
+        if (targetLane === "done") {
+          card.completedAt = Date.now();
+        }
+        if (targetLane !== "done") {
+          card.completedAt = null;
+        }
         render();
       };
 
-      const openNoteEditor = (id) => {
-        const card = state.cards.find((item) => item.id === id);
+      const openNoteEditor = (trackId, id) => {
+        const track = getTrackById(trackId);
+        if (!track) {
+          return;
+        }
+        const card = track.cards.find((item) => item.id === id);
         if (!card) {
           return;
         }
         editingId = id;
+        editingTrackId = trackId;
         noteEditorText.value = card.notes || "";
         if (typeof noteDialog.showModal === "function") {
           noteDialog.showModal();
@@ -720,14 +1125,18 @@
       };
 
       noteDialog.addEventListener("close", () => {
-        if (noteDialog.returnValue === "save" && editingId) {
-          const card = state.cards.find((item) => item.id === editingId);
-          if (card) {
-            card.notes = noteEditorText.value.trim();
-            render();
+        if (noteDialog.returnValue === "save" && editingId && editingTrackId) {
+          const track = getTrackById(editingTrackId);
+          if (track) {
+            const card = track.cards.find((item) => item.id === editingId);
+            if (card) {
+              card.notes = noteEditorText.value.trim();
+              render();
+            }
           }
         }
         editingId = null;
+        editingTrackId = null;
       });
 
       const requestConfirmation = ({ title, message, confirmText }) => {
@@ -754,58 +1163,154 @@
         confirmResolve = null;
       });
 
+      const archiveDoneCards = () => {
+        const track = getCurrentTrack();
+        if (!track) {
+          return;
+        }
+
+        const completedCards = track.cards.filter((card) => card.lane === "done");
+        if (!completedCards.length) {
+          return;
+        }
+
+        const archivedEntries = completedCards.map((card) => ({
+          id: crypto.randomUUID(),
+          trackId: track.id,
+          title: card.title,
+          notes: card.notes,
+          completedAt: card.completedAt || Date.now(),
+          archivedAt: Date.now(),
+        }));
+
+        state.bragFile.unshift(...archivedEntries);
+        track.cards = track.cards.filter((card) => card.lane !== "done");
+      };
+
       const clearDone = async () => {
+        const track = getCurrentTrack();
+        if (!track) {
+          return;
+        }
+
+        const doneCount = track.cards.filter((card) => card.lane === "done").length;
+        if (!doneCount) {
+          return;
+        }
+
         const confirmed = await requestConfirmation({
-          title: "Clear done cards?",
-          message: "This will permanently remove all cards in the Done lane.",
-          confirmText: "Clear done",
+          title: "Move done cards to Brag File?",
+          message: "Done cards will be archived to this track's Brag File with completion timestamps.",
+          confirmText: "Archive done",
         });
         if (!confirmed) {
           return;
         }
-        state.cards = state.cards.filter((card) => card.lane !== "done");
+
+        archiveDoneCards();
         render();
       };
 
       const resetBoard = async () => {
         const confirmed = await requestConfirmation({
-          title: "Reset the entire board?",
-          message: "This will delete every card and reset the board to its starter state.",
+          title: "Reset all tracks and cards?",
+          message: "This will remove every track, card, and Brag File entry and start fresh.",
           confirmText: "Reset board",
         });
         if (!confirmed) {
           return;
         }
-        state.cards = [];
+
         localStorage.removeItem(STORAGE_KEY);
-        load();
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+        setDefaultState();
         render();
       };
 
-      lanes.forEach((lane) => {
-        lane.addEventListener("dragover", (event) => {
-          event.preventDefault();
-          lane.classList.add("drop-target");
-        });
+      const addTrack = () => {
+        const name = newTrackNameInput.value.trim();
+        if (!name) {
+          return;
+        }
+        const track = createTrack(name, false);
+        state.tracks.unshift(track);
+        state.activeTrackId = track.id;
+        state.visibleTrackIds = [track.id];
+        newTrackNameInput.value = "";
+        render();
+      };
 
-        lane.addEventListener("dragleave", () => {
-          lane.classList.remove("drop-target");
-        });
+      const deleteActiveTrack = async () => {
+        if (state.tracks.length <= 1) {
+          return;
+        }
 
-        lane.addEventListener("drop", (event) => {
-          event.preventDefault();
-          lane.classList.remove("drop-target");
-          const id = event.dataTransfer.getData("text/plain");
-          moveCard(id, lane.dataset.lane);
+        const track = getCurrentTrack();
+        if (!track) {
+          return;
+        }
+
+        const confirmed = await requestConfirmation({
+          title: `Delete track \"${track.name}\"?`,
+          message: "This permanently removes the track and all cards in it.",
+          confirmText: "Delete track",
         });
+        if (!confirmed) {
+          return;
+        }
+
+        state.tracks = state.tracks.filter((item) => item.id !== track.id);
+        state.bragFile = state.bragFile.filter((entry) => entry.trackId !== track.id);
+        state.visibleTrackIds = state.visibleTrackIds.filter((trackId) => trackId !== track.id);
+        state.activeTrackId = state.tracks[0].id;
+        if (!state.visibleTrackIds.length) {
+          state.visibleTrackIds = [state.activeTrackId];
+        }
+        render();
+      };
+
+      trackViews.addEventListener("dragover", (event) => {
+        const lane = event.target.closest(".lane");
+        if (!lane) {
+          return;
+        }
+        event.preventDefault();
+        lane.classList.add("drop-target");
+      });
+
+      trackViews.addEventListener("dragleave", (event) => {
+        const lane = event.target.closest(".lane");
+        if (!lane) {
+          return;
+        }
+        lane.classList.remove("drop-target");
+      });
+
+      trackViews.addEventListener("drop", (event) => {
+        const lane = event.target.closest(".lane");
+        if (!lane) {
+          return;
+        }
+        event.preventDefault();
+        lane.classList.remove("drop-target");
+        const cardId = event.dataTransfer.getData("text/plain");
+        const sourceTrackId = event.dataTransfer.getData("application/x-track-id");
+        const targetTrackId = lane.dataset.trackId;
+        const targetLane = lane.dataset.lane;
+
+        if (!cardId || !sourceTrackId || !targetTrackId || sourceTrackId !== targetTrackId) {
+          return;
+        }
+
+        moveCard(targetTrackId, cardId, targetLane);
       });
 
       form.addEventListener("submit", (event) => {
         event.preventDefault();
         const formData = new FormData(form);
-        const title = formData.get("title");
-        const notes = formData.get("notes");
-        const lane = formData.get("lane");
+        const title = String(formData.get("title") || "");
+        const notes = String(formData.get("notes") || "");
+        const lane = String(formData.get("lane") || "backlog");
         if (!title.trim()) {
           return;
         }
@@ -813,6 +1318,49 @@
         form.reset();
       });
 
+      trackSelect.addEventListener("change", () => {
+        state.activeTrackId = trackSelect.value;
+        state.visibleTrackIds = [trackSelect.value];
+        render();
+      });
+
+      trackChecklist.addEventListener("change", (event) => {
+        const input = event.target;
+        if (!(input instanceof HTMLInputElement) || input.type !== "checkbox") {
+          return;
+        }
+
+        const trackId = input.dataset.trackId;
+        if (!trackId) {
+          return;
+        }
+
+        const visibleSet = new Set(state.visibleTrackIds);
+        if (input.checked) {
+          visibleSet.add(trackId);
+        } else {
+          visibleSet.delete(trackId);
+        }
+
+        if (!visibleSet.size) {
+          visibleSet.add(state.activeTrackId);
+        }
+
+        state.visibleTrackIds = state.tracks
+          .map((track) => track.id)
+          .filter((id) => visibleSet.has(id));
+
+        render();
+      });
+
+      addTrackButton.addEventListener("click", addTrack);
+      newTrackNameInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          addTrack();
+        }
+      });
+      deleteTrackButton.addEventListener("click", deleteActiveTrack);
       clearDoneButton.addEventListener("click", clearDone);
       resetButton.addEventListener("click", resetBoard);
 
