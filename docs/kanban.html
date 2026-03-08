@@ -186,6 +186,7 @@
         display: grid;
         gap: 6px;
         cursor: grab;
+        position: relative;
       }
 
       .card.dragging {
@@ -252,11 +253,30 @@
         gap: 6px;
       }
 
+      .priority-control {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
       .move-control label {
         color: var(--muted);
       }
 
+      .priority-control label {
+        color: var(--muted);
+      }
+
       .move-control select {
+        font: inherit;
+        border: 1px solid var(--stroke);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--ink);
+        padding: 4px 8px;
+      }
+
+      .priority-control select {
         font: inherit;
         border: 1px solid var(--stroke);
         border-radius: 8px;
@@ -271,6 +291,108 @@
         background: var(--accent-soft);
         color: var(--accent);
         font-weight: 600;
+      }
+
+      .priority-tag {
+        padding: 4px 8px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .priority-tag.high {
+        background: rgba(185, 56, 46, 0.14);
+        color: #7d2019;
+      }
+
+      .priority-tag.medium {
+        background: rgba(198, 86, 42, 0.14);
+        color: #8d3a1d;
+      }
+
+      .priority-tag.low {
+        background: rgba(98, 106, 115, 0.14);
+        color: #3c434b;
+      }
+
+      .lane-tools {
+        display: grid;
+        gap: 12px;
+      }
+
+      .unified-panel {
+        border: 1px solid var(--stroke);
+        background: var(--board);
+        border-radius: 16px;
+        padding: 12px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .unified-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .unified-header h3 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .unified-filter {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .unified-filter select {
+        font: inherit;
+        border: 1px solid var(--stroke);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--ink);
+        padding: 6px 10px;
+      }
+
+      .unified-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .unified-item {
+        background: #fff;
+        border: 1px solid var(--stroke);
+        border-radius: 10px;
+        padding: 8px 10px;
+        display: grid;
+        gap: 6px;
+      }
+
+      .unified-item-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .unified-item-title {
+        font-weight: 600;
+      }
+
+      .unified-item-meta {
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .unified-empty {
+        color: var(--muted);
+        margin: 0;
       }
 
       .card-actions button {
@@ -292,6 +414,25 @@
       .lane.drop-target {
         outline: 2px dashed var(--accent);
         outline-offset: -6px;
+      }
+
+      .card.drop-before::before,
+      .card.drop-after::after {
+        content: "";
+        position: absolute;
+        left: 8px;
+        right: 8px;
+        height: 3px;
+        background: var(--accent);
+        border-radius: 999px;
+      }
+
+      .card.drop-before::before {
+        top: -3px;
+      }
+
+      .card.drop-after::after {
+        bottom: -3px;
       }
 
       .page-toolbar {
@@ -600,7 +741,16 @@
           justify-content: space-between;
         }
 
+        .priority-control {
+          justify-content: space-between;
+        }
+
         .move-control select {
+          min-height: 34px;
+          flex: 1;
+        }
+
+        .priority-control select {
           min-height: 34px;
           flex: 1;
         }
@@ -660,10 +810,37 @@
             <option value="done">Done</option>
           </select>
         </div>
+        <div class="field">
+          <label for="priority">Priority</label>
+          <select id="priority" name="priority">
+            <option value="high">High</option>
+            <option value="medium" selected>Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
         <div class="field" style="align-self:end;">
           <button type="submit">Add card</button>
         </div>
       </form>
+
+      <div class="lane-tools">
+        <section class="unified-panel">
+          <div class="unified-header">
+            <h3>Unified Lane View</h3>
+            <div class="unified-filter">
+              <label for="unified-lane">Lane</label>
+              <select id="unified-lane">
+                <option value="doing" selected>Doing</option>
+                <option value="backlog">Backlog</option>
+                <option value="review">Review</option>
+                <option value="done">Done</option>
+              </select>
+            </div>
+          </div>
+          <p class="unified-empty" id="unified-empty">No tasks in this lane across tracks.</p>
+          <div class="unified-list" id="unified-list"></div>
+        </section>
+      </div>
 
       <div class="track-boards" id="track-views"></div>
     </section>
@@ -706,6 +883,9 @@
       const resetButton = document.getElementById("reset-board");
       const trackSelect = document.getElementById("track-select");
       const trackChecklist = document.getElementById("track-checklist");
+      const unifiedLaneSelect = document.getElementById("unified-lane");
+      const unifiedList = document.getElementById("unified-list");
+      const unifiedEmpty = document.getElementById("unified-empty");
       const newTrackNameInput = document.getElementById("new-track-name");
       const addTrackButton = document.getElementById("add-track");
       const deleteTrackButton = document.getElementById("delete-track");
@@ -719,6 +899,7 @@
       let editingId = null;
       let editingTrackId = null;
       let confirmResolve = null;
+      let dragMeta = null;
 
       const laneLabels = {
         backlog: "Backlog",
@@ -727,9 +908,22 @@
         done: "Done",
       };
 
+      const priorityLabels = {
+        high: "High",
+        medium: "Medium",
+        low: "Low",
+      };
+
+      const priorityWeight = {
+        high: 3,
+        medium: 2,
+        low: 1,
+      };
+
       const state = {
         activeTrackId: null,
         visibleTrackIds: [],
+        unifiedLane: "doing",
         tracks: [],
         bragFile: [],
       };
@@ -739,6 +933,8 @@
         title: "Add your first task",
         notes: "Drag me between lanes and edit notes later.",
         lane: "backlog",
+        priority: "medium",
+        laneOrder: 0,
         createdAt: Date.now(),
         completedAt: null,
       });
@@ -754,6 +950,7 @@
         state.tracks = [starterTrack];
         state.activeTrackId = starterTrack.id;
         state.visibleTrackIds = [starterTrack.id];
+        state.unifiedLane = "doing";
         state.bragFile = [];
       };
 
@@ -764,13 +961,82 @@
         return state.tracks.filter((track) => visibleIds.has(track.id));
       };
 
+      const compareCards = (first, second) => {
+        const priorityDiff = priorityWeight[second.priority] - priorityWeight[first.priority];
+        if (priorityDiff !== 0) {
+          return priorityDiff;
+        }
+
+        const firstOrder = Number.isFinite(first.laneOrder) ? first.laneOrder : Number.MAX_SAFE_INTEGER;
+        const secondOrder = Number.isFinite(second.laneOrder) ? second.laneOrder : Number.MAX_SAFE_INTEGER;
+        if (firstOrder !== secondOrder) {
+          return firstOrder - secondOrder;
+        }
+
+        return first.createdAt - second.createdAt;
+      };
+
+      const getLaneCardsByPriority = (track, lane, priority, excludingId = null) =>
+        track.cards
+          .filter(
+            (card) => card.lane === lane && card.priority === priority && (!excludingId || card.id !== excludingId)
+          )
+          .sort((a, b) => compareCards(a, b));
+
+      const resequenceLanePriority = (track, lane, priority) => {
+        const cards = getLaneCardsByPriority(track, lane, priority);
+        cards.forEach((card, index) => {
+          card.laneOrder = index;
+        });
+      };
+
+      const resequenceTrackLaneOrders = (track) => {
+        Object.keys(laneLabels).forEach((lane) => {
+          Object.keys(priorityLabels).forEach((priority) => {
+            resequenceLanePriority(track, lane, priority);
+          });
+        });
+      };
+
+      const getNextLaneOrder = (track, lane, priority) => {
+        const cards = getLaneCardsByPriority(track, lane, priority);
+        if (!cards.length) {
+          return 0;
+        }
+        return cards[cards.length - 1].laneOrder + 1;
+      };
+
+      const getSortedLaneCards = (track, lane) =>
+        track.cards.filter((card) => card.lane === lane).sort((a, b) => compareCards(a, b));
+
+      const moveCardWithinPriority = (track, card, targetCardId, placeAfter) => {
+        const group = getLaneCardsByPriority(track, card.lane, card.priority, card.id);
+        if (!targetCardId) {
+          group.push(card);
+        } else {
+          const targetIndex = group.findIndex((item) => item.id === targetCardId);
+          if (targetIndex === -1) {
+            group.push(card);
+          } else {
+            const insertAt = placeAfter ? targetIndex + 1 : targetIndex;
+            group.splice(insertAt, 0, card);
+          }
+        }
+        group.forEach((item, index) => {
+          item.laneOrder = index;
+        });
+      };
+
       const normalizeCard = (card = {}) => {
         const lane = laneLabels[card.lane] ? card.lane : "backlog";
+        const priority = priorityLabels[card.priority] ? card.priority : "medium";
         return {
           id: card.id || crypto.randomUUID(),
           title: String(card.title || "Untitled task"),
           notes: String(card.notes || ""),
           lane,
+          priority,
+          laneOrder: Number.isFinite(card.laneOrder) ? card.laneOrder : null,
           createdAt: Number.isFinite(card.createdAt) ? card.createdAt : Date.now(),
           completedAt: Number.isFinite(card.completedAt)
             ? card.completedAt
@@ -783,12 +1049,16 @@
       const normalizeTrack = (track = {}, index = 0) => {
         const fallbackName = `Track ${index + 1}`;
         const cards = Array.isArray(track.cards) ? track.cards.map((card) => normalizeCard(card)) : [];
-        return {
+        const normalized = {
           id: track.id || crypto.randomUUID(),
           name: String(track.name || fallbackName),
           cards,
         };
+        resequenceTrackLaneOrders(normalized);
+        return normalized;
       };
+
+      const getPriorityClassName = (priority) => `priority-tag ${priority}`;
 
       const renderTrackOptions = () => {
         trackSelect.innerHTML = "";
@@ -826,7 +1096,56 @@
         });
       };
 
-      const createCard = (trackId, { id, title, notes, lane, createdAt }) => {
+      const renderUnifiedLane = () => {
+        const entries = [];
+        state.tracks.forEach((track) => {
+          track.cards
+            .filter((card) => card.lane === state.unifiedLane)
+            .forEach((card) => {
+              entries.push({
+                trackName: track.name,
+                card,
+              });
+            });
+        });
+
+        entries.sort((a, b) => {
+          const cardSort = compareCards(a.card, b.card);
+          if (cardSort !== 0) {
+            return cardSort;
+          }
+          return a.trackName.localeCompare(b.trackName);
+        });
+
+        unifiedList.innerHTML = "";
+        unifiedEmpty.hidden = entries.length > 0;
+
+        entries.forEach((entry) => {
+          const item = document.createElement("article");
+          item.className = "unified-item";
+
+          const top = document.createElement("div");
+          top.className = "unified-item-top";
+
+          const title = document.createElement("div");
+          title.className = "unified-item-title";
+          title.textContent = entry.card.title;
+
+          const priorityTag = document.createElement("span");
+          priorityTag.className = getPriorityClassName(entry.card.priority);
+          priorityTag.textContent = priorityLabels[entry.card.priority];
+
+          const meta = document.createElement("div");
+          meta.className = "unified-item-meta";
+          meta.textContent = `Track: ${entry.trackName}`;
+
+          top.append(title, priorityTag);
+          item.append(top, meta);
+          unifiedList.appendChild(item);
+        });
+      };
+
+      const createCard = (trackId, { id, title, notes, lane, priority, createdAt }) => {
         const card = document.createElement("article");
         card.className = "card";
         card.draggable = true;
@@ -840,6 +1159,10 @@
         const header = document.createElement("div");
         header.className = "card-header";
 
+        const priorityTag = document.createElement("span");
+        priorityTag.className = getPriorityClassName(priority);
+        priorityTag.textContent = priorityLabels[priority];
+
         const toggle = document.createElement("button");
         toggle.type = "button";
         toggle.className = "card-toggle";
@@ -851,7 +1174,7 @@
           toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
         });
 
-        header.append(titleEl, toggle);
+        header.append(titleEl, priorityTag, toggle);
 
         const noteEl = document.createElement("small");
         noteEl.textContent = notes || "No notes yet.";
@@ -868,6 +1191,30 @@
         const tag = document.createElement("span");
         tag.className = "tag";
         tag.textContent = laneLabels[lane];
+
+        const priorityControl = document.createElement("div");
+        priorityControl.className = "priority-control";
+
+        const priorityLabel = document.createElement("label");
+        const prioritySelectId = `priority-${trackId}-${id}`;
+        priorityLabel.setAttribute("for", prioritySelectId);
+        priorityLabel.textContent = "Priority";
+
+        const prioritySelect = document.createElement("select");
+        prioritySelect.id = prioritySelectId;
+        Object.entries(priorityLabels).forEach(([priorityKey, priorityText]) => {
+          const option = document.createElement("option");
+          option.value = priorityKey;
+          option.textContent = priorityText;
+          if (priorityKey === priority) {
+            option.selected = true;
+          }
+          prioritySelect.appendChild(option);
+        });
+        prioritySelect.addEventListener("change", (event) => {
+          updateCardPriority(trackId, id, event.target.value);
+        });
+        priorityControl.append(priorityLabel, prioritySelect);
 
         const moveControl = document.createElement("div");
         moveControl.className = "move-control";
@@ -922,18 +1269,21 @@
 
         meta.append(tag, time);
         buttonGroup.append(editBtn, removeBtn);
-        actions.append(meta, moveControl, buttonGroup);
+        actions.append(meta, priorityControl, moveControl, buttonGroup);
         body.append(noteEl, actions);
         card.append(header, body);
 
         card.addEventListener("dragstart", (event) => {
           card.classList.add("dragging");
+          dragMeta = { cardId: id, trackId };
           event.dataTransfer.setData("text/plain", id);
           event.dataTransfer.setData("application/x-track-id", trackId);
         });
 
         card.addEventListener("dragend", () => {
           card.classList.remove("dragging");
+          dragMeta = null;
+          clearDropIndicators();
         });
 
         return card;
@@ -971,7 +1321,7 @@
 
           const count = document.createElement("span");
           count.className = "count";
-          const laneCards = track.cards.filter((card) => card.lane === laneKey);
+          const laneCards = getSortedLaneCards(track, laneKey);
           count.textContent = laneCards.length;
 
           const list = document.createElement("div");
@@ -1041,13 +1391,16 @@
         state.visibleTrackIds = state.visibleTrackIds.filter((trackId) =>
           state.tracks.some((track) => track.id === trackId)
         );
-
         if (!state.visibleTrackIds.length) {
           state.visibleTrackIds = [state.activeTrackId];
         }
 
+        state.unifiedLane = laneLabels[state.unifiedLane] ? state.unifiedLane : "doing";
+
         renderTrackOptions();
         renderTrackChecklist();
+        unifiedLaneSelect.value = state.unifiedLane;
+        renderUnifiedLane();
 
         trackViews.innerHTML = "";
         getVisibleTracks().forEach((track) => {
@@ -1068,6 +1421,7 @@
               state.visibleTrackIds = Array.isArray(parsed.visibleTrackIds)
                 ? parsed.visibleTrackIds.filter((trackId) => state.tracks.some((track) => track.id === trackId))
                 : [];
+              state.unifiedLane = laneLabels[parsed.unifiedLane] ? parsed.unifiedLane : "doing";
               state.bragFile = Array.isArray(parsed.bragFile)
                 ? parsed.bragFile.map((entry) => ({
                     id: entry.id || crypto.randomUUID(),
@@ -1094,10 +1448,12 @@
             migratedTrack.cards = Array.isArray(legacyCards)
               ? legacyCards.map((card) => normalizeCard(card))
               : [];
+            resequenceTrackLaneOrders(migratedTrack);
 
             state.tracks = [migratedTrack];
             state.activeTrackId = migratedTrack.id;
             state.visibleTrackIds = [migratedTrack.id];
+            state.unifiedLane = "doing";
             state.bragFile = [];
             localStorage.removeItem(LEGACY_STORAGE_KEY);
             return;
@@ -1110,7 +1466,7 @@
         setDefaultState();
       };
 
-      const addCard = (title, notes, lane) => {
+      const addCard = (title, notes, lane, priority) => {
         const track = getCurrentTrack();
         if (!track) {
           return;
@@ -1120,9 +1476,12 @@
           title: title.trim(),
           notes: notes.trim(),
           lane,
+          priority,
+          laneOrder: getNextLaneOrder(track, lane, priority),
           createdAt: Date.now(),
           completedAt: lane === "done" ? Date.now() : null,
         });
+        resequenceTrackLaneOrders(track);
         render();
       };
 
@@ -1132,6 +1491,7 @@
           return;
         }
         track.cards = track.cards.filter((card) => card.id !== id);
+        resequenceTrackLaneOrders(track);
         render();
       };
 
@@ -1144,13 +1504,35 @@
         if (!card || card.lane === targetLane) {
           return;
         }
+
         card.lane = targetLane;
+        card.laneOrder = getNextLaneOrder(track, targetLane, card.priority);
         if (targetLane === "done") {
           card.completedAt = Date.now();
-        }
-        if (targetLane !== "done") {
+        } else {
           card.completedAt = null;
         }
+
+        resequenceTrackLaneOrders(track);
+        render();
+      };
+
+      const updateCardPriority = (trackId, id, priority) => {
+        if (!priorityLabels[priority]) {
+          return;
+        }
+        const track = getTrackById(trackId);
+        if (!track) {
+          return;
+        }
+        const card = track.cards.find((item) => item.id === id);
+        if (!card || card.priority === priority) {
+          return;
+        }
+
+        card.priority = priority;
+        card.laneOrder = getNextLaneOrder(track, card.lane, priority);
+        resequenceTrackLaneOrders(track);
         render();
       };
 
@@ -1234,6 +1616,7 @@
 
         state.bragFile.unshift(...archivedEntries);
         track.cards = track.cards.filter((card) => card.lane !== "done");
+        resequenceTrackLaneOrders(track);
       };
 
       const clearDone = async () => {
@@ -1318,30 +1701,75 @@
         render();
       };
 
+      const clearDropIndicators = () => {
+        trackViews.querySelectorAll(".drop-before, .drop-after").forEach((card) => {
+          card.classList.remove("drop-before", "drop-after");
+        });
+      };
+
       trackViews.addEventListener("dragover", (event) => {
         const lane = event.target.closest(".lane");
         if (!lane) {
+          clearDropIndicators();
           return;
         }
         event.preventDefault();
         lane.classList.add("drop-target");
+
+        clearDropIndicators();
+
+        const targetCard = event.target.closest(".card");
+        if (!targetCard || !dragMeta) {
+          return;
+        }
+
+        const targetTrackId = lane.dataset.trackId;
+        const targetLane = lane.dataset.lane;
+        if (!targetTrackId || !targetLane || dragMeta.trackId !== targetTrackId) {
+          return;
+        }
+
+        const track = getTrackById(targetTrackId);
+        const draggedCard = track ? track.cards.find((item) => item.id === dragMeta.cardId) : null;
+        const targetCardModel = track ? track.cards.find((item) => item.id === targetCard.dataset.id) : null;
+        if (!track || !draggedCard || !targetCardModel) {
+          return;
+        }
+
+        if (draggedCard.lane !== targetLane || targetCardModel.lane !== targetLane) {
+          return;
+        }
+
+        if (draggedCard.priority !== targetCardModel.priority || draggedCard.id === targetCardModel.id) {
+          return;
+        }
+
+        const targetRect = targetCard.getBoundingClientRect();
+        const placeAfter = event.clientY > targetRect.top + targetRect.height / 2;
+        targetCard.classList.add(placeAfter ? "drop-after" : "drop-before");
       });
 
       trackViews.addEventListener("dragleave", (event) => {
         const lane = event.target.closest(".lane");
         if (!lane) {
+          clearDropIndicators();
           return;
         }
         lane.classList.remove("drop-target");
+        clearDropIndicators();
       });
 
       trackViews.addEventListener("drop", (event) => {
         const lane = event.target.closest(".lane");
         if (!lane) {
+          clearDropIndicators();
           return;
         }
+
         event.preventDefault();
         lane.classList.remove("drop-target");
+        clearDropIndicators();
+
         const cardId = event.dataTransfer.getData("text/plain");
         const sourceTrackId = event.dataTransfer.getData("application/x-track-id");
         const targetTrackId = lane.dataset.trackId;
@@ -1351,7 +1779,36 @@
           return;
         }
 
-        moveCard(targetTrackId, cardId, targetLane);
+        const track = getTrackById(targetTrackId);
+        const card = track ? track.cards.find((item) => item.id === cardId) : null;
+        if (!track || !card) {
+          return;
+        }
+
+        const sameLane = card.lane === targetLane;
+        const targetCard = event.target.closest(".card");
+        const targetCardId = targetCard ? targetCard.dataset.id : null;
+
+        if (!sameLane) {
+          moveCard(targetTrackId, cardId, targetLane);
+          return;
+        }
+
+        if (!targetCardId || targetCardId === cardId) {
+          return;
+        }
+
+        const targetCardModel = track.cards.find((item) => item.id === targetCardId);
+        if (!targetCardModel || targetCardModel.priority !== card.priority) {
+          return;
+        }
+
+        const targetRect = targetCard.getBoundingClientRect();
+        const placeAfter = event.clientY > targetRect.top + targetRect.height / 2;
+
+        moveCardWithinPriority(track, card, targetCardId, placeAfter);
+        resequenceLanePriority(track, card.lane, card.priority);
+        render();
       });
 
       form.addEventListener("submit", (event) => {
@@ -1360,11 +1817,19 @@
         const title = String(formData.get("title") || "");
         const notes = String(formData.get("notes") || "");
         const lane = String(formData.get("lane") || "backlog");
+        const priority = String(formData.get("priority") || "medium");
+
         if (!title.trim()) {
           return;
         }
-        addCard(title, notes, lane);
+
+        addCard(title, notes, lane, priorityLabels[priority] ? priority : "medium");
         form.reset();
+      });
+
+      unifiedLaneSelect.addEventListener("change", () => {
+        state.unifiedLane = laneLabels[unifiedLaneSelect.value] ? unifiedLaneSelect.value : "doing";
+        render();
       });
 
       trackSelect.addEventListener("change", () => {
