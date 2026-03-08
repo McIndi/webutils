@@ -99,10 +99,11 @@
       }
 
       .controls {
-        /* display: flex; */
+        display: grid;
+        grid-template-columns: 1fr;
         gap: 12px;
-        flex-wrap: wrap;
         align-items: center;
+        width: 100%;
       }
 
       .controls input,
@@ -122,9 +123,9 @@
       }
 
       .controls .field {
-        flex: 1 1 240px;
         display: grid;
         gap: 6px;
+        width: 100%;
       }
 
       .controls label {
@@ -531,6 +532,18 @@
         gap: 12px;
       }
 
+      .track-add-task {
+        background: var(--board);
+        border: 1px solid var(--stroke);
+        border-radius: 12px;
+        padding: 10px;
+      }
+
+      .track-add-task summary {
+        cursor: pointer;
+        font-weight: 600;
+      }
+
       .track-board-header {
         display: flex;
         align-items: center;
@@ -792,37 +805,6 @@
     </div>
 
     <section class="board">
-      <form class="controls" id="task-form">
-        <div class="field">
-          <label for="title">Task title</label>
-          <input id="title" name="title" required placeholder="What needs to happen?" />
-        </div>
-        <div class="field">
-          <label for="notes">Notes</label>
-          <textarea id="notes" name="notes" placeholder="Steps, links, or context..."></textarea>
-        </div>
-        <div class="field">
-          <label for="lane">Start lane</label>
-          <select id="lane" name="lane">
-            <option value="backlog">Backlog</option>
-            <option value="doing">Doing</option>
-            <option value="review">Review</option>
-            <option value="done">Done</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="priority">Priority</label>
-          <select id="priority" name="priority">
-            <option value="high">High</option>
-            <option value="medium" selected>Medium</option>
-            <option value="low">Low</option>
-          </select>
-        </div>
-        <div class="field" style="align-self:end;">
-          <button type="submit">Add card</button>
-        </div>
-      </form>
-
       <div class="lane-tools">
         <section class="unified-panel">
           <div class="unified-header">
@@ -877,7 +859,6 @@
     <script>
       const STORAGE_KEY = "webutils.kanban.v2";
       const LEGACY_STORAGE_KEY = "webutils.kanban.v1";
-      const form = document.getElementById("task-form");
       const trackViews = document.getElementById("track-views");
       const clearDoneButton = document.getElementById("clear-done");
       const resetButton = document.getElementById("reset-board");
@@ -1289,6 +1270,66 @@
         return card;
       };
 
+      const createTrackTaskForm = (track) => {
+        const details = document.createElement("details");
+        details.className = "track-add-task";
+
+        const summary = document.createElement("summary");
+        summary.textContent = "Add task";
+
+        const taskForm = document.createElement("form");
+        taskForm.className = "controls";
+        taskForm.innerHTML = `
+          <div class="field">
+            <label for="title-${track.id}">Task title</label>
+            <input id="title-${track.id}" name="title" required placeholder="What needs to happen?" />
+          </div>
+          <div class="field">
+            <label for="notes-${track.id}">Notes</label>
+            <textarea id="notes-${track.id}" name="notes" placeholder="Steps, links, or context..."></textarea>
+          </div>
+          <div class="field">
+            <label for="lane-${track.id}">Start lane</label>
+            <select id="lane-${track.id}" name="lane">
+              <option value="backlog">Backlog</option>
+              <option value="doing">Doing</option>
+              <option value="review">Review</option>
+              <option value="done">Done</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="priority-${track.id}">Priority</label>
+            <select id="priority-${track.id}" name="priority">
+              <option value="high">High</option>
+              <option value="medium" selected>Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+          <div class="field">
+            <button type="submit">Add card</button>
+          </div>
+        `;
+
+        taskForm.addEventListener("submit", (event) => {
+          event.preventDefault();
+          const formData = new FormData(taskForm);
+          const title = String(formData.get("title") || "");
+          const notes = String(formData.get("notes") || "");
+          const lane = String(formData.get("lane") || "backlog");
+          const priority = String(formData.get("priority") || "medium");
+
+          if (!title.trim()) {
+            return;
+          }
+
+          addCard(track.id, title, notes, lane, priorityLabels[priority] ? priority : "medium");
+          taskForm.reset();
+        });
+
+        details.append(summary, taskForm);
+        return details;
+      };
+
       const createTrackBoard = (track) => {
         const panel = document.createElement("section");
         panel.className = "track-board";
@@ -1371,7 +1412,9 @@
           });
 
         bragWrap.append(summary, empty, list);
-        panel.append(header, laneGrid, bragWrap);
+        const trackTaskForm = createTrackTaskForm(track);
+
+        panel.append(header, trackTaskForm, laneGrid, bragWrap);
         return panel;
       };
 
@@ -1466,8 +1509,8 @@
         setDefaultState();
       };
 
-      const addCard = (title, notes, lane, priority) => {
-        const track = getCurrentTrack();
+      const addCard = (trackId, title, notes, lane, priority) => {
+        const track = getTrackById(trackId);
         if (!track) {
           return;
         }
@@ -1809,22 +1852,6 @@
         moveCardWithinPriority(track, card, targetCardId, placeAfter);
         resequenceLanePriority(track, card.lane, card.priority);
         render();
-      });
-
-      form.addEventListener("submit", (event) => {
-        event.preventDefault();
-        const formData = new FormData(form);
-        const title = String(formData.get("title") || "");
-        const notes = String(formData.get("notes") || "");
-        const lane = String(formData.get("lane") || "backlog");
-        const priority = String(formData.get("priority") || "medium");
-
-        if (!title.trim()) {
-          return;
-        }
-
-        addCard(title, notes, lane, priorityLabels[priority] ? priority : "medium");
-        form.reset();
       });
 
       unifiedLaneSelect.addEventListener("change", () => {
