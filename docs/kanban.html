@@ -551,6 +551,22 @@
         gap: 8px;
       }
 
+      .track-board-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .track-export {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        color: var(--ink);
+        padding: 6px 10px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
       .track-board-header h2 {
         margin: 0;
         font-size: 1.05rem;
@@ -601,6 +617,10 @@
       .brag-file summary {
         cursor: pointer;
         font-weight: 700;
+      }
+
+      .brag-actions {
+        margin-top: 8px;
       }
 
       .brag-empty {
@@ -785,9 +805,12 @@
 
     <div class="page-toolbar">
       <a href="index.html">Back to index</a>
+      <button type="button" id="export-all">Export all</button>
+      <button type="button" id="import-data">Import</button>
       <button type="button" id="clear-done">Clear done</button>
       <button type="button" id="reset-board">Reset board</button>
     </div>
+    <input id="import-file" type="file" accept="application/json" hidden />
 
     <div class="track-toolbar">
       <label for="track-select">Track</label>
@@ -822,6 +845,15 @@
           <p class="unified-empty" id="unified-empty">No tasks in this lane across tracks.</p>
           <div class="unified-list" id="unified-list"></div>
         </section>
+
+        <details class="brag-file" id="unified-brag-file">
+          <summary>Unified Brag File (<span id="unified-brag-count">0</span>)</summary>
+          <div class="brag-actions">
+            <button type="button" class="track-export" id="download-unified-brag">Download Markdown</button>
+          </div>
+          <p class="brag-empty" id="unified-brag-empty">No archived completed tasks yet.</p>
+          <div class="brag-list" id="unified-brag-list"></div>
+        </details>
       </div>
 
       <div class="track-boards" id="track-views"></div>
@@ -860,6 +892,9 @@
       const STORAGE_KEY = "webutils.kanban.v2";
       const LEGACY_STORAGE_KEY = "webutils.kanban.v1";
       const trackViews = document.getElementById("track-views");
+      const exportAllButton = document.getElementById("export-all");
+      const importDataButton = document.getElementById("import-data");
+      const importFileInput = document.getElementById("import-file");
       const clearDoneButton = document.getElementById("clear-done");
       const resetButton = document.getElementById("reset-board");
       const trackSelect = document.getElementById("track-select");
@@ -867,6 +902,10 @@
       const unifiedLaneSelect = document.getElementById("unified-lane");
       const unifiedList = document.getElementById("unified-list");
       const unifiedEmpty = document.getElementById("unified-empty");
+      const unifiedBragCount = document.getElementById("unified-brag-count");
+      const unifiedBragEmpty = document.getElementById("unified-brag-empty");
+      const unifiedBragList = document.getElementById("unified-brag-list");
+      const downloadUnifiedBragButton = document.getElementById("download-unified-brag");
       const newTrackNameInput = document.getElementById("new-track-name");
       const addTrackButton = document.getElementById("add-track");
       const deleteTrackButton = document.getElementById("delete-track");
@@ -1126,6 +1165,43 @@
         });
       };
 
+      const getBragEntriesWithTrackName = (entries) => {
+        const trackNameById = new Map(state.tracks.map((track) => [track.id, track.name]));
+        return entries.map((entry) => ({
+          ...entry,
+          trackName: trackNameById.get(entry.trackId) || "Unknown track",
+        }));
+      };
+
+      const renderUnifiedBragFile = () => {
+        const entries = getBragEntriesWithTrackName(state.bragFile)
+          .slice()
+          .sort((a, b) => b.completedAt - a.completedAt);
+
+        unifiedBragList.innerHTML = "";
+        unifiedBragCount.textContent = entries.length;
+        unifiedBragEmpty.hidden = entries.length > 0;
+
+        entries.forEach((entry) => {
+          const item = document.createElement("article");
+          item.className = "brag-entry";
+
+          const entryTitle = document.createElement("div");
+          entryTitle.className = "brag-entry-title";
+          entryTitle.textContent = entry.title;
+
+          const notes = document.createElement("small");
+          notes.textContent = entry.notes || "No notes.";
+
+          const meta = document.createElement("div");
+          meta.className = "brag-entry-meta";
+          meta.textContent = `${entry.trackName} • Completed ${new Date(entry.completedAt).toLocaleString()}`;
+
+          item.append(entryTitle, notes, meta);
+          unifiedBragList.appendChild(item);
+        });
+      };
+
       const createCard = (trackId, { id, title, notes, lane, priority, createdAt }) => {
         const card = document.createElement("article");
         card.className = "card";
@@ -1229,6 +1305,25 @@
         editBtn.className = "primary";
         editBtn.textContent = "Edit notes";
         editBtn.addEventListener("click", () => openNoteEditor(trackId, id));
+
+        if (lane === "done") {
+          const completeBtn = document.createElement("button");
+          completeBtn.type = "button";
+          completeBtn.className = "primary";
+          completeBtn.textContent = "Mark complete";
+          completeBtn.addEventListener("click", async () => {
+            const confirmed = await requestConfirmation({
+              title: "Mark this task complete?",
+              message: "This moves the card from Done into the Brag File.",
+              confirmText: "Mark complete",
+            });
+            if (!confirmed) {
+              return;
+            }
+            markCardComplete(trackId, id);
+          });
+          buttonGroup.appendChild(completeBtn);
+        }
 
         const removeBtn = document.createElement("button");
         removeBtn.type = "button";
@@ -1346,7 +1441,17 @@
         activePill.hidden = track.id !== state.activeTrackId;
         activePill.textContent = "Active";
 
-        header.append(title, activePill);
+        const headerActions = document.createElement("div");
+        headerActions.className = "track-board-actions";
+
+        const exportTrackButton = document.createElement("button");
+        exportTrackButton.type = "button";
+        exportTrackButton.className = "track-export";
+        exportTrackButton.textContent = "Export track";
+        exportTrackButton.addEventListener("click", () => exportSingleTrack(track.id));
+
+        headerActions.append(exportTrackButton, activePill);
+        header.append(title, headerActions);
 
         const laneGrid = document.createElement("div");
         laneGrid.className = "lane-grid";
@@ -1381,6 +1486,16 @@
         const trackBragEntries = state.bragFile.filter((entry) => entry.trackId === track.id);
         summary.textContent = `Brag File (${trackBragEntries.length})`;
 
+        const bragActions = document.createElement("div");
+        bragActions.className = "brag-actions";
+
+        const downloadTrackBragButton = document.createElement("button");
+        downloadTrackBragButton.type = "button";
+        downloadTrackBragButton.className = "track-export";
+        downloadTrackBragButton.textContent = "Download Markdown";
+        downloadTrackBragButton.addEventListener("click", () => downloadTrackBragMarkdown(track.id));
+        bragActions.appendChild(downloadTrackBragButton);
+
         const empty = document.createElement("p");
         empty.className = "brag-empty";
         empty.textContent = "No archived completed tasks for this track yet.";
@@ -1411,7 +1526,7 @@
             list.appendChild(item);
           });
 
-        bragWrap.append(summary, empty, list);
+        bragWrap.append(summary, bragActions, empty, list);
         const trackTaskForm = createTrackTaskForm(track);
 
         panel.append(header, trackTaskForm, laneGrid, bragWrap);
@@ -1444,6 +1559,7 @@
         renderTrackChecklist();
         unifiedLaneSelect.value = state.unifiedLane;
         renderUnifiedLane();
+        renderUnifiedBragFile();
 
         trackViews.innerHTML = "";
         getVisibleTracks().forEach((track) => {
@@ -1637,15 +1753,211 @@
         confirmResolve = null;
       });
 
-      const archiveDoneCards = () => {
-        const track = getCurrentTrack();
+      const downloadJsonFile = (filename, payload) => {
+        const json = JSON.stringify(payload, null, 2);
+        const blob = new Blob([json], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      };
+
+      const downloadTextFile = (filename, text, mimeType = "text/markdown") => {
+        const blob = new Blob([text], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      };
+
+      const sanitizeFilename = (text) =>
+        String(text || "track")
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "") || "track";
+
+      const cloneStatePayload = () => JSON.parse(JSON.stringify(state));
+
+      const buildBragMarkdown = ({ title, entries }) => {
+        const lines = [
+          `# ${title}`,
+          "",
+          `Exported: ${new Date().toLocaleString()}`,
+          "",
+        ];
+
+        if (!entries.length) {
+          lines.push("_No completed items yet._");
+          lines.push("");
+          return lines.join("\n");
+        }
+
+        entries
+          .slice()
+          .sort((a, b) => b.completedAt - a.completedAt)
+          .forEach((entry) => {
+            lines.push(`## ${entry.title}`);
+            lines.push("");
+            if (entry.trackName) {
+              lines.push(`- Track: ${entry.trackName}`);
+            }
+            lines.push(`- Completed: ${new Date(entry.completedAt).toLocaleString()}`);
+            lines.push("");
+            lines.push(entry.notes ? entry.notes : "_No notes._");
+            lines.push("");
+          });
+
+        return lines.join("\n");
+      };
+
+      const downloadTrackBragMarkdown = (trackId) => {
+        const track = getTrackById(trackId);
         if (!track) {
           return;
+        }
+        const entries = state.bragFile
+          .filter((entry) => entry.trackId === track.id)
+          .map((entry) => ({ ...entry, trackName: track.name }));
+        const markdown = buildBragMarkdown({
+          title: `${track.name} Brag File`,
+          entries,
+        });
+        const safeName = sanitizeFilename(track.name);
+        downloadTextFile(`kanban-brag-${safeName}-${new Date().toISOString().slice(0, 10)}.md`, markdown);
+      };
+
+      const downloadUnifiedBragMarkdown = () => {
+        const entries = getBragEntriesWithTrackName(state.bragFile);
+        const markdown = buildBragMarkdown({
+          title: "Unified Brag File",
+          entries,
+        });
+        downloadTextFile(`kanban-brag-unified-${new Date().toISOString().slice(0, 10)}.md`, markdown);
+      };
+
+      const exportAllData = () => {
+        const payload = {
+          type: "webutils.kanban.full.v1",
+          exportedAt: Date.now(),
+          state: cloneStatePayload(),
+        };
+        downloadJsonFile(`kanban-all-${new Date().toISOString().slice(0, 10)}.json`, payload);
+      };
+
+      const exportSingleTrack = (trackId) => {
+        const track = getTrackById(trackId);
+        if (!track) {
+          return;
+        }
+        const payload = {
+          type: "webutils.kanban.track.v1",
+          exportedAt: Date.now(),
+          track,
+          bragFile: state.bragFile.filter((entry) => entry.trackId === track.id),
+        };
+        const safeName = sanitizeFilename(track.name);
+        downloadJsonFile(`kanban-track-${safeName}-${new Date().toISOString().slice(0, 10)}.json`, payload);
+      };
+
+      const applyFullImportState = (incomingState) => {
+        if (!incomingState || !Array.isArray(incomingState.tracks)) {
+          throw new Error("Invalid full export payload.");
+        }
+
+        state.tracks = incomingState.tracks.map((track, index) => normalizeTrack(track, index));
+        state.activeTrackId = incomingState.activeTrackId;
+        state.visibleTrackIds = Array.isArray(incomingState.visibleTrackIds)
+          ? incomingState.visibleTrackIds.filter((trackId) => state.tracks.some((track) => track.id === trackId))
+          : [];
+        state.unifiedLane = laneLabels[incomingState.unifiedLane] ? incomingState.unifiedLane : "doing";
+        state.bragFile = Array.isArray(incomingState.bragFile)
+          ? incomingState.bragFile.map((entry) => ({
+              id: entry.id || crypto.randomUUID(),
+              trackId: entry.trackId || "",
+              title: String(entry.title || "Untitled task"),
+              notes: String(entry.notes || ""),
+              completedAt: Number.isFinite(entry.completedAt) ? entry.completedAt : Date.now(),
+              archivedAt: Number.isFinite(entry.archivedAt) ? entry.archivedAt : Date.now(),
+            }))
+          : [];
+      };
+
+      const mergeTrackImport = (payload) => {
+        const normalizedTrack = normalizeTrack(payload.track, state.tracks.length);
+        const existingIds = new Set(state.tracks.map((track) => track.id));
+        if (existingIds.has(normalizedTrack.id)) {
+          normalizedTrack.id = crypto.randomUUID();
+        }
+
+        state.tracks.unshift(normalizedTrack);
+        state.activeTrackId = normalizedTrack.id;
+        state.visibleTrackIds = [normalizedTrack.id];
+
+        const importedBrag = Array.isArray(payload.bragFile) ? payload.bragFile : [];
+        const normalizedBrag = importedBrag.map((entry) => ({
+          id: entry.id || crypto.randomUUID(),
+          trackId: normalizedTrack.id,
+          title: String(entry.title || "Untitled task"),
+          notes: String(entry.notes || ""),
+          completedAt: Number.isFinite(entry.completedAt) ? entry.completedAt : Date.now(),
+          archivedAt: Number.isFinite(entry.archivedAt) ? entry.archivedAt : Date.now(),
+        }));
+
+        state.bragFile.unshift(...normalizedBrag);
+      };
+
+      const importKanbanPayload = async (payload) => {
+        const isFull = payload && payload.type === "webutils.kanban.full.v1";
+        const isSingleTrack = payload && payload.type === "webutils.kanban.track.v1";
+
+        if (isFull || (payload && Array.isArray(payload.tracks))) {
+          const confirmed = await requestConfirmation({
+            title: "Import full Kanban data?",
+            message: "This replaces all current tracks, cards, and brag entries.",
+            confirmText: "Import all",
+          });
+          if (!confirmed) {
+            return;
+          }
+          applyFullImportState(isFull ? payload.state : payload);
+          render();
+          return;
+        }
+
+        if (isSingleTrack || (payload && payload.track && Array.isArray(payload.track.cards))) {
+          const confirmed = await requestConfirmation({
+            title: "Import track data?",
+            message: "This adds the imported track to your current board.",
+            confirmText: "Import track",
+          });
+          if (!confirmed) {
+            return;
+          }
+          mergeTrackImport(isSingleTrack ? payload : { track: payload.track, bragFile: payload.bragFile });
+          render();
+          return;
+        }
+
+        throw new Error("Unsupported import format.");
+      };
+
+      const archiveDoneCardsForTrack = (track) => {
+        if (!track) {
+          return 0;
         }
 
         const completedCards = track.cards.filter((card) => card.lane === "done");
         if (!completedCards.length) {
-          return;
+          return 0;
         }
 
         const archivedEntries = completedCards.map((card) => ({
@@ -1660,29 +1972,58 @@
         state.bragFile.unshift(...archivedEntries);
         track.cards = track.cards.filter((card) => card.lane !== "done");
         resequenceTrackLaneOrders(track);
+        return archivedEntries.length;
       };
 
-      const clearDone = async () => {
-        const track = getCurrentTrack();
+      const markCardComplete = (trackId, cardId) => {
+        const track = getTrackById(trackId);
         if (!track) {
           return;
         }
 
-        const doneCount = track.cards.filter((card) => card.lane === "done").length;
+        const card = track.cards.find((item) => item.id === cardId);
+        if (!card || card.lane !== "done") {
+          return;
+        }
+
+        state.bragFile.unshift({
+          id: crypto.randomUUID(),
+          trackId: track.id,
+          title: card.title,
+          notes: card.notes,
+          completedAt: card.completedAt || Date.now(),
+          archivedAt: Date.now(),
+        });
+
+        track.cards = track.cards.filter((item) => item.id !== cardId);
+        resequenceTrackLaneOrders(track);
+        render();
+      };
+
+      const clearDone = async () => {
+        const tracksWithDone = state.tracks.filter((track) => track.cards.some((card) => card.lane === "done"));
+        const doneCount = tracksWithDone.reduce(
+          (total, track) => total + track.cards.filter((card) => card.lane === "done").length,
+          0
+        );
+
         if (!doneCount) {
+          window.alert("There are no Done cards to archive.");
           return;
         }
 
         const confirmed = await requestConfirmation({
           title: "Move done cards to Brag File?",
-          message: "Done cards will be archived to this track's Brag File with completion timestamps.",
+          message: `This will archive ${doneCount} Done card${doneCount === 1 ? "" : "s"} from ${tracksWithDone.length} track${tracksWithDone.length === 1 ? "" : "s"} into their Brag Files.`,
           confirmText: "Archive done",
         });
         if (!confirmed) {
           return;
         }
 
-        archiveDoneCards();
+        tracksWithDone.forEach((track) => {
+          archiveDoneCardsForTrack(track);
+        });
         render();
       };
 
@@ -1895,6 +2236,27 @@
       });
 
       addTrackButton.addEventListener("click", addTrack);
+      exportAllButton.addEventListener("click", exportAllData);
+      downloadUnifiedBragButton.addEventListener("click", downloadUnifiedBragMarkdown);
+      importDataButton.addEventListener("click", () => {
+        importFileInput.click();
+      });
+      importFileInput.addEventListener("change", async () => {
+        const file = importFileInput.files && importFileInput.files[0];
+        if (!file) {
+          return;
+        }
+
+        try {
+          const text = await file.text();
+          const payload = JSON.parse(text);
+          await importKanbanPayload(payload);
+        } catch (error) {
+          window.alert("Import failed. Please check the JSON format and try again.");
+        } finally {
+          importFileInput.value = "";
+        }
+      });
       newTrackNameInput.addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
           event.preventDefault();
