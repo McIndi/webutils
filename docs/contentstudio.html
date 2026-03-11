@@ -1,0 +1,2329 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Content Studio | McIndi WebUtils</title>
+    <script>
+      (() => {
+        try {
+          const storedTheme = localStorage.getItem("webutils.theme.v1");
+          const theme = storedTheme === "dark" || storedTheme === "light" ? storedTheme : "light";
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      })();
+    </script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.css"
+    />
+    <style>
+      :root {
+        --bg: #13110f;
+        --surface: #1c1916;
+        --surface2: #242019;
+        --surface3: #2e2a24;
+        --ink: #f0ece5;
+        --ink2: #b8b0a5;
+        --ink3: #6e6760;
+        --stroke: #2e2a24;
+        --stroke2: #3a352e;
+        --accent: #d47c3a;
+        --accent-soft: rgba(212, 124, 58, 0.15);
+        --accent-glow: rgba(212, 124, 58, 0.08);
+        --green: #5a9e6f;
+        --green-soft: rgba(90, 158, 111, 0.15);
+        --blue: #4a8fb5;
+        --blue-soft: rgba(74, 143, 181, 0.15);
+        --red: #b85a4a;
+        --red-soft: rgba(184, 90, 74, 0.15);
+        --warn: #c0553a;
+        --radius: 14px;
+        --radius-sm: 9px;
+        --cm-bg: #1f1b17;
+        --cm-ink: #f0ece5;
+        --cm-gutter: #2a241e;
+        --cm-line: #a39688;
+        --cm-cursor: #e4d5c6;
+        --cm-selection: rgba(212, 124, 58, 0.28);
+        --cm-comment: #9e9082;
+        --cm-keyword: #e4a66f;
+        --cm-atom: #bea5dc;
+        --cm-number: #f0ba86;
+        --cm-def: #93c9ea;
+        --cm-variable: #f0ece5;
+        --cm-variable2: #abd9bb;
+        --cm-property: #93c9ea;
+        --cm-operator: #ccbcab;
+        --cm-string: #bfd992;
+        --cm-meta: #b8b0a5;
+        --cm-link: #93c9ea;
+        --cm-error: #ff9b88;
+      }
+
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+
+      .theme-toggle {
+        border: 1px solid var(--stroke2);
+        background: var(--surface);
+        color: var(--ink2);
+        padding: 7px 14px;
+        border-radius: var(--radius-sm);
+        font: inherit;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+      }
+
+      :root[data-theme="light"] {
+        --bg: #f3f1ed;
+        --surface: #fbf7f2;
+        --surface2: #ffffff;
+        --surface3: #f2e9df;
+        --ink: #111418;
+        --ink2: #2c3640;
+        --ink3: #626a73;
+        --stroke: #e2d8cf;
+        --stroke2: #d5c8bc;
+        --accent: #c6562a;
+        --accent-soft: rgba(198, 86, 42, 0.16);
+        --accent-glow: rgba(198, 86, 42, 0.12);
+        --green: #257a54;
+        --green-soft: rgba(37, 122, 84, 0.14);
+        --blue: #2f6f95;
+        --blue-soft: rgba(47, 111, 149, 0.14);
+        --red: #b9382e;
+        --red-soft: rgba(185, 56, 46, 0.13);
+        --warn: #b9382e;
+        --cm-bg: #fffaf4;
+        --cm-ink: #1f1a15;
+        --cm-gutter: #f3ece3;
+        --cm-line: #8a7d70;
+        --cm-cursor: #6f6257;
+        --cm-selection: rgba(198, 86, 42, 0.2);
+        --cm-comment: #8a7d70;
+        --cm-keyword: #91562f;
+        --cm-atom: #725b8f;
+        --cm-number: #a4673f;
+        --cm-def: #2d6585;
+        --cm-variable: #1f1a15;
+        --cm-variable2: #3f6b56;
+        --cm-property: #2d6585;
+        --cm-operator: #7f6f60;
+        --cm-string: #5f7436;
+        --cm-meta: #7f6f60;
+        --cm-link: #2d6585;
+        --cm-error: #b9382e;
+      }
+
+      html[data-theme="light"] body {
+        background: radial-gradient(900px 600px at 10% -10%, #f6d9c4 0%, transparent 60%),
+          radial-gradient(700px 500px at 120% 10%, #d4e9e5 0%, transparent 60%), var(--bg);
+      }
+
+      body {
+        font-family: "DM Sans", "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+        min-height: 100vh;
+        display: grid;
+        grid-template-rows: auto auto auto 1fr auto;
+      }
+
+      /* ── Header ── */
+      header {
+        padding: 20px 28px 0;
+        max-width: 1400px;
+        width: 100%;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .brand-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        color: var(--ink2);
+        font-weight: 600;
+        font-size: 0.75rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .brand-mark {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: var(--surface3);
+        border: 1px solid var(--stroke2);
+        color: var(--accent);
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+        font-size: 0.8rem;
+      }
+
+      .header-title {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .header-title h1 {
+        font-family: "Fraunces", serif;
+        font-size: clamp(1.4rem, 3vw, 2rem);
+        font-weight: 300;
+        letter-spacing: -0.01em;
+        color: var(--ink);
+        line-height: 1;
+      }
+
+      .header-title h1 em {
+        font-style: italic;
+        color: var(--accent);
+      }
+
+      .header-sub {
+        font-size: 0.8rem;
+        color: var(--ink3);
+        line-height: 1.45;
+      }
+
+      .toolbar {
+        max-width: 1400px;
+        width: 100%;
+        margin: 0 auto;
+        padding: 10px 28px 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .header-back {
+        border: 1px solid var(--stroke2);
+        background: var(--surface);
+        color: var(--ink2);
+        padding: 7px 14px;
+        border-radius: var(--radius-sm);
+        font: inherit;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        text-decoration: none;
+        transition: border-color 0.15s, color 0.15s;
+      }
+
+      .header-back:hover { border-color: var(--stroke2); color: var(--ink); }
+
+      /* ── Nav tabs ── */
+      nav {
+        max-width: 1400px;
+        width: 100%;
+        margin: 12px auto 0;
+        padding: 0 28px;
+        display: flex;
+        gap: 4px;
+        border-bottom: 1px solid var(--stroke);
+      }
+
+      .nav-tab {
+        padding: 10px 18px;
+        font: inherit;
+        font-size: 0.88rem;
+        font-weight: 500;
+        color: var(--ink3);
+        background: none;
+        border: none;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+        cursor: pointer;
+        transition: color 0.15s, border-color 0.15s;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+
+      .nav-tab:hover { color: var(--ink2); }
+
+      .nav-tab.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+      }
+
+      .nav-tab .tab-count {
+        font-size: 0.75rem;
+        background: var(--surface3);
+        border-radius: 999px;
+        padding: 1px 7px;
+        color: var(--ink3);
+      }
+
+      .nav-tab.active .tab-count {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+
+      .toolbar-note {
+        font-size: 0.82rem;
+        color: var(--ink3);
+      }
+
+      /* ── Main layout ── */
+      main {
+        max-width: 1400px;
+        width: 100%;
+        margin: 0 auto;
+        padding: 24px 28px 48px;
+      }
+
+      .view { display: none; }
+      .view.active { display: block; }
+
+      /* ── Section header ── */
+      .section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+
+      .section-head h2 {
+        font-family: "Fraunces", serif;
+        font-weight: 300;
+        font-size: 1.5rem;
+        color: var(--ink);
+      }
+
+      /* ── Buttons ── */
+      .btn {
+        font: inherit;
+        font-size: 0.88rem;
+        font-weight: 600;
+        padding: 9px 16px;
+        border-radius: var(--radius-sm);
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: opacity 0.15s, transform 0.1s;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .btn:active { transform: scale(0.98); }
+
+      .btn-primary {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+
+      .btn-secondary {
+        background: var(--surface2);
+        color: var(--ink2);
+        border-color: var(--stroke2);
+      }
+
+      .btn-secondary:hover { color: var(--ink); border-color: var(--ink3); }
+
+      .btn-ghost {
+        background: none;
+        color: var(--ink3);
+        border-color: var(--stroke2);
+        font-size: 0.82rem;
+        padding: 6px 12px;
+      }
+
+      .btn-ghost:hover { color: var(--ink2); }
+
+      .btn-danger {
+        background: none;
+        color: var(--red);
+        border-color: transparent;
+        font-size: 0.82rem;
+        padding: 6px 10px;
+      }
+
+      .btn-danger:hover { background: var(--red-soft); }
+
+      /* ── Cards / grid ── */
+      .card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 14px;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--stroke);
+        border-radius: var(--radius);
+        padding: 16px;
+        display: grid;
+        gap: 10px;
+        transition: border-color 0.15s;
+      }
+
+      .card:hover { border-color: var(--stroke2); }
+
+      .card-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .card-title {
+        font-weight: 600;
+        font-size: 1rem;
+        color: var(--ink);
+        line-height: 1.3;
+      }
+
+      .card-sub {
+        font-size: 0.83rem;
+        color: var(--ink3);
+        line-height: 1.5;
+      }
+
+      .card-actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      /* ── Badges ── */
+      .badge {
+        font-size: 0.72rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 3px 9px;
+        border-radius: 999px;
+      }
+
+      .badge-active { background: var(--green-soft); color: var(--green); }
+      .badge-maintenance { background: var(--blue-soft); color: var(--blue); }
+      .badge-archived { background: var(--surface3); color: var(--ink3); }
+      .badge-high { background: var(--red-soft); color: var(--red); }
+      .badge-medium { background: var(--accent-soft); color: var(--accent); }
+      .badge-low { background: var(--surface3); color: var(--ink3); }
+      .badge-platform { background: var(--surface3); color: var(--ink2); }
+
+      /* ── Forms ── */
+      .form-grid {
+        display: grid;
+        gap: 14px;
+      }
+
+      .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+      }
+
+      .field label {
+        font-size: 0.82rem;
+        color: var(--ink3);
+        font-weight: 500;
+      }
+
+      .field input,
+      .field textarea,
+      .field select {
+        font: inherit;
+        font-size: 0.9rem;
+        padding: 9px 12px;
+        background: var(--surface2);
+        border: 1px solid var(--stroke2);
+        border-radius: var(--radius-sm);
+        color: var(--ink);
+        transition: border-color 0.15s, box-shadow 0.15s;
+        width: 100%;
+      }
+
+      .field input:focus,
+      .field textarea:focus,
+      .field select:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-glow);
+      }
+
+      .field textarea {
+        resize: vertical;
+        min-height: 80px;
+        line-height: 1.5;
+      }
+
+      .field select option { background: var(--surface2); }
+
+      .field-hint {
+        font-size: 0.78rem;
+        color: var(--ink3);
+      }
+
+      /* ── Panel (inline editor) ── */
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--stroke2);
+        border-radius: var(--radius);
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+
+      .panel h3 {
+        font-family: "Fraunces", serif;
+        font-weight: 300;
+        font-size: 1.15rem;
+        margin-bottom: 16px;
+        color: var(--ink);
+      }
+
+      /* ── Chips / tags ── */
+      .chip-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .chip {
+        font-size: 0.78rem;
+        font-weight: 500;
+        padding: 3px 10px;
+        border-radius: 999px;
+        background: var(--surface3);
+        color: var(--ink2);
+        border: 1px solid var(--stroke2);
+      }
+
+      /* ── Asset list ── */
+      .asset-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .asset-item {
+        background: var(--surface);
+        border: 1px solid var(--stroke);
+        border-radius: var(--radius-sm);
+        padding: 12px 14px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .asset-item-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .asset-text {
+        font-size: 0.88rem;
+        color: var(--ink2);
+        line-height: 1.55;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .asset-meta {
+        font-size: 0.78rem;
+        color: var(--ink3);
+      }
+
+      /* ── Platform card ── */
+      .platform-card {
+        background: var(--surface);
+        border: 1px solid var(--stroke);
+        border-radius: var(--radius);
+        padding: 16px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .platform-checklist {
+        display: grid;
+        gap: 6px;
+      }
+
+      .checklist-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.85rem;
+        color: var(--ink2);
+      }
+
+      .checklist-item input[type="checkbox"] {
+        accent-color: var(--accent);
+        width: 15px;
+        height: 15px;
+        flex-shrink: 0;
+      }
+
+      /* ── Draft workspace ── */
+      .draft-layout {
+        display: grid;
+        grid-template-columns: 1fr 340px;
+        gap: 20px;
+        align-items: start;
+      }
+
+      .draft-main {
+        display: grid;
+        gap: 16px;
+      }
+
+      .draft-sidebar {
+        display: grid;
+        gap: 14px;
+        position: sticky;
+        top: 20px;
+      }
+
+      .draft-compose {
+        background: var(--surface);
+        border: 1px solid var(--stroke2);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+
+      .draft-compose-bar {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--stroke);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .draft-compose-bar h3 {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--ink2);
+      }
+
+      .char-counter {
+        font-size: 0.8rem;
+        color: var(--ink3);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .char-counter.warn { color: var(--warn); }
+
+      #draft-textarea {
+        width: 100%;
+        min-height: 200px;
+        background: var(--surface);
+        border: none;
+        padding: 16px;
+        font: inherit;
+        font-size: 0.93rem;
+        color: var(--ink);
+        resize: vertical;
+        line-height: 1.6;
+      }
+
+      #draft-textarea:focus { outline: none; }
+
+      .draft-compose .CodeMirror {
+        min-height: 220px;
+        height: auto;
+        background: var(--cm-bg);
+        color: var(--cm-ink);
+        border: none;
+      }
+
+      .draft-compose .CodeMirror-gutters {
+        background: var(--cm-gutter);
+        border-right: 1px solid var(--stroke);
+      }
+
+      .draft-compose .CodeMirror-linenumber {
+        color: var(--cm-line);
+      }
+
+      .draft-compose .CodeMirror-cursor { border-left: 1px solid var(--cm-cursor); }
+      .draft-compose .CodeMirror-selected,
+      .draft-compose .CodeMirror-focused .CodeMirror-selected { background: var(--cm-selection); }
+      .draft-compose .CodeMirror span.cm-comment { color: var(--cm-comment); }
+      .draft-compose .CodeMirror span.cm-keyword { color: var(--cm-keyword); }
+      .draft-compose .CodeMirror span.cm-atom { color: var(--cm-atom); }
+      .draft-compose .CodeMirror span.cm-number { color: var(--cm-number); }
+      .draft-compose .CodeMirror span.cm-def { color: var(--cm-def); }
+      .draft-compose .CodeMirror span.cm-variable { color: var(--cm-variable); }
+      .draft-compose .CodeMirror span.cm-variable-2 { color: var(--cm-variable2); }
+      .draft-compose .CodeMirror span.cm-property { color: var(--cm-property); }
+      .draft-compose .CodeMirror span.cm-operator { color: var(--cm-operator); }
+      .draft-compose .CodeMirror span.cm-string,
+      .draft-compose .CodeMirror span.cm-string-2 { color: var(--cm-string); }
+      .draft-compose .CodeMirror span.cm-meta,
+      .draft-compose .CodeMirror span.cm-qualifier,
+      .draft-compose .CodeMirror span.cm-builtin,
+      .draft-compose .CodeMirror span.cm-tag,
+      .draft-compose .CodeMirror span.cm-attribute { color: var(--cm-meta); }
+      .draft-compose .CodeMirror span.cm-link { color: var(--cm-link); }
+      .draft-compose .CodeMirror span.cm-error { color: var(--cm-error); }
+
+      .draft-compose-footer {
+        padding: 10px 16px;
+        border-top: 1px solid var(--stroke);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .asset-picker {
+        background: var(--surface);
+        border: 1px solid var(--stroke2);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+
+      .asset-picker-head {
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--stroke);
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--ink3);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      .asset-picker-list {
+        max-height: 260px;
+        overflow-y: auto;
+        display: grid;
+        gap: 0;
+      }
+
+      .asset-pick-item {
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--stroke);
+        cursor: pointer;
+        transition: background 0.1s;
+        display: grid;
+        gap: 4px;
+      }
+
+      .asset-pick-item:last-child { border-bottom: none; }
+      .asset-pick-item:hover { background: var(--surface2); }
+
+      .asset-pick-label {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--ink2);
+      }
+
+      .asset-pick-preview {
+        font-size: 0.78rem;
+        color: var(--ink3);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      /* ── Pre-publish checklist ── */
+      .publish-checklist {
+        background: var(--surface);
+        border: 1px solid var(--stroke2);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+
+      .draft-preview {
+        background: var(--surface);
+        border: 1px solid var(--stroke2);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+
+      .draft-preview-head {
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--stroke);
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--ink3);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      .draft-preview-body {
+        padding: 14px;
+        font-size: 0.9rem;
+        color: var(--ink2);
+        line-height: 1.6;
+        max-height: 320px;
+        overflow: auto;
+      }
+
+      .draft-preview-body :is(h1, h2, h3, h4, h5, h6) {
+        color: var(--ink);
+        margin: 0.8em 0 0.4em;
+      }
+
+      .draft-preview-body p,
+      .draft-preview-body ul,
+      .draft-preview-body ol,
+      .draft-preview-body blockquote,
+      .draft-preview-body pre {
+        margin: 0.65em 0;
+      }
+
+      .draft-preview-body code,
+      .draft-preview-body pre {
+        background: var(--surface2);
+        border: 1px solid var(--stroke);
+        border-radius: 8px;
+      }
+
+      .draft-preview-body code {
+        padding: 1px 5px;
+      }
+
+      .draft-preview-body pre {
+        padding: 10px 12px;
+        overflow: auto;
+      }
+
+      .draft-preview-body a {
+        color: var(--accent);
+      }
+
+      .publish-checklist-head {
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--stroke);
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--ink3);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      .publish-checklist-body {
+        padding: 12px 14px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .publish-check-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        font-size: 0.85rem;
+        color: var(--ink2);
+        line-height: 1.4;
+      }
+
+      .publish-check-item input[type="checkbox"] {
+        accent-color: var(--green);
+        margin-top: 2px;
+        flex-shrink: 0;
+      }
+
+      .publish-check-item.checked { color: var(--ink3); text-decoration: line-through; }
+
+      /* ── Log table ── */
+      .log-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.87rem;
+      }
+
+      .log-table th {
+        text-align: left;
+        padding: 8px 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--ink3);
+        border-bottom: 1px solid var(--stroke2);
+      }
+
+      .log-table td {
+        padding: 11px 12px;
+        border-bottom: 1px solid var(--stroke);
+        vertical-align: top;
+        color: var(--ink2);
+      }
+
+      .log-table tr:last-child td { border-bottom: none; }
+      .log-table tr:hover td { background: var(--surface2); }
+
+      .log-table .log-title { font-weight: 600; color: var(--ink); }
+      .log-table .log-excerpt { font-size: 0.8rem; color: var(--ink3); margin-top: 3px; }
+
+      .log-link {
+        color: var(--accent);
+        text-decoration: none;
+        font-size: 0.8rem;
+      }
+
+      .log-link:hover { text-decoration: underline; }
+
+      .staleness {
+        font-size: 0.78rem;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 999px;
+      }
+
+      .staleness-fresh { background: var(--green-soft); color: var(--green); }
+      .staleness-aging { background: var(--accent-soft); color: var(--accent); }
+      .staleness-stale { background: var(--red-soft); color: var(--red); }
+
+      /* ── Empty state ── */
+      .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--ink3);
+        display: grid;
+        gap: 10px;
+      }
+
+      .empty-state-icon {
+        font-size: 2.5rem;
+        opacity: 0.4;
+      }
+
+      .empty-state p { font-size: 0.9rem; }
+
+      /* ── Dialog ── */
+      dialog {
+        background: var(--surface);
+        border: 1px solid var(--stroke2);
+        border-radius: var(--radius);
+        padding: 0;
+        width: min(600px, 94vw);
+        color: var(--ink);
+        box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+      }
+
+      dialog::backdrop { background: rgba(0,0,0,0.7); }
+
+      .dialog-inner {
+        padding: 22px;
+        display: grid;
+        gap: 16px;
+      }
+
+      .dialog-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .dialog-head h3 {
+        font-family: "Fraunces", serif;
+        font-weight: 300;
+        font-size: 1.2rem;
+      }
+
+      .dialog-close {
+        background: none;
+        border: none;
+        color: var(--ink3);
+        font-size: 1.2rem;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 6px;
+      }
+
+      .dialog-close:hover { color: var(--ink); background: var(--surface3); }
+
+      .dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        padding-top: 4px;
+      }
+
+      /* ── Divider ── */
+      .divider {
+        border: none;
+        border-top: 1px solid var(--stroke);
+        margin: 4px 0;
+      }
+
+      /* ── Scrollbar ── */
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 999px; }
+
+      @media (max-width: 800px) {
+        .draft-layout { grid-template-columns: 1fr; }
+        .form-row { grid-template-columns: 1fr; }
+        nav { overflow-x: auto; padding-bottom: 0; }
+        .nav-tab { font-size: 0.82rem; padding: 10px 12px; }
+      }
+
+      footer {
+        max-width: 1400px;
+        width: 100%;
+        margin: 0 auto;
+        padding: 20px 28px 28px;
+        color: var(--ink3);
+        font-size: 0.84rem;
+      }
+
+      footer a {
+        color: var(--ink2);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <a class="brand-link" href="https://www.mcindi.com" target="_blank" rel="noopener">
+          <span class="brand-mark">M</span>
+          McIndi Solutions
+        </a>
+        <span style="color:var(--stroke2)">|</span>
+        <div class="header-title">
+          <h1>Content <em>Studio</em></h1>
+          <p class="header-sub">WebUtils • Presence &amp; Publishing workflow for projects, reusable assets, and publication logs.</p>
+        </div>
+      </div>
+    </header>
+
+    <div class="toolbar">
+      <a href="index.html" class="header-back">← Back to index</a>
+      <div class="toolbar-note">Saved locally in your browser using <code>webutils.contentstudio.v1</code>.</div>
+    </div>
+
+    <nav>
+      <button class="nav-tab active" data-view="projects">
+        Projects <span class="tab-count" id="count-projects">0</span>
+      </button>
+      <button class="nav-tab" data-view="assets">
+        Assets <span class="tab-count" id="count-assets">0</span>
+      </button>
+      <button class="nav-tab" data-view="platforms">
+        Platforms <span class="tab-count" id="count-platforms">0</span>
+      </button>
+      <button class="nav-tab" data-view="draft">
+        Draft
+      </button>
+      <button class="nav-tab" data-view="log">
+        Log <span class="tab-count" id="count-log">0</span>
+      </button>
+    </nav>
+
+    <main>
+
+      <!-- ══ PROJECTS VIEW ══ -->
+      <div class="view active" id="view-projects">
+        <div class="section-head">
+          <h2>Projects</h2>
+          <button class="btn btn-primary" id="btn-new-project">+ New Project</button>
+        </div>
+        <div class="card-grid" id="project-grid"></div>
+      </div>
+
+      <!-- ══ ASSETS VIEW ══ -->
+      <div class="view" id="view-assets">
+        <div class="section-head">
+          <h2>Asset Library</h2>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <select class="btn btn-secondary" id="asset-project-filter" style="padding:8px 12px;border-radius:9px;font:inherit;font-size:0.88rem;background:var(--surface2);border:1px solid var(--stroke2);color:var(--ink2);">
+              <option value="">All projects</option>
+            </select>
+            <select class="btn btn-secondary" id="asset-type-filter" style="padding:8px 12px;border-radius:9px;font:inherit;font-size:0.88rem;background:var(--surface2);border:1px solid var(--stroke2);color:var(--ink2);">
+              <option value="">All types</option>
+              <option value="one-liner">One-liner</option>
+              <option value="short-blurb">Short blurb</option>
+              <option value="long-description">Long description</option>
+              <option value="achievement">Achievement</option>
+              <option value="link">Link</option>
+              <option value="code-example">Code example</option>
+              <option value="other">Other</option>
+            </select>
+            <button class="btn btn-primary" id="btn-new-asset">+ New Asset</button>
+          </div>
+        </div>
+        <div class="asset-list" id="asset-list"></div>
+      </div>
+
+      <!-- ══ PLATFORMS VIEW ══ -->
+      <div class="view" id="view-platforms">
+        <div class="section-head">
+          <h2>Platforms</h2>
+          <button class="btn btn-primary" id="btn-new-platform">+ New Platform</button>
+        </div>
+        <div class="card-grid" id="platform-grid"></div>
+      </div>
+
+      <!-- ══ DRAFT VIEW ══ -->
+      <div class="view" id="view-draft">
+        <div class="section-head">
+          <h2>Draft</h2>
+        </div>
+        <div class="panel" style="margin-bottom:20px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+            <div class="field">
+              <label>Project</label>
+              <select id="draft-project-select">
+                <option value="">Select a project…</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Platform</label>
+              <select id="draft-platform-select">
+                <option value="">Select a platform…</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="draft-layout">
+          <div class="draft-main">
+            <div class="draft-compose">
+              <div class="draft-compose-bar">
+                <h3>Compose</h3>
+                <span class="char-counter" id="char-counter">0 chars</span>
+              </div>
+              <textarea id="draft-textarea" placeholder="Start writing, or insert an asset from the sidebar…"></textarea>
+              <div class="draft-compose-footer">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <button class="btn btn-ghost" id="btn-clear-draft">Clear</button>
+                  <button class="btn btn-ghost" id="btn-copy-draft">Copy to clipboard</button>
+                </div>
+                <button class="btn btn-primary" id="btn-log-publication">Log as published →</button>
+              </div>
+            </div>
+            <div class="draft-preview">
+              <div class="draft-preview-head">Markdown Preview</div>
+              <div class="draft-preview-body" id="draft-preview-body">
+                <p style="color:var(--ink3);">Start typing to see a live preview.</p>
+              </div>
+            </div>
+            <div class="publish-checklist" id="draft-checklist-panel">
+              <div class="publish-checklist-head">Pre-publish checklist</div>
+              <div class="publish-checklist-body" id="draft-checklist-items">
+                <p style="font-size:0.85rem;color:var(--ink3);">Select a platform to load its checklist.</p>
+              </div>
+            </div>
+          </div>
+          <div class="draft-sidebar">
+            <div class="asset-picker">
+              <div class="asset-picker-head">Insert asset</div>
+              <div class="asset-picker-list" id="draft-asset-picker"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ LOG VIEW ══ -->
+      <div class="view" id="view-log">
+        <div class="section-head">
+          <h2>Publication Log</h2>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <select class="btn btn-secondary" id="log-project-filter" style="padding:8px 12px;border-radius:9px;font:inherit;font-size:0.88rem;background:var(--surface2);border:1px solid var(--stroke2);color:var(--ink2);">
+              <option value="">All projects</option>
+            </select>
+            <select class="btn btn-secondary" id="log-platform-filter" style="padding:8px 12px;border-radius:9px;font:inherit;font-size:0.88rem;background:var(--surface2);border:1px solid var(--stroke2);color:var(--ink2);">
+              <option value="">All platforms</option>
+            </select>
+          </div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--stroke);border-radius:var(--radius);overflow:hidden;">
+          <table class="log-table" id="log-table">
+            <thead>
+              <tr>
+                <th>Post</th>
+                <th>Platform</th>
+                <th>Project</th>
+                <th>Published</th>
+                <th>Freshness</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="log-tbody"></tbody>
+          </table>
+          <div id="log-empty" class="empty-state" style="display:none;">
+            <div class="empty-state-icon">📋</div>
+            <p>No publications logged yet.</p>
+            <p>Use the Draft tab to compose and log posts.</p>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- ══ PROJECT DIALOG ══ -->
+    <dialog id="project-dialog">
+      <div class="dialog-inner">
+        <div class="dialog-head">
+          <h3 id="project-dialog-title">New Project</h3>
+          <button class="dialog-close" data-close="project-dialog">✕</button>
+        </div>
+        <div class="form-grid">
+          <div class="form-row">
+            <div class="field">
+              <label>Project name *</label>
+              <input id="proj-name" type="text" placeholder="CA Workbench" maxlength="80" />
+            </div>
+            <div class="field">
+              <label>Status</label>
+              <select id="proj-status">
+                <option value="active">Active</option>
+                <option value="maintenance">Maintenance</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>One-liner</label>
+            <input id="proj-oneliner" type="text" placeholder="A PKI management tool for…" maxlength="160" />
+            <span class="field-hint">Keep it under 160 chars — usable everywhere.</span>
+          </div>
+          <div class="field">
+            <label>Full description</label>
+            <textarea id="proj-description" placeholder="What it does, who it's for, why it matters…" style="min-height:100px;"></textarea>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label>Primary URL</label>
+              <input id="proj-url" type="url" placeholder="https://github.com/…" />
+            </div>
+            <div class="field">
+              <label>Target audience</label>
+              <input id="proj-audience" type="text" placeholder="DevOps engineers, sysadmins…" maxlength="120" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Tags (comma-separated)</label>
+            <input id="proj-tags" type="text" placeholder="python, security, devops" />
+          </div>
+          <input type="hidden" id="proj-id" />
+        </div>
+        <div class="dialog-actions">
+          <button class="btn btn-secondary" data-close="project-dialog">Cancel</button>
+          <button class="btn btn-primary" id="btn-save-project">Save project</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- ══ ASSET DIALOG ══ -->
+    <dialog id="asset-dialog">
+      <div class="dialog-inner">
+        <div class="dialog-head">
+          <h3 id="asset-dialog-title">New Asset</h3>
+          <button class="dialog-close" data-close="asset-dialog">✕</button>
+        </div>
+        <div class="form-grid">
+          <div class="form-row">
+            <div class="field">
+              <label>Project *</label>
+              <select id="asset-project-select">
+                <option value="">Select project…</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Asset type *</label>
+              <select id="asset-type-select">
+                <option value="one-liner">One-liner</option>
+                <option value="short-blurb">Short blurb</option>
+                <option value="long-description">Long description</option>
+                <option value="achievement">Achievement</option>
+                <option value="link">Link</option>
+                <option value="code-example">Code example</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>Label</label>
+            <input id="asset-label" type="text" placeholder="GitHub README intro, Upwork headline…" maxlength="80" />
+          </div>
+          <div class="field">
+            <label>Content *</label>
+            <textarea id="asset-content" style="min-height:120px;" placeholder="The asset text, link, or code snippet…"></textarea>
+          </div>
+          <div class="field">
+            <label>Notes</label>
+            <input id="asset-notes" type="text" placeholder="Where this works best, tone notes…" maxlength="200" />
+          </div>
+          <input type="hidden" id="asset-id" />
+        </div>
+        <div class="dialog-actions">
+          <button class="btn btn-secondary" data-close="asset-dialog">Cancel</button>
+          <button class="btn btn-primary" id="btn-save-asset">Save asset</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- ══ PLATFORM DIALOG ══ -->
+    <dialog id="platform-dialog">
+      <div class="dialog-inner">
+        <div class="dialog-head">
+          <h3 id="platform-dialog-title">New Platform</h3>
+          <button class="dialog-close" data-close="platform-dialog">✕</button>
+        </div>
+        <div class="form-grid">
+          <div class="form-row">
+            <div class="field">
+              <label>Platform name *</label>
+              <input id="plat-name" type="text" placeholder="LinkedIn, GitHub, Upwork…" maxlength="60" />
+            </div>
+            <div class="field">
+              <label>Your profile URL</label>
+              <input id="plat-url" type="url" placeholder="https://linkedin.com/in/…" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label>Character limit</label>
+              <input id="plat-charlimit" type="number" placeholder="e.g. 280, 3000, 0 for none" min="0" />
+            </div>
+            <div class="field">
+              <label>Tone / style</label>
+              <input id="plat-tone" type="text" placeholder="Professional, casual, technical…" maxlength="100" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Posting norms</label>
+            <textarea id="plat-norms" placeholder="How often to post, what performs well, what to avoid…" style="min-height:80px;"></textarea>
+          </div>
+          <div class="field">
+            <label>Pre-publish checklist items (one per line)</label>
+            <textarea id="plat-checklist" placeholder="Check all links are live&#10;Verify code snippets render&#10;Add relevant hashtags&#10;…" style="min-height:100px;"></textarea>
+          </div>
+          <input type="hidden" id="plat-id" />
+        </div>
+        <div class="dialog-actions">
+          <button class="btn btn-secondary" data-close="platform-dialog">Cancel</button>
+          <button class="btn btn-primary" id="btn-save-platform">Save platform</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- ══ LOG DIALOG ══ -->
+    <dialog id="log-dialog">
+      <div class="dialog-inner">
+        <div class="dialog-head">
+          <h3>Log Publication</h3>
+          <button class="dialog-close" data-close="log-dialog">✕</button>
+        </div>
+        <div class="form-grid">
+          <div class="form-row">
+            <div class="field">
+              <label>Project *</label>
+              <select id="log-proj-select"></select>
+            </div>
+            <div class="field">
+              <label>Platform *</label>
+              <select id="log-plat-select"></select>
+            </div>
+          </div>
+          <div class="field">
+            <label>Post title / description *</label>
+            <input id="log-title" type="text" placeholder="What did you post?" maxlength="160" />
+          </div>
+          <div class="field">
+            <label>Excerpt (optional)</label>
+            <textarea id="log-excerpt" placeholder="First few lines or a summary…" style="min-height:70px;"></textarea>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label>Live URL</label>
+              <input id="log-url" type="url" placeholder="https://…" />
+            </div>
+            <div class="field">
+              <label>Published date</label>
+              <input id="log-date" type="date" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Notes</label>
+            <input id="log-notes" type="text" placeholder="Engagement, reactions, follow-ups needed…" maxlength="200" />
+          </div>
+          <input type="hidden" id="log-id" />
+        </div>
+        <div class="dialog-actions">
+          <button class="btn btn-secondary" data-close="log-dialog">Cancel</button>
+          <button class="btn btn-primary" id="btn-save-log">Log it</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- ══ CONFIRM DIALOG ══ -->
+    <dialog id="confirm-dialog">
+      <div class="dialog-inner">
+        <div class="dialog-head">
+          <h3 id="confirm-title">Confirm</h3>
+        </div>
+        <p id="confirm-message" style="color:var(--ink2);font-size:0.9rem;line-height:1.5;"></p>
+        <div class="dialog-actions">
+          <button class="btn btn-secondary" data-close="confirm-dialog">Cancel</button>
+          <button class="btn btn-danger" id="confirm-accept" style="font-size:0.88rem;padding:9px 16px;background:var(--red-soft);border-color:var(--red);">Delete</button>
+        </div>
+      </div>
+    </dialog>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/markdown/markdown.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
+    <script>
+      // ── Storage ──────────────────────────────────────────────────────────
+      const STORAGE_KEY = "webutils.contentstudio.v1";
+
+      const state = {
+        projects: [],
+        assets: [],
+        platforms: [],
+        log: [],
+        draft: {
+          text: "",
+          projectId: "",
+          platformId: "",
+        },
+      };
+
+      let draftEditor = null;
+
+      const persist = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+      const load = () => {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return seedDefaults();
+          const parsed = JSON.parse(raw);
+          state.projects = Array.isArray(parsed.projects) ? parsed.projects : [];
+          state.assets = Array.isArray(parsed.assets) ? parsed.assets : [];
+          state.platforms = Array.isArray(parsed.platforms) ? parsed.platforms : [];
+          state.log = Array.isArray(parsed.log) ? parsed.log : [];
+          state.draft = parsed.draft && typeof parsed.draft === "object"
+            ? {
+                text: typeof parsed.draft.text === "string" ? parsed.draft.text : "",
+                projectId: typeof parsed.draft.projectId === "string" ? parsed.draft.projectId : "",
+                platformId: typeof parsed.draft.platformId === "string" ? parsed.draft.platformId : "",
+              }
+            : { text: "", projectId: "", platformId: "" };
+        } catch {
+          seedDefaults();
+        }
+      };
+
+      const uid = () => crypto.randomUUID();
+      const now = () => Date.now();
+
+      // ── Seed ─────────────────────────────────────────────────────────────
+      const seedDefaults = () => {
+        const projId = uid();
+        state.projects = [{
+          id: projId, name: "My Project", status: "active",
+          oneliner: "A short description of what this project does.",
+          description: "Full description goes here.", url: "",
+          audience: "Developers", tags: ["example"], createdAt: now(),
+        }];
+        state.assets = [{
+          id: uid(), projectId: projId, type: "one-liner",
+          label: "Default one-liner", content: "A short description of what this project does.",
+          notes: "", createdAt: now(),
+        }];
+        state.platforms = [
+          {
+            id: uid(), name: "LinkedIn", url: "",
+            charLimit: 3000, tone: "Professional, first-person",
+            norms: "Post 2-3x per week. Thought leadership and project updates perform well. Use line breaks for readability.",
+            checklist: ["Links are live and correct","No typos or formatting issues","Added relevant hashtags","Mentions any collaborators","Ends with a question or CTA"],
+            createdAt: now(),
+          },
+          {
+            id: uid(), name: "GitHub README", url: "",
+            charLimit: 0, tone: "Technical, concise",
+            norms: "Keep it scannable. Code examples and badges help. Sections: Overview, Install, Usage, Contributing.",
+            checklist: ["Code examples tested","All links valid","Badge URLs current","Install instructions accurate","License section present"],
+            createdAt: now(),
+          },
+          {
+            id: uid(), name: "Upwork Profile", url: "",
+            charLimit: 5000, tone: "Professional, results-focused",
+            norms: "Lead with value delivered, not job titles. Use specific numbers. Update when landing major projects.",
+            checklist: ["Quantified results included","No generic claims","Skills section matches post","Portfolio link included if relevant"],
+            createdAt: now(),
+          },
+        ];
+        state.log = [];
+        state.draft = { text: "", projectId: "", platformId: "" };
+        persist();
+      };
+
+      // ── Helpers ──────────────────────────────────────────────────────────
+      const getProject = (id) => state.projects.find(p => p.id === id);
+      const getPlatform = (id) => state.platforms.find(p => p.id === id);
+      const projectStatus = (status) => (["active", "maintenance", "archived"].includes(status) ? status : "archived");
+
+      const escapeHtml = (value) => String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+
+      const safeUrl = (value) => {
+        const raw = String(value || "").trim();
+        if (!raw) return "";
+        try {
+          const parsed = new URL(raw, window.location.href);
+          if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+            return parsed.href;
+          }
+        } catch {}
+        return "";
+      };
+
+      const renderMarkdownSafe = (text) => {
+        let html = "";
+        if (window.marked && typeof window.marked.parse === "function") {
+          html = window.marked.parse(text || "");
+        } else {
+          const escaped = escapeHtml(text || "");
+          html = escaped.replace(/\n{2,}/g, "</p><p>").replace(/\n/g, "<br>");
+        }
+
+        if (!window.DOMPurify || typeof window.DOMPurify.sanitize !== "function") {
+          return html;
+        }
+
+        return window.DOMPurify.sanitize(html, {
+          ALLOWED_TAGS: [
+            "p", "br", "strong", "em", "blockquote", "code", "pre", "hr",
+            "ul", "ol", "li", "h1", "h2", "h3", "h4", "h5", "h6",
+            "table", "thead", "tbody", "tr", "th", "td", "a", "img"
+          ],
+          ALLOWED_ATTR: ["href", "src", "alt", "title"],
+          ALLOW_DATA_ATTR: false,
+          FORBID_ATTR: ["style"],
+        });
+      };
+
+      const getDraftText = () => (draftEditor ? draftEditor.getValue() : document.getElementById("draft-textarea").value);
+      const setDraftText = (value) => {
+        if (draftEditor) {
+          if (draftEditor.getValue() !== value) {
+            draftEditor.setValue(value);
+          }
+          return;
+        }
+        document.getElementById("draft-textarea").value = value;
+      };
+
+      const initDraftEditor = () => {
+        if (typeof CodeMirror === "undefined" || draftEditor) {
+          return;
+        }
+        const textarea = document.getElementById("draft-textarea");
+        draftEditor = CodeMirror.fromTextArea(textarea, {
+          lineNumbers: true,
+          lineWrapping: true,
+          mode: "markdown",
+          viewportMargin: Infinity,
+        });
+        draftEditor.on("change", () => {
+          state.draft.text = draftEditor.getValue();
+          persist();
+          updateCharCounter();
+          renderDraftPreview();
+        });
+      };
+
+      const stalenessLabel = (dateStr) => {
+        if (!dateStr) return { label: "—", cls: "" };
+        const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
+        if (days < 30) return { label: `${days}d ago`, cls: "staleness-fresh" };
+        if (days < 90) return { label: `${Math.floor(days/7)}w ago`, cls: "staleness-aging" };
+        return { label: `${Math.floor(days/30)}mo ago`, cls: "staleness-stale" };
+      };
+
+      const assetTypeLabel = (t) => ({
+        "one-liner": "One-liner", "short-blurb": "Short blurb",
+        "long-description": "Long desc", "achievement": "Achievement",
+        "link": "Link", "code-example": "Code", "other": "Other"
+      }[t] || t);
+
+      const statusBadge = (s) => {
+        const normalized = projectStatus(s);
+        return `<span class="badge badge-${normalized}">${escapeHtml(normalized)}</span>`;
+      };
+
+      // ── Dialog helpers ───────────────────────────────────────────────────
+      let confirmResolve = null;
+
+      const openDialog = (id) => {
+        const dialog = document.getElementById(id);
+        if (dialog && typeof dialog.showModal === "function") {
+          dialog.showModal();
+        }
+      };
+      const closeDialog = (id) => {
+        const d = document.getElementById(id);
+        if (d && d.open) {
+          d.close();
+        }
+      };
+
+      document.querySelectorAll("[data-close]").forEach(btn => {
+        btn.addEventListener("click", () => closeDialog(btn.dataset.close));
+      });
+
+      const confirm = ({ title, message, confirmText = "Delete" }) => {
+        const confirmDialog = document.getElementById("confirm-dialog");
+        if (!confirmDialog || typeof confirmDialog.showModal !== "function") {
+          return Promise.resolve(window.confirm(message || title));
+        }
+        document.getElementById("confirm-title").textContent = title;
+        document.getElementById("confirm-message").textContent = message;
+        document.getElementById("confirm-accept").textContent = confirmText;
+        return new Promise(resolve => {
+          confirmResolve = resolve;
+          openDialog("confirm-dialog");
+        });
+      };
+
+      document.getElementById("confirm-dialog").addEventListener("close", (e) => {
+        if (confirmResolve) {
+          confirmResolve(e.target.returnValue === "confirm");
+          confirmResolve = null;
+        }
+      });
+
+      document.getElementById("confirm-accept").addEventListener("click", () => {
+        const dialog = document.getElementById("confirm-dialog");
+        dialog.returnValue = "confirm";
+        dialog.close();
+      });
+
+      // ── Nav ──────────────────────────────────────────────────────────────
+      let activeView = "projects";
+
+      document.querySelectorAll(".nav-tab").forEach(tab => {
+        tab.addEventListener("click", () => {
+          activeView = tab.dataset.view;
+          document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
+          document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+          tab.classList.add("active");
+          document.getElementById(`view-${activeView}`).classList.add("active");
+          if (activeView === "assets") renderAssets();
+          if (activeView === "draft") {
+            initDraftEditor();
+            renderDraftSelects();
+            if (draftEditor) {
+              setTimeout(() => draftEditor.refresh(), 0);
+            }
+          }
+          if (activeView === "log") renderLog();
+        });
+      });
+
+      // ── Count badges ─────────────────────────────────────────────────────
+      const updateCounts = () => {
+        document.getElementById("count-projects").textContent = state.projects.length;
+        document.getElementById("count-assets").textContent = state.assets.length;
+        document.getElementById("count-platforms").textContent = state.platforms.length;
+        document.getElementById("count-log").textContent = state.log.length;
+      };
+
+      // ── PROJECT VIEW ─────────────────────────────────────────────────────
+      const renderProjects = () => {
+        const grid = document.getElementById("project-grid");
+        grid.innerHTML = "";
+        if (!state.projects.length) {
+          grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><div class="empty-state-icon">🚀</div><p>No projects yet.</p><p>Add one to get started.</p></div>`;
+          return;
+        }
+        state.projects.forEach(proj => {
+          const card = document.createElement("div");
+          card.className = "card";
+          const tags = (proj.tags || []).map(t => `<span class="chip">${escapeHtml(t)}</span>`).join("");
+          const safeProjectUrl = safeUrl(proj.url);
+          card.innerHTML = `
+            <div class="card-top">
+              <div style="display:grid;gap:4px;">
+                <div class="card-title">${escapeHtml(proj.name)}</div>
+                ${statusBadge(proj.status)}
+              </div>
+            </div>
+            <div class="card-sub">${escapeHtml(proj.oneliner || "No one-liner yet.")}</div>
+            ${tags ? `<div class="chip-list">${tags}</div>` : ""}
+            ${safeProjectUrl ? `<a href="${escapeHtml(safeProjectUrl)}" target="_blank" rel="noopener" class="log-link" style="font-size:0.82rem;">${escapeHtml(safeProjectUrl)}</a>` : ""}
+            <div class="card-actions">
+              <button class="btn btn-ghost" data-edit-proj="${escapeHtml(proj.id)}">Edit</button>
+              <button class="btn btn-ghost" data-draft-proj="${escapeHtml(proj.id)}">Draft post</button>
+              <button class="btn btn-danger" data-del-proj="${escapeHtml(proj.id)}">Delete</button>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+
+        grid.querySelectorAll("[data-edit-proj]").forEach(btn =>
+          btn.addEventListener("click", () => openProjectDialog(btn.dataset.editProj)));
+        grid.querySelectorAll("[data-del-proj]").forEach(btn =>
+          btn.addEventListener("click", () => deleteProject(btn.dataset.delProj)));
+        grid.querySelectorAll("[data-draft-proj]").forEach(btn =>
+          btn.addEventListener("click", () => {
+            state.draft.projectId = btn.dataset.draftProj;
+            persist();
+            document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
+            document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+            document.querySelector('[data-view="draft"]').classList.add("active");
+            document.getElementById("view-draft").classList.add("active");
+            activeView = "draft";
+            renderDraftSelects();
+          }));
+      };
+
+      const openProjectDialog = (id = null) => {
+        const proj = id ? getProject(id) : null;
+        document.getElementById("project-dialog-title").textContent = proj ? "Edit Project" : "New Project";
+        document.getElementById("proj-id").value = proj?.id || "";
+        document.getElementById("proj-name").value = proj?.name || "";
+        document.getElementById("proj-status").value = proj?.status || "active";
+        document.getElementById("proj-oneliner").value = proj?.oneliner || "";
+        document.getElementById("proj-description").value = proj?.description || "";
+        document.getElementById("proj-url").value = proj?.url || "";
+        document.getElementById("proj-audience").value = proj?.audience || "";
+        document.getElementById("proj-tags").value = (proj?.tags || []).join(", ");
+        openDialog("project-dialog");
+      };
+
+      const saveProject = () => {
+        const name = document.getElementById("proj-name").value.trim();
+        if (!name) return;
+        const id = document.getElementById("proj-id").value || uid();
+        const existing = getProject(id);
+        const proj = {
+          id, name,
+          status: projectStatus(document.getElementById("proj-status").value),
+          oneliner: document.getElementById("proj-oneliner").value.trim(),
+          description: document.getElementById("proj-description").value.trim(),
+          url: document.getElementById("proj-url").value.trim(),
+          audience: document.getElementById("proj-audience").value.trim(),
+          tags: document.getElementById("proj-tags").value.split(",").map(t => t.trim()).filter(Boolean),
+          createdAt: existing?.createdAt || now(),
+          updatedAt: now(),
+        };
+        if (existing) {
+          Object.assign(existing, proj);
+        } else {
+          state.projects.unshift(proj);
+        }
+        persist();
+        closeDialog("project-dialog");
+        renderAll();
+      };
+
+      const deleteProject = async (id) => {
+        const proj = getProject(id);
+        if (!proj) return;
+        const ok = await confirm({ title: `Delete "${proj.name}"?`, message: "This will also delete all assets and log entries for this project.", confirmText: "Delete project" });
+        if (!ok) return;
+        state.projects = state.projects.filter(p => p.id !== id);
+        state.assets = state.assets.filter(a => a.projectId !== id);
+        state.log = state.log.filter(l => l.projectId !== id);
+        persist();
+        renderAll();
+      };
+
+      document.getElementById("btn-new-project").addEventListener("click", () => openProjectDialog());
+      document.getElementById("btn-save-project").addEventListener("click", saveProject);
+
+      // ── ASSETS VIEW ──────────────────────────────────────────────────────
+      const populateAssetFilters = () => {
+        const projSel = document.getElementById("asset-project-filter");
+        const cur = projSel.value;
+        projSel.innerHTML = '<option value="">All projects</option>';
+        state.projects.forEach(p => {
+          const o = document.createElement("option");
+          o.value = p.id; o.textContent = p.name;
+          projSel.appendChild(o);
+        });
+        projSel.value = cur;
+      };
+
+      const renderAssets = () => {
+        populateAssetFilters();
+        const list = document.getElementById("asset-list");
+        const projFilter = document.getElementById("asset-project-filter").value;
+        const typeFilter = document.getElementById("asset-type-filter").value;
+        list.innerHTML = "";
+
+        const filtered = state.assets.filter(a =>
+          (!projFilter || a.projectId === projFilter) &&
+          (!typeFilter || a.type === typeFilter)
+        );
+
+        if (!filtered.length) {
+          list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📝</div><p>No assets found.</p></div>`;
+          return;
+        }
+
+        filtered.forEach(asset => {
+          const proj = getProject(asset.projectId);
+          const item = document.createElement("div");
+          item.className = "asset-item";
+          item.innerHTML = `
+            <div class="asset-item-top">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span class="badge badge-platform">${escapeHtml(assetTypeLabel(asset.type))}</span>
+                <span style="font-weight:600;font-size:0.88rem;">${escapeHtml(asset.label || "(unlabeled)")}</span>
+                ${proj ? `<span style="font-size:0.78rem;color:var(--ink3);">· ${escapeHtml(proj.name)}</span>` : ""}
+              </div>
+              <div style="display:flex;gap:6px;">
+                <button class="btn btn-ghost" data-edit-asset="${escapeHtml(asset.id)}">Edit</button>
+                <button class="btn btn-danger" data-del-asset="${escapeHtml(asset.id)}">Delete</button>
+              </div>
+            </div>
+            <div class="asset-text">${escapeHtml(asset.content)}</div>
+            ${asset.notes ? `<div class="asset-meta">${escapeHtml(asset.notes)} · ${asset.content.length} chars</div>` : `<div class="asset-meta">${asset.content.length} chars</div>`}
+          `;
+          list.appendChild(item);
+        });
+
+        list.querySelectorAll("[data-edit-asset]").forEach(btn =>
+          btn.addEventListener("click", () => openAssetDialog(btn.dataset.editAsset)));
+        list.querySelectorAll("[data-del-asset]").forEach(btn =>
+          btn.addEventListener("click", () => deleteAsset(btn.dataset.delAsset)));
+      };
+
+      const openAssetDialog = (id = null) => {
+        const asset = id ? state.assets.find(a => a.id === id) : null;
+        document.getElementById("asset-dialog-title").textContent = asset ? "Edit Asset" : "New Asset";
+        document.getElementById("asset-id").value = asset?.id || "";
+
+        const sel = document.getElementById("asset-project-select");
+        sel.innerHTML = '<option value="">Select project…</option>';
+        state.projects.forEach(p => {
+          const o = document.createElement("option");
+          o.value = p.id; o.textContent = p.name;
+          sel.appendChild(o);
+        });
+        sel.value = asset?.projectId || "";
+
+        document.getElementById("asset-type-select").value = asset?.type || "one-liner";
+        document.getElementById("asset-label").value = asset?.label || "";
+        document.getElementById("asset-content").value = asset?.content || "";
+        document.getElementById("asset-notes").value = asset?.notes || "";
+        openDialog("asset-dialog");
+      };
+
+      const saveAsset = () => {
+        const content = document.getElementById("asset-content").value.trim();
+        const projectId = document.getElementById("asset-project-select").value;
+        if (!content || !projectId) return;
+        const id = document.getElementById("asset-id").value || uid();
+        const existing = state.assets.find(a => a.id === id);
+        const asset = {
+          id, projectId,
+          type: document.getElementById("asset-type-select").value,
+          label: document.getElementById("asset-label").value.trim(),
+          content,
+          notes: document.getElementById("asset-notes").value.trim(),
+          createdAt: existing?.createdAt || now(),
+        };
+        if (existing) Object.assign(existing, asset);
+        else state.assets.unshift(asset);
+        persist();
+        closeDialog("asset-dialog");
+        renderAll();
+      };
+
+      const deleteAsset = async (id) => {
+        const ok = await confirm({ title: "Delete this asset?", message: "The asset text will be removed from the library.", confirmText: "Delete asset" });
+        if (!ok) return;
+        state.assets = state.assets.filter(a => a.id !== id);
+        persist();
+        renderAll();
+      };
+
+      document.getElementById("btn-new-asset").addEventListener("click", () => openAssetDialog());
+      document.getElementById("btn-save-asset").addEventListener("click", saveAsset);
+      document.getElementById("asset-project-filter").addEventListener("change", renderAssets);
+      document.getElementById("asset-type-filter").addEventListener("change", renderAssets);
+
+      // ── PLATFORMS VIEW ───────────────────────────────────────────────────
+      const renderPlatforms = () => {
+        const grid = document.getElementById("platform-grid");
+        grid.innerHTML = "";
+        if (!state.platforms.length) {
+          grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><div class="empty-state-icon">🌐</div><p>No platforms yet.</p></div>`;
+          return;
+        }
+        state.platforms.forEach(plat => {
+          const card = document.createElement("div");
+          card.className = "platform-card";
+          const safePlatformUrl = safeUrl(plat.url);
+          const checkItems = (plat.checklist || []).map(item =>
+            `<div class="checklist-item"><span style="color:var(--accent);font-size:0.8rem;">✓</span>${escapeHtml(item)}</div>`
+          ).join("");
+          card.innerHTML = `
+            <div class="card-top">
+              <div>
+                <div class="card-title">${escapeHtml(plat.name)}</div>
+                ${safePlatformUrl ? `<a href="${escapeHtml(safePlatformUrl)}" target="_blank" rel="noopener" class="log-link">${escapeHtml(safePlatformUrl)}</a>` : ""}
+              </div>
+              <div style="display:flex;gap:6px;">
+                <button class="btn btn-ghost" data-edit-plat="${escapeHtml(plat.id)}">Edit</button>
+                <button class="btn btn-danger" data-del-plat="${escapeHtml(plat.id)}">Delete</button>
+              </div>
+            </div>
+            ${plat.tone ? `<div style="font-size:0.82rem;color:var(--ink3);">Tone: <span style="color:var(--ink2);">${escapeHtml(plat.tone)}</span></div>` : ""}
+            ${plat.charLimit ? `<div style="font-size:0.82rem;color:var(--ink3);">Char limit: <span style="color:var(--ink2);">${plat.charLimit.toLocaleString()}</span></div>` : ""}
+            ${plat.norms ? `<div class="card-sub">${escapeHtml(plat.norms)}</div>` : ""}
+            ${checkItems ? `<div class="platform-checklist">${checkItems}</div>` : ""}
+          `;
+          grid.appendChild(card);
+        });
+
+        grid.querySelectorAll("[data-edit-plat]").forEach(btn =>
+          btn.addEventListener("click", () => openPlatformDialog(btn.dataset.editPlat)));
+        grid.querySelectorAll("[data-del-plat]").forEach(btn =>
+          btn.addEventListener("click", () => deletePlatform(btn.dataset.delPlat)));
+      };
+
+      const openPlatformDialog = (id = null) => {
+        const plat = id ? getPlatform(id) : null;
+        document.getElementById("platform-dialog-title").textContent = plat ? "Edit Platform" : "New Platform";
+        document.getElementById("plat-id").value = plat?.id || "";
+        document.getElementById("plat-name").value = plat?.name || "";
+        document.getElementById("plat-url").value = plat?.url || "";
+        document.getElementById("plat-charlimit").value = plat?.charLimit || "";
+        document.getElementById("plat-tone").value = plat?.tone || "";
+        document.getElementById("plat-norms").value = plat?.norms || "";
+        document.getElementById("plat-checklist").value = (plat?.checklist || []).join("\n");
+        openDialog("platform-dialog");
+      };
+
+      const savePlatform = () => {
+        const name = document.getElementById("plat-name").value.trim();
+        if (!name) return;
+        const id = document.getElementById("plat-id").value || uid();
+        const existing = getPlatform(id);
+        const checklist = document.getElementById("plat-checklist").value
+          .split("\n").map(s => s.trim()).filter(Boolean);
+        const plat = {
+          id, name,
+          url: document.getElementById("plat-url").value.trim(),
+          charLimit: parseInt(document.getElementById("plat-charlimit").value) || 0,
+          tone: document.getElementById("plat-tone").value.trim(),
+          norms: document.getElementById("plat-norms").value.trim(),
+          checklist,
+          createdAt: existing?.createdAt || now(),
+        };
+        if (existing) Object.assign(existing, plat);
+        else state.platforms.unshift(plat);
+        persist();
+        closeDialog("platform-dialog");
+        renderAll();
+      };
+
+      const deletePlatform = async (id) => {
+        const plat = getPlatform(id);
+        if (!plat) return;
+        const ok = await confirm({ title: `Delete "${plat.name}"?`, message: "Log entries for this platform will remain.", confirmText: "Delete platform" });
+        if (!ok) return;
+        state.platforms = state.platforms.filter(p => p.id !== id);
+        persist();
+        renderAll();
+      };
+
+      document.getElementById("btn-new-platform").addEventListener("click", () => openPlatformDialog());
+      document.getElementById("btn-save-platform").addEventListener("click", savePlatform);
+
+      // ── DRAFT VIEW ───────────────────────────────────────────────────────
+      const renderDraftSelects = () => {
+        const projSel = document.getElementById("draft-project-select");
+        const platSel = document.getElementById("draft-platform-select");
+        const curProj = projSel.value || state.draft.projectId;
+        const curPlat = platSel.value || state.draft.platformId;
+
+        projSel.innerHTML = '<option value="">Select a project…</option>';
+        state.projects.forEach(p => {
+          const o = document.createElement("option");
+          o.value = p.id; o.textContent = p.name;
+          projSel.appendChild(o);
+        });
+
+        platSel.innerHTML = '<option value="">Select a platform…</option>';
+        state.platforms.forEach(p => {
+          const o = document.createElement("option");
+          o.value = p.id; o.textContent = p.name;
+          platSel.appendChild(o);
+        });
+
+        if (curProj) projSel.value = curProj;
+        if (curPlat) platSel.value = curPlat;
+        state.draft.projectId = projSel.value || "";
+        state.draft.platformId = platSel.value || "";
+        persist();
+
+        setDraftText(state.draft.text || "");
+        renderDraftPreview();
+        updateCharCounter();
+
+        renderDraftAssets();
+        renderDraftChecklist();
+      };
+
+      const renderDraftAssets = () => {
+        const projId = document.getElementById("draft-project-select").value;
+        const picker = document.getElementById("draft-asset-picker");
+        picker.innerHTML = "";
+        const assets = projId
+          ? state.assets.filter(a => a.projectId === projId)
+          : state.assets;
+
+        if (!assets.length) {
+          picker.innerHTML = `<div style="padding:16px;font-size:0.83rem;color:var(--ink3);">${projId ? "No assets for this project." : "Select a project to filter assets."}</div>`;
+          return;
+        }
+
+        assets.forEach(asset => {
+          const item = document.createElement("div");
+          item.className = "asset-pick-item";
+          item.innerHTML = `
+            <div class="asset-pick-label">${escapeHtml(asset.label || assetTypeLabel(asset.type))}</div>
+            <div class="asset-pick-preview">${escapeHtml(asset.content)}</div>
+          `;
+          item.addEventListener("click", () => {
+            if (draftEditor) {
+              const doc = draftEditor.getDoc();
+              const current = doc.getValue();
+              const insert = current.length && !current.endsWith("\n") ? "\n\n" + asset.content : asset.content;
+              doc.replaceRange(insert, doc.getCursor());
+              draftEditor.focus();
+            } else {
+              const ta = document.getElementById("draft-textarea");
+              const val = ta.value;
+              const start = ta.selectionStart;
+              const insert = val.length && !val.endsWith("\n") ? "\n\n" + asset.content : asset.content;
+              ta.value = val.slice(0, start) + insert + val.slice(start);
+              ta.focus();
+              state.draft.text = ta.value;
+              persist();
+            }
+            renderDraftPreview();
+            updateCharCounter();
+          });
+          picker.appendChild(item);
+        });
+      };
+
+      const renderDraftChecklist = () => {
+        const platId = document.getElementById("draft-platform-select").value;
+        const plat = getPlatform(platId);
+        const body = document.getElementById("draft-checklist-items");
+        body.innerHTML = "";
+
+        if (!plat || !plat.checklist?.length) {
+          body.innerHTML = `<p style="font-size:0.85rem;color:var(--ink3);">${plat ? "No checklist for this platform." : "Select a platform to load its checklist."}</p>`;
+          return;
+        }
+
+        plat.checklist.forEach((item, i) => {
+          const row = document.createElement("label");
+          row.className = "publish-check-item";
+          row.innerHTML = `<input type="checkbox" id="chk-${i}" /> ${escapeHtml(item)}`;
+          row.querySelector("input").addEventListener("change", (e) => {
+            row.classList.toggle("checked", e.target.checked);
+          });
+          body.appendChild(row);
+        });
+      };
+
+      const renderDraftPreview = () => {
+        const preview = document.getElementById("draft-preview-body");
+        const text = getDraftText();
+        if (!text.trim()) {
+          preview.innerHTML = '<p style="color:var(--ink3);">Start typing to see a safe preview.</p>';
+          return;
+        }
+        preview.innerHTML = renderMarkdownSafe(text);
+      };
+
+      const updateCharCounter = () => {
+        const val = getDraftText();
+        const platId = document.getElementById("draft-platform-select").value;
+        const plat = getPlatform(platId);
+        const counter = document.getElementById("char-counter");
+        if (plat?.charLimit) {
+          counter.textContent = `${val.length} / ${plat.charLimit.toLocaleString()}`;
+          counter.classList.toggle("warn", val.length > plat.charLimit);
+        } else {
+          counter.textContent = `${val.length} chars`;
+          counter.classList.remove("warn");
+        }
+      };
+
+      document.getElementById("draft-textarea").addEventListener("input", () => {
+        if (draftEditor) return;
+        state.draft.text = document.getElementById("draft-textarea").value;
+        persist();
+        updateCharCounter();
+        renderDraftPreview();
+      });
+      document.getElementById("draft-project-select").addEventListener("change", () => {
+        state.draft.projectId = document.getElementById("draft-project-select").value;
+        persist();
+        renderDraftAssets();
+      });
+      document.getElementById("draft-platform-select").addEventListener("change", () => {
+        state.draft.platformId = document.getElementById("draft-platform-select").value;
+        persist();
+        renderDraftChecklist();
+        updateCharCounter();
+      });
+
+      document.getElementById("btn-clear-draft").addEventListener("click", () => {
+        state.draft.text = "";
+        setDraftText("");
+        persist();
+        renderDraftPreview();
+        updateCharCounter();
+      });
+
+      document.getElementById("btn-copy-draft").addEventListener("click", async () => {
+        const text = getDraftText();
+        if (!text) return;
+        try {
+          await navigator.clipboard.writeText(text);
+          const btn = document.getElementById("btn-copy-draft");
+          const orig = btn.textContent;
+          btn.textContent = "Copied!";
+          setTimeout(() => btn.textContent = orig, 1500);
+        } catch {}
+      });
+
+      document.getElementById("btn-log-publication").addEventListener("click", () => {
+        const projId = document.getElementById("draft-project-select").value;
+        const platId = document.getElementById("draft-platform-select").value;
+        const text = getDraftText().trim();
+
+        const logProjSel = document.getElementById("log-proj-select");
+        const logPlatSel = document.getElementById("log-plat-select");
+        logProjSel.innerHTML = '<option value="">Select project…</option>';
+        state.projects.forEach(p => {
+          const o = document.createElement("option");
+          o.value = p.id; o.textContent = p.name;
+          logProjSel.appendChild(o);
+        });
+        logPlatSel.innerHTML = '<option value="">Select platform…</option>';
+        state.platforms.forEach(p => {
+          const o = document.createElement("option");
+          o.value = p.id; o.textContent = p.name;
+          logPlatSel.appendChild(o);
+        });
+
+        logProjSel.value = projId || "";
+        logPlatSel.value = platId || "";
+        document.getElementById("log-id").value = "";
+        document.getElementById("log-title").value = "";
+        document.getElementById("log-excerpt").value = text ? text.slice(0, 200) : "";
+        document.getElementById("log-url").value = "";
+        document.getElementById("log-date").value = new Date().toISOString().split("T")[0];
+        document.getElementById("log-notes").value = "";
+        openDialog("log-dialog");
+      });
+
+      // ── LOG VIEW ─────────────────────────────────────────────────────────
+      const populateLogFilters = () => {
+        const pf = document.getElementById("log-project-filter");
+        const plf = document.getElementById("log-platform-filter");
+        const cp = pf.value, cpl = plf.value;
+
+        pf.innerHTML = '<option value="">All projects</option>';
+        state.projects.forEach(p => {
+          const o = document.createElement("option");
+          o.value = p.id; o.textContent = p.name;
+          pf.appendChild(o);
+        });
+
+        plf.innerHTML = '<option value="">All platforms</option>';
+        state.platforms.forEach(p => {
+          const o = document.createElement("option");
+          o.value = p.id; o.textContent = p.name;
+          plf.appendChild(o);
+        });
+
+        pf.value = cp; plf.value = cpl;
+      };
+
+      const renderLog = () => {
+        populateLogFilters();
+        const tbody = document.getElementById("log-tbody");
+        const empty = document.getElementById("log-empty");
+        const projFilter = document.getElementById("log-project-filter").value;
+        const platFilter = document.getElementById("log-platform-filter").value;
+        tbody.innerHTML = "";
+
+        const filtered = state.log.filter(l =>
+          (!projFilter || l.projectId === projFilter) &&
+          (!platFilter || l.platformId === platFilter)
+        ).sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        empty.style.display = filtered.length ? "none" : "block";
+        document.querySelector(".log-table thead").style.display = filtered.length ? "" : "none";
+
+        filtered.forEach(entry => {
+          const proj = getProject(entry.projectId);
+          const plat = getPlatform(entry.platformId);
+          const { label, cls } = stalenessLabel(entry.date);
+          const safeEntryUrl = safeUrl(entry.url);
+          const excerpt = entry.excerpt ? entry.excerpt.slice(0, 120) : "";
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>
+              <div class="log-title">${escapeHtml(entry.title)}</div>
+              ${excerpt ? `<div class="log-excerpt">${escapeHtml(excerpt)}${entry.excerpt.length > 120 ? "…" : ""}</div>` : ""}
+            </td>
+            <td><span class="badge badge-platform">${escapeHtml(plat?.name || "-")}</span></td>
+            <td>${escapeHtml(proj?.name || "-")}</td>
+            <td style="white-space:nowrap;">${escapeHtml(entry.date || "-")}</td>
+            <td><span class="staleness ${escapeHtml(cls)}">${escapeHtml(label)}</span></td>
+            <td>
+              <div style="display:flex;gap:4px;align-items:center;">
+                ${safeEntryUrl ? `<a href="${escapeHtml(safeEntryUrl)}" target="_blank" rel="noopener" class="log-link">View -&gt;</a>` : ""}
+                <button class="btn btn-danger" data-del-log="${escapeHtml(entry.id)}">✕</button>
+              </div>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        tbody.querySelectorAll("[data-del-log]").forEach(btn =>
+          btn.addEventListener("click", () => deleteLogEntry(btn.dataset.delLog)));
+      };
+
+      const saveLogEntry = () => {
+        const title = document.getElementById("log-title").value.trim();
+        const projId = document.getElementById("log-proj-select").value;
+        const platId = document.getElementById("log-plat-select").value;
+        if (!title || !projId || !platId) return;
+        const id = document.getElementById("log-id").value || uid();
+        const existing = state.log.find(l => l.id === id);
+        const entry = {
+          id, projectId: projId, platformId: platId, title,
+          excerpt: document.getElementById("log-excerpt").value.trim(),
+          url: document.getElementById("log-url").value.trim(),
+          date: document.getElementById("log-date").value,
+          notes: document.getElementById("log-notes").value.trim(),
+          createdAt: existing?.createdAt || now(),
+        };
+        if (existing) Object.assign(existing, entry);
+        else state.log.unshift(entry);
+        persist();
+        closeDialog("log-dialog");
+        renderAll();
+      };
+
+      const deleteLogEntry = async (id) => {
+        const ok = await confirm({ title: "Delete log entry?", message: "This removes the publication record.", confirmText: "Delete entry" });
+        if (!ok) return;
+        state.log = state.log.filter(l => l.id !== id);
+        persist();
+        renderAll();
+      };
+
+      document.getElementById("btn-save-log").addEventListener("click", saveLogEntry);
+      document.getElementById("log-project-filter").addEventListener("change", renderLog);
+      document.getElementById("log-platform-filter").addEventListener("change", renderLog);
+
+      // ── Render all ───────────────────────────────────────────────────────
+      const renderAll = () => {
+        renderProjects();
+        renderPlatforms();
+        updateCounts();
+        if (activeView === "assets") renderAssets();
+        if (activeView === "log") renderLog();
+        if (activeView === "draft") {
+          initDraftEditor();
+          renderDraftSelects();
+        }
+      };
+
+      load();
+      initDraftEditor();
+      renderAll();
+
+      const APP_THEME_KEY = "webutils.theme.v1";
+      const getAppTheme = () => {
+        try {
+          const stored = localStorage.getItem(APP_THEME_KEY);
+          return stored === "dark" || stored === "light" ? stored : "light";
+        } catch {
+          return "light";
+        }
+      };
+
+      const setAppTheme = (theme) => {
+        document.documentElement.setAttribute("data-theme", theme);
+        try {
+          localStorage.setItem(APP_THEME_KEY, theme);
+        } catch {}
+      };
+
+      const initThemeToggle = () => {
+        const host = document.querySelector(".toolbar");
+        if (!host || document.getElementById("theme-toggle")) {
+          return;
+        }
+        const button = document.createElement("button");
+        button.id = "theme-toggle";
+        button.type = "button";
+        button.className = "theme-toggle";
+
+        const sync = () => {
+          const theme = getAppTheme();
+          button.textContent = theme === "dark" ? "Light Theme" : "Dark Theme";
+          button.title = "Toggle color theme";
+        };
+
+        button.addEventListener("click", () => {
+          const next = getAppTheme() === "dark" ? "light" : "dark";
+          setAppTheme(next);
+          sync();
+        });
+
+        const note = host.querySelector(".toolbar-note");
+        if (note) {
+          host.insertBefore(button, note);
+        } else {
+          host.appendChild(button);
+        }
+
+        setAppTheme(getAppTheme());
+        sync();
+      };
+
+      initThemeToggle();
+    </script>
+
+    <footer>
+      Draft locally, publish anywhere. Built by
+      <a href="https://www.mcindi.com" target="_blank" rel="noopener">McIndi Solutions LLC</a>.
+    </footer>
+  </body>
+</html>

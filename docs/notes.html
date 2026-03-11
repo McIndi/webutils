@@ -4,6 +4,17 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Notes Wiki | McIndi WebUtils</title>
+    <script>
+      (() => {
+        try {
+          const storedTheme = localStorage.getItem("webutils.theme.v1");
+          const theme = storedTheme === "dark" || storedTheme === "light" ? storedTheme : "light";
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      })();
+    </script>
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.css"
@@ -23,10 +34,95 @@
         --brand-fade: rgba(15, 23, 32, 0.08);
         --shadow: rgba(23, 23, 23, 0.12);
         --sidebar-width: 260px;
+        --cm-bg: #fffaf4;
+        --cm-ink: #1f1a15;
+        --cm-gutter: #f3ece3;
+        --cm-line: #8a7d70;
+        --cm-cursor: #6f6257;
+        --cm-selection: rgba(198, 86, 42, 0.2);
+        --cm-comment: #8a7d70;
+        --cm-keyword: #91562f;
+        --cm-atom: #725b8f;
+        --cm-number: #a4673f;
+        --cm-def: #2d6585;
+        --cm-variable: #1f1a15;
+        --cm-variable2: #3f6b56;
+        --cm-property: #2d6585;
+        --cm-operator: #7f6f60;
+        --cm-string: #5f7436;
+        --cm-meta: #7f6f60;
+        --cm-link: #2d6585;
+        --cm-error: #b9382e;
       }
 
       * {
         box-sizing: border-box;
+      }
+
+      .theme-toggle {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        color: var(--ink);
+        padding: 8px 14px;
+        border-radius: 10px;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      :root[data-theme="dark"] {
+        --bg: #13110f;
+        --ink: #f0ece5;
+        --muted: #b8b0a5;
+        --panel: #1c1916;
+        --stroke: #2e2a24;
+        --accent: #d47c3a;
+        --accent-dark: #bc6f35;
+        --accent-soft: rgba(212, 124, 58, 0.15);
+        --warn: #c0553a;
+        --brand-deep: #f0ece5;
+        --brand-fade: rgba(212, 124, 58, 0.12);
+        --shadow: rgba(0, 0, 0, 0.35);
+        --cm-bg: #1f1b17;
+        --cm-ink: #f0ece5;
+        --cm-gutter: #2a241e;
+        --cm-line: #a39688;
+        --cm-cursor: #e4d5c6;
+        --cm-selection: rgba(212, 124, 58, 0.28);
+        --cm-comment: #9e9082;
+        --cm-keyword: #e4a66f;
+        --cm-atom: #bea5dc;
+        --cm-number: #f0ba86;
+        --cm-def: #93c9ea;
+        --cm-variable: #f0ece5;
+        --cm-variable2: #abd9bb;
+        --cm-property: #93c9ea;
+        --cm-operator: #ccbcab;
+        --cm-string: #bfd992;
+        --cm-meta: #b8b0a5;
+        --cm-link: #93c9ea;
+        --cm-error: #ff9b88;
+      }
+
+      html[data-theme="dark"] body {
+        background: radial-gradient(800px 520px at 10% -10%, rgba(212, 124, 58, 0.2) 0%, transparent 60%),
+          radial-gradient(720px 520px at 120% 10%, rgba(74, 143, 181, 0.16) 0%, transparent 60%), var(--bg);
+      }
+
+      html[data-theme="dark"] .toolbar :is(a, button, label):not(.primary):not(.danger),
+      html[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
+      html[data-theme="dark"] textarea,
+      html[data-theme="dark"] select,
+      html[data-theme="dark"] .tag-filter,
+      html[data-theme="dark"] .note-item,
+      html[data-theme="dark"] .open-note,
+      html[data-theme="dark"] .note-form,
+      html[data-theme="dark"] .confirm-form,
+      html[data-theme="dark"] .note-actions button:not(.primary),
+      html[data-theme="dark"] .theme-toggle {
+        background: #242019;
+        border-color: var(--stroke);
+        color: var(--ink);
       }
 
       body {
@@ -59,24 +155,24 @@
         align-items: center;
         gap: 10px;
         text-decoration: none;
-        color: var(--brand-deep);
-        font-weight: 700;
-        letter-spacing: 0.08em;
+        color: var(--ink2, var(--brand-deep));
+        font-weight: 600;
+        letter-spacing: 0.1em;
         text-transform: uppercase;
         font-size: 0.75rem;
       }
 
       .brand-mark {
-        width: 30px;
-        height: 30px;
-        border-radius: 9px;
-        background: var(--brand-deep);
-        color: #fff;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: var(--surface3, var(--card));
+        border: 1px solid var(--stroke2, var(--stroke));
+        color: var(--accent);
         display: grid;
         place-items: center;
         font-weight: 700;
         font-size: 0.8rem;
-        box-shadow: 0 10px 20px var(--brand-fade);
       }
 
       .brand-subtitle {
@@ -110,7 +206,6 @@
       .toolbar button,
       .toolbar label {
         border: 1px solid var(--stroke);
-        background: #fff;
         padding: 8px 14px;
         border-radius: 10px;
         cursor: pointer;
@@ -370,7 +465,6 @@
         border-radius: 10px;
         cursor: pointer;
         font-weight: 600;
-        color: var(--muted);
       }
 
       .note-view {
@@ -407,7 +501,6 @@
       }
 
       .note-display {
-        background: #fff;
         border-radius: 16px;
         padding: 16px;
         border: 1px solid var(--stroke);
@@ -464,8 +557,37 @@
         border-radius: 12px;
         height: 380px;
         font-size: 0.95rem;
-        background: #fff;
+        background: var(--cm-bg);
+        color: var(--cm-ink);
       }
+
+      .CodeMirror-gutters {
+        background: var(--cm-gutter);
+        border-right: 1px solid var(--stroke);
+      }
+
+      .CodeMirror-linenumber { color: var(--cm-line); }
+      .CodeMirror-cursor { border-left: 1px solid var(--cm-cursor); }
+      .CodeMirror-selected,
+      .CodeMirror-focused .CodeMirror-selected { background: var(--cm-selection); }
+      .CodeMirror span.cm-comment { color: var(--cm-comment); }
+      .CodeMirror span.cm-keyword { color: var(--cm-keyword); }
+      .CodeMirror span.cm-atom { color: var(--cm-atom); }
+      .CodeMirror span.cm-number { color: var(--cm-number); }
+      .CodeMirror span.cm-def { color: var(--cm-def); }
+      .CodeMirror span.cm-variable { color: var(--cm-variable); }
+      .CodeMirror span.cm-variable-2 { color: var(--cm-variable2); }
+      .CodeMirror span.cm-property { color: var(--cm-property); }
+      .CodeMirror span.cm-operator { color: var(--cm-operator); }
+      .CodeMirror span.cm-string,
+      .CodeMirror span.cm-string-2 { color: var(--cm-string); }
+      .CodeMirror span.cm-meta,
+      .CodeMirror span.cm-qualifier,
+      .CodeMirror span.cm-builtin,
+      .CodeMirror span.cm-tag,
+      .CodeMirror span.cm-attribute { color: var(--cm-meta); }
+      .CodeMirror span.cm-link { color: var(--cm-link); }
+      .CodeMirror span.cm-error { color: var(--cm-error); }
 
       .CodeMirror,
       .CodeMirror * {
@@ -477,7 +599,6 @@
         border: 1px solid var(--stroke);
         border-radius: 12px;
         padding: 12px;
-        background: #fff;
         font-family: "Courier New", monospace;
       }
 
@@ -577,11 +698,11 @@
   <body>
     <header>
       <div class="brand-bar">
-        <a class="brand-link" href="index.html">
+        <a class="brand-link" href="https://www.mcindi.com" target="_blank" rel="noopener">
           <span class="brand-mark">M</span>
-          McIndi WebUtils
+          McIndi Solutions
         </a>
-        <span class="brand-subtitle">Offline notes, portable by design.</span>
+        <span class="brand-subtitle">WebUtils • Notes Wiki</span>
       </div>
       <h1>Notes Wiki</h1>
       <p>
@@ -1748,6 +1869,52 @@
           saveState();
         });
       }
+
+      const APP_THEME_KEY = "webutils.theme.v1";
+      const getAppTheme = () => {
+        try {
+          const stored = localStorage.getItem(APP_THEME_KEY);
+          return stored === "dark" || stored === "light" ? stored : "light";
+        } catch {
+          return "light";
+        }
+      };
+
+      const setAppTheme = (theme) => {
+        document.documentElement.setAttribute("data-theme", theme);
+        try {
+          localStorage.setItem(APP_THEME_KEY, theme);
+        } catch {}
+      };
+
+      const initThemeToggle = () => {
+        const host = document.querySelector(".brand-bar") || document.querySelector("header");
+        if (!host || document.getElementById("theme-toggle")) {
+          return;
+        }
+        const button = document.createElement("button");
+        button.id = "theme-toggle";
+        button.type = "button";
+        button.className = "theme-toggle";
+
+        const sync = () => {
+          const theme = getAppTheme();
+          button.textContent = theme === "dark" ? "Light Theme" : "Dark Theme";
+          button.title = "Toggle color theme";
+        };
+
+        button.addEventListener("click", () => {
+          const next = getAppTheme() === "dark" ? "light" : "dark";
+          setAppTheme(next);
+          sync();
+        });
+
+        host.appendChild(button);
+        setAppTheme(getAppTheme());
+        sync();
+      };
+
+      initThemeToggle();
     </script>
   </body>
 </html>

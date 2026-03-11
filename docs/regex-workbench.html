@@ -4,6 +4,17 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Regex Workbench | McIndi WebUtils</title>
+    <script>
+      (() => {
+        try {
+          const storedTheme = localStorage.getItem("webutils.theme.v1");
+          const theme = storedTheme === "dark" || storedTheme === "light" ? storedTheme : "light";
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      })();
+    </script>
     <style>
       :root {
         --bg: #f3f1ed;
@@ -22,6 +33,48 @@
 
       * {
         box-sizing: border-box;
+      }
+
+      .theme-toggle {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        color: var(--ink);
+        padding: 8px 14px;
+        border-radius: 10px;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      :root[data-theme="dark"] {
+        --bg: #13110f;
+        --ink: #f0ece5;
+        --muted: #b8b0a5;
+        --panel: #1c1916;
+        --stroke: #2e2a24;
+        --accent: #d47c3a;
+        --accent-dark: #bc6f35;
+        --warn: #c0553a;
+        --highlight: rgba(212, 124, 58, 0.25);
+        --highlight-border: #d47c3a;
+        --brand-deep: #f0ece5;
+        --brand-fade: rgba(212, 124, 58, 0.12);
+      }
+
+      html[data-theme="dark"] body {
+        background: radial-gradient(900px 600px at 12% -10%, rgba(212, 124, 58, 0.2) 0%, transparent 60%),
+          radial-gradient(700px 500px at 120% 10%, rgba(74, 143, 181, 0.16) 0%, transparent 60%), var(--bg);
+      }
+
+      html[data-theme="dark"] .toolbar a,
+      html[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
+      html[data-theme="dark"] textarea,
+      html[data-theme="dark"] select,
+      html[data-theme="dark"] .panel button:not(.primary):not(.danger),
+      html[data-theme="dark"] .theme-toggle {
+        background: #242019;
+        border-color: var(--stroke);
+        color: var(--ink);
       }
 
       body {
@@ -57,24 +110,24 @@
         align-items: center;
         gap: 10px;
         text-decoration: none;
-        color: var(--brand-deep);
-        font-weight: 700;
-        letter-spacing: 0.08em;
+        color: var(--ink2, var(--brand-deep));
+        font-weight: 600;
+        letter-spacing: 0.1em;
         text-transform: uppercase;
         font-size: 0.75rem;
       }
 
       .brand-mark {
-        width: 30px;
-        height: 30px;
-        border-radius: 9px;
-        background: var(--brand-deep);
-        color: #fff;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: var(--surface3, var(--card));
+        border: 1px solid var(--stroke2, var(--stroke));
+        color: var(--accent);
         display: grid;
         place-items: center;
         font-weight: 700;
         font-size: 0.8rem;
-        box-shadow: 0 10px 20px var(--brand-fade);
       }
 
       .brand-subtitle {
@@ -260,14 +313,13 @@
         border: 1px solid var(--stroke);
         border-radius: 999px;
         padding: 6px 10px;
-        background: #fff;
         font-size: 0.85rem;
         color: var(--ink);
       }
 
       .button {
         border: 1px solid var(--stroke);
-        background: #fff;
+        background: var(--panel);
         padding: 10px 14px;
         border-radius: 12px;
         cursor: pointer;
@@ -315,7 +367,6 @@
       }
 
       .preview {
-        background: #fff;
         border: 1px solid var(--stroke);
         border-radius: 14px;
         padding: 12px;
@@ -345,7 +396,6 @@
       }
 
       .preset-row {
-        background: #fff;
         border: 1px solid var(--stroke);
         border-radius: 14px;
         padding: 12px;
@@ -356,7 +406,6 @@
       .capture-groups {
         max-height: 200px;
         overflow: auto;
-        background: #fff;
         border: 1px solid var(--stroke);
         border-radius: 12px;
         padding: 12px;
@@ -482,7 +531,6 @@
 
       .confirm-actions button {
         border: 1px solid var(--stroke);
-        background: #fff;
         padding: 8px 14px;
         border-radius: 10px;
         cursor: pointer;
@@ -992,6 +1040,52 @@
 
       savePresetButton.addEventListener("click", handleSavePreset);
       clearSampleButton.addEventListener("click", handleClearSample);
+
+      const APP_THEME_KEY = "webutils.theme.v1";
+      const getAppTheme = () => {
+        try {
+          const stored = localStorage.getItem(APP_THEME_KEY);
+          return stored === "dark" || stored === "light" ? stored : "light";
+        } catch {
+          return "light";
+        }
+      };
+
+      const setAppTheme = (theme) => {
+        document.documentElement.setAttribute("data-theme", theme);
+        try {
+          localStorage.setItem(APP_THEME_KEY, theme);
+        } catch {}
+      };
+
+      const initThemeToggle = () => {
+        const host = document.querySelector(".brand-bar") || document.querySelector("header");
+        if (!host || document.getElementById("theme-toggle")) {
+          return;
+        }
+        const button = document.createElement("button");
+        button.id = "theme-toggle";
+        button.type = "button";
+        button.className = "theme-toggle";
+
+        const sync = () => {
+          const theme = getAppTheme();
+          button.textContent = theme === "dark" ? "Light Theme" : "Dark Theme";
+          button.title = "Toggle color theme";
+        };
+
+        button.addEventListener("click", () => {
+          const next = getAppTheme() === "dark" ? "light" : "dark";
+          setAppTheme(next);
+          sync();
+        });
+
+        host.appendChild(button);
+        setAppTheme(getAppTheme());
+        sync();
+      };
+
+      initThemeToggle();
 
       loadState();
       syncInputsFromState();

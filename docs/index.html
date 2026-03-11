@@ -4,11 +4,23 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>McIndi WebUtils | McIndi Solutions</title>
+    <script>
+      (() => {
+        try {
+          const storedTheme = localStorage.getItem("webutils.theme.v1");
+          const theme = storedTheme === "dark" || storedTheme === "light" ? storedTheme : "light";
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      })();
+    </script>
     <style>
 
       :root {
         --bg: #f3f1ed;
         --ink: #111418;
+        --ink2: #2c3640;
         --muted: #626a73;
         --accent: #c6562a;
         --accent-dark: #a14320;
@@ -21,6 +33,67 @@
 
       * {
         box-sizing: border-box;
+      }
+
+      .theme-toggle {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        color: var(--ink);
+        padding: 8px 14px;
+        border-radius: 10px;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      :root[data-theme="dark"] {
+        --bg: #13110f;
+        --ink: #f0ece5;
+        --ink2: #f0ece5;
+        --muted: #b8b0a5;
+        --accent: #d47c3a;
+        --accent-dark: #bc6f35;
+        --danger: #c0553a;
+        --card: #1c1916;
+        --stroke: #2e2a24;
+        --brand-deep: #d47c3a;
+        --brand-fade: rgba(212, 124, 58, 0.12);
+      }
+
+      html[data-theme="dark"] body {
+        background: radial-gradient(900px 600px at 10% -10%, rgba(212, 124, 58, 0.2) 0%, transparent 60%),
+          radial-gradient(700px 500px at 120% 10%, rgba(74, 143, 181, 0.16) 0%, transparent 60%), var(--bg);
+      }
+
+      html[data-theme="dark"] .app-row,
+      html[data-theme="dark"] .data-block,
+      html[data-theme="dark"] .file-input,
+      html[data-theme="dark"] .data-status,
+      html[data-theme="dark"] .button,
+      html[data-theme="dark"] .confirm-actions button,
+      html[data-theme="dark"] .theme-toggle {
+        background: #242019;
+        border-color: var(--stroke);
+        color: var(--ink);
+      }
+
+      html[data-theme="dark"] .button.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
+      html[data-theme="dark"] .button.danger,
+      html[data-theme="dark"] .confirm-actions .primary {
+        background: var(--danger);
+        border-color: var(--danger);
+        color: #fff;
+      }
+
+      html[data-theme="dark"] .button.ghost {
+        background: transparent;
+        border-color: var(--ink);
+        color: var(--ink);
       }
 
       body {
@@ -54,24 +127,24 @@
         align-items: center;
         gap: 10px;
         text-decoration: none;
-        color: var(--brand-deep);
-        font-weight: 700;
-        letter-spacing: 0.08em;
+        color: var(--ink2, var(--brand-deep));
+        font-weight: 600;
+        letter-spacing: 0.1em;
         text-transform: uppercase;
-        font-size: 0.78rem;
+        font-size: 0.75rem;
       }
 
       .brand-mark {
-        width: 34px;
-        height: 34px;
-        border-radius: 10px;
-        background: var(--brand-deep);
-        color: #fff;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: var(--surface3, var(--card));
+        border: 1px solid var(--stroke2, var(--stroke));
+        color: var(--accent);
         display: grid;
         place-items: center;
         font-weight: 700;
-        font-size: 0.85rem;
-        box-shadow: 0 10px 20px var(--brand-fade);
+        font-size: 0.8rem;
       }
 
       .brand-subtitle {
@@ -558,6 +631,13 @@
           key: "webutils.static-page-generator.v1",
           href: "static-page-generator.html",
           description: "Write Markdown and export a themed standalone HTML page.",
+        },
+        {
+          id: "content-studio",
+          label: "Content Studio",
+          key: "webutils.contentstudio.v1",
+          href: "contentstudio.html",
+          description: "Manage project messaging, draft markdown posts, and track publication history.",
         },
       ];
 
@@ -1052,6 +1132,52 @@
 
       renderExportList();
       renderAppNav();
+
+      const APP_THEME_KEY = "webutils.theme.v1";
+      const getAppTheme = () => {
+        try {
+          const stored = localStorage.getItem(APP_THEME_KEY);
+          return stored === "dark" || stored === "light" ? stored : "light";
+        } catch {
+          return "light";
+        }
+      };
+
+      const setAppTheme = (theme) => {
+        document.documentElement.setAttribute("data-theme", theme);
+        try {
+          localStorage.setItem(APP_THEME_KEY, theme);
+        } catch {}
+      };
+
+      const initThemeToggle = () => {
+        const host = document.querySelector(".brand-bar") || document.querySelector("header");
+        if (!host || document.getElementById("theme-toggle")) {
+          return;
+        }
+        const button = document.createElement("button");
+        button.id = "theme-toggle";
+        button.type = "button";
+        button.className = "theme-toggle";
+
+        const sync = () => {
+          const theme = getAppTheme();
+          button.textContent = theme === "dark" ? "Light Theme" : "Dark Theme";
+          button.title = "Toggle color theme";
+        };
+
+        button.addEventListener("click", () => {
+          const next = getAppTheme() === "dark" ? "light" : "dark";
+          setAppTheme(next);
+          sync();
+        });
+
+        host.appendChild(button);
+        setAppTheme(getAppTheme());
+        sync();
+      };
+
+      initThemeToggle();
     </script>
   </body>
 </html>
