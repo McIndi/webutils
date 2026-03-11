@@ -475,6 +475,119 @@
         font-weight: 600;
       }
 
+      .backup-warning {
+        background: #fef3c7;
+        border-bottom: 2px solid #f59e0b;
+        color: #92400e;
+        padding: 10px 24px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        text-align: center;
+      }
+
+      .backup-warning[hidden] {
+        display: none;
+      }
+
+      .backup-warning-dismiss {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: inherit;
+        font-size: 1rem;
+        line-height: 1;
+        opacity: 0.6;
+        padding: 0 4px;
+        margin-left: 8px;
+      }
+
+      .backup-warning-dismiss:hover {
+        opacity: 1;
+      }
+
+      :root[data-theme="dark"] .backup-warning {
+        background: #451a03;
+        border-color: #b45309;
+        color: #fde68a;
+      }
+
+      .app-row-actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 2px;
+      }
+
+      .app-row-btn {
+        border: 1px solid var(--stroke);
+        background: transparent;
+        padding: 3px 10px;
+        border-radius: 8px;
+        cursor: pointer;
+        font: inherit;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--muted);
+        transition: color 0.15s, border-color 0.15s;
+      }
+
+      .app-row-btn:hover {
+        color: var(--ink);
+        border-color: var(--ink);
+      }
+
+      .app-row-btn.danger:hover {
+        color: var(--danger);
+        border-color: var(--danger);
+      }
+
+      html[data-theme="dark"] .app-row-btn {
+        background: transparent;
+        border-color: var(--stroke);
+        color: var(--muted);
+      }
+
+      .validate-result {
+        font-size: 0.85rem;
+        border-radius: 8px;
+        padding: 8px 10px;
+        border: 1px solid var(--stroke);
+        line-height: 1.5;
+        display: none;
+      }
+
+      .validate-result.visible {
+        display: block;
+      }
+
+      .validate-result.ok {
+        border-color: #16a34a;
+        color: #15803d;
+        background: #f0fdf4;
+      }
+
+      .validate-result.error {
+        border-color: var(--danger);
+        color: var(--danger);
+        background: #fef2f2;
+      }
+
+      html[data-theme="dark"] .validate-result.ok {
+        background: #052e16;
+        border-color: #16a34a;
+        color: #86efac;
+      }
+
+      html[data-theme="dark"] .validate-result.error {
+        background: #2d0a0a;
+        border-color: var(--danger);
+        color: #fca5a5;
+      }
+
       @media (max-width: 720px) {
         header {
           padding-top: 32px;
@@ -488,6 +601,10 @@
     </style>
   </head>
   <body>
+    <div id="backup-warning" class="backup-warning" hidden>
+      <span id="backup-warning-text"></span>
+      <button class="backup-warning-dismiss" id="backup-warning-dismiss" title="Dismiss">✕</button>
+    </div>
     <header>
       <div class="brand-bar">
         <a class="brand-link" href="https://www.mcindi.com" target="_blank" rel="noopener">
@@ -546,6 +663,8 @@
               type="file"
               accept=".json,application/json"
             />
+            <button class="button" id="validate-button" type="button">Validate file</button>
+            <div class="validate-result" id="validate-result"></div>
             <button class="button ghost" id="import-button" type="button">Import snapshot</button>
             <small class="muted">Importing overwrites data for matching apps.</small>
           </div>
@@ -641,13 +760,27 @@
         },
       ];
 
+      const LAST_EXPORT_KEY = "webutils.lastExport.v1";
+
       const appList = document.getElementById("app-list");
       const exportList = document.getElementById("export-list");
       const exportButton = document.getElementById("export-button");
       const importFile = document.getElementById("import-file");
       const importButton = document.getElementById("import-button");
+      const validateButton = document.getElementById("validate-button");
+      const validateResult = document.getElementById("validate-result");
       const clearAllButton = document.getElementById("clear-all");
       const dataStatus = document.getElementById("data-status");
+      const backupWarning = document.getElementById("backup-warning");
+      const backupWarningText = document.getElementById("backup-warning-text");
+      const backupWarningDismiss = document.getElementById("backup-warning-dismiss");
+
+      // Hidden file input for per-app imports
+      const perAppImportFile = document.createElement("input");
+      perAppImportFile.type = "file";
+      perAppImportFile.accept = ".json,application/json";
+      perAppImportFile.style.display = "none";
+      document.body.appendChild(perAppImportFile);
 
       const confirmDialog = document.getElementById("confirm-dialog");
       const confirmTitle = document.getElementById("confirm-title");
@@ -891,6 +1024,82 @@
         return estimateStoredBytes(value);
       };
 
+      const exportAppData = async (app) => {
+        const snapshot = await buildSnapshot(new Set([app.id]));
+        if (Object.keys(snapshot.apps).length === 0) {
+          setStatus(`No saved data found for ${app.label}.`);
+          return;
+        }
+        const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        link.href = url;
+        link.download = `webutils-${app.id}-${timestamp}.json`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        recordExport();
+        setStatus(`Exported ${app.label}.`);
+      };
+
+      const importAppData = async (app) => {
+        return new Promise((resolve) => {
+          perAppImportFile.value = "";
+          perAppImportFile.onchange = async () => {
+            const file = perAppImportFile.files[0];
+            if (!file) { resolve(); return; }
+            try {
+              const text = await file.text();
+              const snapshot = JSON.parse(text);
+              if (!snapshot || typeof snapshot !== "object" || !snapshot.apps) {
+                setStatus("Snapshot format not recognized.");
+                resolve(); return;
+              }
+              const { valid, issues } = validateSnapshot(snapshot);
+              if (!valid) {
+                setStatus(`Import aborted — ${issues.length} issue(s): ${issues[0]}`);
+                resolve(); return;
+              }
+              if (!snapshot.apps[app.id]) {
+                setStatus(`This snapshot does not contain data for ${app.label}.`);
+                resolve(); return;
+              }
+              const confirmed = await requestConfirmation({
+                title: `Import ${app.label}?`,
+                message: `This will overwrite saved data for ${app.label}.`,
+                confirmText: "Import",
+              });
+              if (!confirmed) { resolve(); return; }
+              const restored = await restoreSnapshot(snapshot);
+              setStatus(`Imported ${app.label} (${restored} dataset${restored !== 1 ? "s" : ""}).`);
+              await renderAppNav();
+            } catch (error) {
+              setStatus("Import failed. The file may be invalid.");
+            }
+            resolve();
+          };
+          perAppImportFile.click();
+        });
+      };
+
+      const deleteAppData = async (app) => {
+        const confirmed = await requestConfirmation({
+          title: `Delete ${app.label} data?`,
+          message: `This permanently removes all saved data for ${app.label}.`,
+          confirmText: "Delete",
+        });
+        if (!confirmed) return;
+        try {
+          await clearAppData(app);
+          setStatus(`Cleared data for ${app.label}.`);
+          await renderAppNav();
+        } catch {
+          setStatus(`Could not clear data for ${app.label}.`);
+        }
+      };
+
       const renderAppNav = async () => {
         appList.innerHTML = "";
         for (const app of APP_REGISTRY) {
@@ -919,11 +1128,11 @@
             storedValue = null;
           }
           const bytes = estimateDataBytes(app, storedValue);
+          const hasData = storedValue !== null && storedValue !== undefined;
+
           const meta = document.createElement("div");
           meta.className = "app-meta";
-          meta.textContent = storedValue !== null && storedValue !== undefined
-            ? `Stored data: ${formatBytes(bytes)}`
-            : "No data saved";
+          meta.textContent = hasData ? `Stored data: ${formatBytes(bytes)}` : "No data saved";
 
           const topRow = document.createElement("div");
           topRow.style.display = "flex";
@@ -931,8 +1140,63 @@
           topRow.style.alignItems = "center";
           topRow.append(link, downloadLink);
 
-          row.append(topRow, description, meta);
+          const actions = document.createElement("div");
+          actions.className = "app-row-actions";
+
+          const exportBtn = document.createElement("button");
+          exportBtn.className = "app-row-btn";
+          exportBtn.textContent = "Export";
+          exportBtn.disabled = !hasData;
+          exportBtn.title = hasData ? `Export ${app.label} data` : "No data to export";
+          exportBtn.addEventListener("click", () => exportAppData(app));
+
+          const importBtn = document.createElement("button");
+          importBtn.className = "app-row-btn";
+          importBtn.textContent = "Import";
+          importBtn.title = `Import data for ${app.label}`;
+          importBtn.addEventListener("click", () => importAppData(app));
+
+          const deleteBtn = document.createElement("button");
+          deleteBtn.className = "app-row-btn danger";
+          deleteBtn.textContent = "Delete";
+          deleteBtn.disabled = !hasData;
+          deleteBtn.title = hasData ? `Delete ${app.label} data` : "No data to delete";
+          deleteBtn.addEventListener("click", () => deleteAppData(app));
+
+          actions.append(exportBtn, importBtn, deleteBtn);
+          row.append(topRow, description, meta, actions);
           appList.appendChild(row);
+        }
+      };
+
+      const checkBackupWarning = async () => {
+        let hasData = false;
+        for (const app of APP_REGISTRY) {
+          try {
+            const value = await readAppData(app);
+            if (value !== null && value !== undefined) {
+              hasData = true;
+              break;
+            }
+          } catch {}
+        }
+        if (!hasData || !backupWarning) return;
+
+        const lastExport = localStorage.getItem(LAST_EXPORT_KEY);
+        if (!lastExport) {
+          backupWarningText.textContent =
+            "You have saved data with no backup on record. Export a snapshot to protect your data.";
+          backupWarning.hidden = false;
+          return;
+        }
+        const hoursSince = (Date.now() - new Date(lastExport).getTime()) / 3_600_000;
+        if (hoursSince >= 24) {
+          const label =
+            hoursSince >= 48
+              ? `${Math.floor(hoursSince / 24)} days`
+              : `${Math.floor(hoursSince)} hours`;
+          backupWarningText.textContent = `Last backup was ${label} ago. Consider exporting a snapshot.`;
+          backupWarning.hidden = false;
         }
       };
 
@@ -951,7 +1215,8 @@
 
       const buildSnapshot = async (selectedIds) => {
         const snapshot = {
-          version: 2,
+          version: 3,
+          generator: "webutils",
           createdAt: new Date().toISOString(),
           apps: {},
         };
@@ -965,6 +1230,7 @@
           if (value !== null) {
             if (descriptor.type === "indexedDB") {
               snapshot.apps[app.id] = {
+                appId: app.id,
                 storage: "indexedDB",
                 dbName: descriptor.dbName,
                 storeName: descriptor.storeName,
@@ -973,6 +1239,7 @@
               };
             } else {
               snapshot.apps[app.id] = {
+                appId: app.id,
                 storage: "localStorage",
                 key: descriptor.key,
                 value,
@@ -982,6 +1249,72 @@
         }
 
         return snapshot;
+      };
+
+      const validateSnapshot = (snapshot) => {
+        const issues = [];
+
+        if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) {
+          return { valid: false, issues: ["File is not a valid JSON object."] };
+        }
+
+        if (typeof snapshot.version !== "number") {
+          issues.push("Missing or invalid 'version' field (expected a number).");
+        } else if (![2, 3].includes(snapshot.version)) {
+          issues.push(`Unrecognized snapshot version: ${snapshot.version}. Supported versions: 2, 3.`);
+        }
+
+        if (!snapshot.createdAt) {
+          issues.push("Missing 'createdAt' timestamp.");
+        } else if (isNaN(Date.parse(snapshot.createdAt))) {
+          issues.push(`Invalid 'createdAt' value: "${snapshot.createdAt}".`);
+        }
+
+        if (!snapshot.apps || typeof snapshot.apps !== "object" || Array.isArray(snapshot.apps)) {
+          issues.push("Missing or invalid 'apps' field (expected an object).");
+        } else {
+          const knownIds = new Set(APP_REGISTRY.map((a) => a.id));
+          const appEntries = Object.entries(snapshot.apps);
+
+          if (appEntries.length === 0) {
+            issues.push("Snapshot contains no app data.");
+          }
+
+          for (const [appId, entry] of appEntries) {
+            const prefix = `App "${appId}"`;
+
+            if (!knownIds.has(appId)) {
+              issues.push(`${prefix}: unrecognized app ID.`);
+            }
+
+            if (!entry || typeof entry !== "object") {
+              issues.push(`${prefix}: entry is not an object.`);
+              continue;
+            }
+
+            if (!entry.storage) {
+              issues.push(`${prefix}: missing 'storage' field.`);
+            } else if (!["localStorage", "indexedDB"].includes(entry.storage)) {
+              issues.push(`${prefix}: invalid storage type "${entry.storage}".`);
+            }
+
+            if (entry.value === undefined || entry.value === null) {
+              issues.push(`${prefix}: missing 'value' field.`);
+            }
+
+            if (entry.storage === "localStorage" && !entry.key) {
+              issues.push(`${prefix}: localStorage entry missing 'key' field.`);
+            }
+
+            if (entry.storage === "indexedDB") {
+              if (!entry.dbName) issues.push(`${prefix}: indexedDB entry missing 'dbName'.`);
+              if (!entry.storeName) issues.push(`${prefix}: indexedDB entry missing 'storeName'.`);
+              if (!entry.recordKey) issues.push(`${prefix}: indexedDB entry missing 'recordKey'.`);
+            }
+          }
+        }
+
+        return { valid: issues.length === 0, issues };
       };
 
       const downloadSnapshot = (snapshot) => {
@@ -997,6 +1330,13 @@
         link.click();
         link.remove();
         URL.revokeObjectURL(url);
+      };
+
+      const recordExport = () => {
+        try {
+          localStorage.setItem(LAST_EXPORT_KEY, new Date().toISOString());
+          if (backupWarning) backupWarning.hidden = true;
+        } catch {}
       };
 
       exportButton.addEventListener("click", async () => {
@@ -1019,11 +1359,89 @@
             return;
           }
           downloadSnapshot(snapshot);
+          recordExport();
           setStatus(`Exported ${count} app data sets.`);
         } catch (error) {
           setStatus("Export failed. Check browser storage permissions.");
         }
       });
+
+      validateButton.addEventListener("click", async () => {
+        const file = importFile.files[0];
+        if (!file) {
+          validateResult.className = "validate-result error visible";
+          validateResult.textContent = "Choose a snapshot file to validate.";
+          return;
+        }
+        try {
+          const text = await file.text();
+          const parsed = JSON.parse(text);
+          const { valid, issues } = validateSnapshot(parsed);
+          if (valid) {
+            const appCount = Object.keys(parsed.apps || {}).length;
+            validateResult.className = "validate-result ok visible";
+            validateResult.textContent = `Valid snapshot (version ${parsed.version}, ${appCount} app${appCount !== 1 ? "s" : ""}, created ${new Date(parsed.createdAt).toLocaleString()}).`;
+          } else {
+            validateResult.className = "validate-result error visible";
+            validateResult.innerHTML = `<strong>Issues found:</strong><ul style="margin:4px 0 0;padding-left:18px">${issues.map((i) => `<li>${i}</li>`).join("")}</ul>`;
+          }
+        } catch (error) {
+          validateResult.className = "validate-result error visible";
+          validateResult.textContent = "Could not parse file. Make sure it is valid JSON.";
+        }
+      });
+
+      const restoreSnapshot = async (snapshot) => {
+        let restored = 0;
+        for (const app of APP_REGISTRY) {
+          const entry = snapshot.apps[app.id];
+          if (!entry) {
+            continue;
+          }
+          const descriptor = getStorageDescriptor(app);
+          if (descriptor.type === "indexedDB") {
+            if (entry.storage === "indexedDB" && entry.value !== undefined) {
+              await writeAppData(app, deserializeStructuredValue(entry.value));
+              restored += 1;
+              continue;
+            }
+            if (app.id === "zip-workbench" && typeof entry.value === "string") {
+              try {
+                const legacy = JSON.parse(entry.value);
+                const legacyBytes = fromBase64(legacy.zipBase64 || "");
+                await writeAppData(app, {
+                  schemaVersion: 1,
+                  savedAt: new Date().toISOString(),
+                  zipName: legacy.zipName || "archive.zip",
+                  zipBytes: legacyBytes.buffer,
+                });
+                restored += 1;
+              } catch (error) {}
+            }
+            if (app.id === "repo2prompt" && typeof entry.value === "string") {
+              try {
+                const legacy = JSON.parse(entry.value);
+                if (legacy && typeof legacy === "object") {
+                  await writeAppData(app, {
+                    schemaVersion: 1,
+                    savedAt: new Date().toISOString(),
+                    url: typeof legacy.url === "string" ? legacy.url : "",
+                    files: Array.isArray(legacy.files) ? legacy.files : [],
+                    extensionFilter: Array.isArray(legacy.extensionFilter) ? legacy.extensionFilter : [],
+                  });
+                  restored += 1;
+                }
+              } catch (error) {}
+            }
+            continue;
+          }
+          if (typeof entry.value === "string") {
+            await writeAppData(app, entry.value);
+            restored += 1;
+          }
+        }
+        return restored;
+      };
 
       importButton.addEventListener("click", async () => {
         const file = importFile.files[0];
@@ -1049,58 +1467,12 @@
             setStatus("Snapshot format not recognized.");
             return;
           }
-
-          let restored = 0;
-          for (const app of APP_REGISTRY) {
-            const entry = snapshot.apps[app.id];
-            if (!entry) {
-              continue;
-            }
-            const descriptor = getStorageDescriptor(app);
-            if (descriptor.type === "indexedDB") {
-              if (entry.storage === "indexedDB" && entry.value !== undefined) {
-                await writeAppData(app, deserializeStructuredValue(entry.value));
-                restored += 1;
-                continue;
-              }
-              if (app.id === "zip-workbench" && typeof entry.value === "string") {
-                try {
-                  const legacy = JSON.parse(entry.value);
-                  const legacyBytes = fromBase64(legacy.zipBase64 || "");
-                  await writeAppData(app, {
-                    schemaVersion: 1,
-                    savedAt: new Date().toISOString(),
-                    zipName: legacy.zipName || "archive.zip",
-                    zipBytes: legacyBytes.buffer,
-                  });
-                  restored += 1;
-                } catch (error) {
-                }
-              }
-              if (app.id === "repo2prompt" && typeof entry.value === "string") {
-                try {
-                  const legacy = JSON.parse(entry.value);
-                  if (legacy && typeof legacy === "object") {
-                    await writeAppData(app, {
-                      schemaVersion: 1,
-                      savedAt: new Date().toISOString(),
-                      url: typeof legacy.url === "string" ? legacy.url : "",
-                      files: Array.isArray(legacy.files) ? legacy.files : [],
-                      extensionFilter: Array.isArray(legacy.extensionFilter) ? legacy.extensionFilter : [],
-                    });
-                    restored += 1;
-                  }
-                } catch (error) {
-                }
-              }
-              continue;
-            }
-            if (typeof entry.value === "string") {
-              await writeAppData(app, entry.value);
-              restored += 1;
-            }
+          const { valid, issues } = validateSnapshot(snapshot);
+          if (!valid) {
+            setStatus(`Import aborted — ${issues.length} issue(s) found. Use Validate for details.`);
+            return;
           }
-
+          const restored = await restoreSnapshot(snapshot);
           setStatus(`Imported data for ${restored} app(s).`);
           await renderAppNav();
         } catch (error) {
@@ -1130,8 +1502,12 @@
         await renderAppNav();
       });
 
+      backupWarningDismiss.addEventListener("click", () => {
+        backupWarning.hidden = true;
+      });
+
       renderExportList();
-      renderAppNav();
+      renderAppNav().then(checkBackupWarning);
 
       const APP_THEME_KEY = "webutils.theme.v1";
       const getAppTheme = () => {
