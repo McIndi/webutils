@@ -1085,9 +1085,19 @@
       };
 
       const deleteAppData = async (app) => {
+        const wantsBackup = await requestConfirmation({
+          title: `Back up ${app.label} first?`,
+          message: `Deleted data cannot be recovered. Download a backup snapshot now, or cancel to skip and proceed to deletion.`,
+          confirmText: "Download backup",
+        });
+
+        if (wantsBackup) {
+          await exportAppData(app);
+        }
+
         const confirmed = await requestConfirmation({
           title: `Delete ${app.label} data?`,
-          message: `This permanently removes all saved data for ${app.label}.`,
+          message: `This permanently removes all saved data for ${app.label}. This cannot be undone.`,
           confirmText: "Delete",
         });
         if (!confirmed) return;
@@ -1483,9 +1493,29 @@
       });
 
       clearAllButton.addEventListener("click", async () => {
+        const wantsBackup = await requestConfirmation({
+          title: "Back up all data first?",
+          message: "Deleted data cannot be recovered. Download a full snapshot now, or cancel to skip and proceed to deletion.",
+          confirmText: "Download backup",
+        });
+
+        if (wantsBackup) {
+          try {
+            const allIds = new Set(APP_REGISTRY.map((a) => a.id));
+            const snapshot = await buildSnapshot(allIds);
+            if (Object.keys(snapshot.apps).length > 0) {
+              downloadSnapshot(snapshot);
+              recordExport();
+            }
+          } catch {
+            setStatus("Backup failed. Clear aborted.");
+            return;
+          }
+        }
+
         const confirmed = await requestConfirmation({
           title: "Clear all app data?",
-          message: "This removes saved data for every app in WebUtils.",
+          message: "This permanently removes saved data for every app in WebUtils. This cannot be undone.",
           confirmText: "Clear all",
         });
         if (!confirmed) {
