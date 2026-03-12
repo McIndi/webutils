@@ -76,6 +76,17 @@
         color: var(--ink);
       }
 
+      html[data-theme="dark"] :is(.move-control select, .priority-control select) {
+        background: #242019;
+        border-color: var(--stroke);
+        color: var(--ink);
+      }
+
+      html[data-theme="dark"] :is(.move-control select, .priority-control select) option {
+        background: #242019;
+        color: var(--ink);
+      }
+
       body {
         margin: 0;
         font-family: "Manrope", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
@@ -319,6 +330,7 @@
         font: inherit;
         border: 1px solid var(--stroke);
         border-radius: 8px;
+        background: #fff;
         color: var(--ink);
         padding: 4px 8px;
       }
@@ -327,6 +339,7 @@
         font: inherit;
         border: 1px solid var(--stroke);
         border-radius: 8px;
+        background: #fff;
         color: var(--ink);
         padding: 4px 8px;
       }
