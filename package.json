@@ -1,0 +1,16 @@
+{
+  "name": "webutils-acceptance-tests",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Browser-based automated acceptance tests for WebUtils docs apps.",
+  "scripts": {
+    "test:acceptance": "playwright test",
+    "test:acceptance:headed": "playwright test --headed",
+    "test:acceptance:ui": "playwright test --ui",
+    "test:acceptance:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "http-server": "^14.1.1"
+  }
+}

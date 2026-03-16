@@ -758,9 +758,22 @@
           href: "contentstudio.html",
           description: "Manage project messaging, draft markdown posts, and track publication history.",
         },
+        {
+          id: "thegym",
+          label: "TheGym",
+          key: "webutils.thegym.v1",
+          href: "thegym.html",
+          description: "Train with transcription, debug, and flashcard coding exercises.",
+        },
       ];
 
       const LAST_EXPORT_KEY = "webutils.lastExport.v1";
+      const THEGYM_STATE_KEY = "webutils.thegym.v1";
+      const THEGYM_LEGACY_KEYS = {
+        exercises: "thegym_exercises",
+        sessions: "thegym_sessions",
+        pbs: "thegym_pbs",
+      };
 
       const appList = document.getElementById("app-list");
       const exportList = document.getElementById("export-list");
@@ -787,6 +800,51 @@
       const confirmMessage = document.getElementById("confirm-message");
       const confirmAccept = document.getElementById("confirm-accept");
       let confirmResolve = null;
+
+      const safeJsonParse = (value, fallback) => {
+        if (!value) {
+          return fallback;
+        }
+        try {
+          const parsed = JSON.parse(value);
+          return parsed ?? fallback;
+        } catch {
+          return fallback;
+        }
+      };
+
+      const migrateTheGymLegacyState = () => {
+        try {
+          if (localStorage.getItem(THEGYM_STATE_KEY)) {
+            return;
+          }
+
+          const legacyExercises = safeJsonParse(localStorage.getItem(THEGYM_LEGACY_KEYS.exercises), []);
+          const legacySessions = safeJsonParse(localStorage.getItem(THEGYM_LEGACY_KEYS.sessions), []);
+          const legacyPBs = safeJsonParse(localStorage.getItem(THEGYM_LEGACY_KEYS.pbs), {});
+
+          const hasLegacy =
+            (Array.isArray(legacyExercises) && legacyExercises.length > 0) ||
+            (Array.isArray(legacySessions) && legacySessions.length > 0) ||
+            (legacyPBs && typeof legacyPBs === "object" && Object.keys(legacyPBs).length > 0);
+
+          if (!hasLegacy) {
+            return;
+          }
+
+          const migratedState = {
+            version: 1,
+            exercises: Array.isArray(legacyExercises) ? legacyExercises : [],
+            sessions: Array.isArray(legacySessions) ? legacySessions : [],
+            pbs: legacyPBs && typeof legacyPBs === "object" ? legacyPBs : {},
+          };
+
+          localStorage.setItem(THEGYM_STATE_KEY, JSON.stringify(migratedState));
+          localStorage.removeItem(THEGYM_LEGACY_KEYS.exercises);
+          localStorage.removeItem(THEGYM_LEGACY_KEYS.sessions);
+          localStorage.removeItem(THEGYM_LEGACY_KEYS.pbs);
+        } catch {}
+      };
 
       const requestConfirmation = ({ title, message, confirmText }) => {
         if (!confirmDialog || typeof confirmDialog.showModal !== "function") {
@@ -1536,6 +1594,7 @@
         backupWarning.hidden = true;
       });
 
+      migrateTheGymLegacyState();
       renderExportList();
       renderAppNav().then(checkBackupWarning);
 

@@ -1,0 +1,1910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TheGym — Stay Sharp</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg:        #0d0d0d;
+    --surface:   #161616;
+    --border:    #2a2a2a;
+    --border-hi: #3d3d3d;
+    --text:      #d4d0c8;
+    --muted:     #6b6860;
+    --accent:    #e8b84b;
+    --accent-dim:#7a5f1e;
+    --red:       #c0392b;
+    --green:     #27ae60;
+    --blue:      #2980b9;
+    --mono:      'IBM Plex Mono', monospace;
+    --sans:      'IBM Plex Sans', sans-serif;
+    --display:   'Bebas Neue', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── NOISE TEXTURE ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 1000; opacity: .4;
+  }
+
+  /* ── HEADER ── */
+  header {
+    border-bottom: 2px solid var(--accent);
+    padding: 0 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 56px;
+    background: var(--surface);
+  }
+  .logo {
+    font-family: var(--display);
+    font-size: 28px;
+    letter-spacing: 3px;
+    color: var(--accent);
+  }
+  .logo span { color: var(--muted); font-size: 13px; font-family: var(--mono); letter-spacing: 1px; margin-left: 12px; }
+  .header-actions { display: flex; gap: 8px; }
+
+  /* ── BUTTONS ── */
+  button {
+    font-family: var(--mono);
+    font-size: 12px;
+    cursor: pointer;
+    border: 1px solid var(--border-hi);
+    background: var(--surface);
+    color: var(--text);
+    padding: 6px 14px;
+    letter-spacing: .5px;
+    transition: all .15s;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+  button.primary:hover { background: #f0c860; }
+  button.danger { border-color: var(--red); color: var(--red); }
+  button.danger:hover { background: var(--red); color: #fff; }
+  button.success { border-color: var(--green); color: var(--green); }
+  button.success:hover { background: var(--green); color: #fff; }
+  button:disabled { opacity: .35; cursor: not-allowed; }
+
+  /* ── NAV TABS ── */
+  .nav {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    background: var(--surface);
+  }
+  .nav-tab {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 14px 18px;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all .15s;
+    user-select: none;
+  }
+  .nav-tab:hover { color: var(--text); }
+  .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── LAYOUT ── */
+  .main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ── SECTION HEADERS ── */
+  .section-title {
+    font-family: var(--display);
+    font-size: 22px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .section-sub {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: .5px;
+    margin-bottom: 20px;
+  }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .card-title {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: .5px;
+  }
+  .tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 8px;
+    border: 1px solid var(--border-hi);
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .tag.transcription { border-color: var(--blue); color: var(--blue); }
+  .tag.debug { border-color: var(--red); color: var(--red); }
+  .tag.flashcard { border-color: var(--green); color: var(--green); }
+  .tag.circuit { border-color: #9b59b6; color: #9b59b6; }
+
+  /* ── FORMS ── */
+  label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: .5px;
+    margin-bottom: 6px;
+    margin-top: 14px;
+  }
+  label:first-child { margin-top: 0; }
+  input[type=text], input[type=number], textarea, select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 8px 10px;
+    outline: none;
+    transition: border-color .15s;
+    resize: vertical;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+  select option { background: var(--bg); }
+
+  /* ── DASHBOARD STATS ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    margin-bottom: 24px;
+    border: 1px solid var(--border);
+  }
+  .stat-box {
+    background: var(--surface);
+    padding: 20px;
+    text-align: center;
+  }
+  .stat-num {
+    font-family: var(--display);
+    font-size: 42px;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  /* ── EXERCISE LIST ── */
+  .exercise-list { display: flex; flex-direction: column; gap: 2px; }
+  .exercise-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 14px 16px;
+    display: flex; align-items: center; gap: 12px;
+    cursor: pointer;
+    transition: border-color .15s;
+  }
+  .exercise-row:hover { border-color: var(--accent); }
+  .exercise-row .ex-name { flex: 1; font-size: 13px; }
+  .exercise-row .ex-meta { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .exercise-row .ex-pb {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  .row-actions {
+    display: flex; gap: 4px; opacity: 0; transition: opacity .15s; flex-shrink: 0;
+  }
+  .exercise-row:hover .row-actions { opacity: 1; }
+  .row-actions button { padding: 3px 8px; font-size: 10px; }
+  .empty-state {
+    text-align: center;
+    padding: 48px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    border: 1px dashed var(--border);
+  }
+
+  /* ── WORKOUT VIEW ── */
+  .workout-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .workout-meta { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .workout-title { font-family: var(--display); font-size: 28px; letter-spacing: 2px; }
+
+  .split-pane {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    background: var(--border);
+    margin-bottom: 16px;
+  }
+  .pane {
+    background: var(--surface);
+    display: flex; flex-direction: column;
+  }
+  .pane-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .pane pre, .pane textarea {
+    flex: 1;
+    padding: 16px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    overflow: auto;
+    min-height: 280px;
+    resize: none;
+    outline: none;
+    white-space: pre;
+  }
+  .pane pre { color: var(--text); }
+  .pane textarea.correct { color: var(--green); }
+  .pane textarea.incorrect { color: var(--red); }
+
+  /* stack trace pane */
+  .trace-box {
+    background: #1a0a0a;
+    border-top: 2px solid var(--red);
+    padding: 14px 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: #e07070;
+    white-space: pre-wrap;
+    max-height: 180px;
+    overflow-y: auto;
+    line-height: 1.6;
+  }
+
+  /* flashcard question display */
+  .flashcard-hint {
+    font-family: var(--mono); font-size: 10px; color: var(--muted);
+    text-align: center; margin-bottom: 16px;
+  }
+
+  /* result badge */
+  .result-bar {
+    padding: 12px 16px;
+    font-family: var(--mono);
+    font-size: 13px;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .result-bar.pass { background: #0a1a0f; border: 1px solid var(--green); color: var(--green); }
+  .result-bar.fail { background: #1a0a0a; border: 1px solid var(--red); color: var(--red); }
+  .result-bar.info { background: #0a0f1a; border: 1px solid var(--blue); color: #5da8e0; }
+
+  /* timer */
+  .timer {
+    font-family: var(--display);
+    font-size: 36px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    padding: 0 4px;
+  }
+  .timer.warning { color: var(--red); }
+
+  /* progress bar */
+  .progress-wrap { background: var(--border); height: 3px; margin-bottom: 20px; }
+  .progress-fill { height: 3px; background: var(--accent); transition: width .3s; }
+
+  /* ── EDITOR FORM ── */
+  .editor-form { max-width: 760px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .actions { display: flex; gap: 8px; margin-top: 20px; }
+
+  /* ── DATA MGMT ── */
+  .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 20px; }
+  .data-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 20px;
+  }
+  .data-card h3 { font-family: var(--mono); font-size: 12px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; margin-bottom: 10px; }
+  .data-card p { font-size: 12px; color: var(--muted); line-height: 1.6; margin-bottom: 14px; }
+
+  /* modal */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.8); z-index: 500;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    padding: 28px;
+    max-width: 520px; width: 90%;
+  }
+  .modal h2 { font-family: var(--display); font-size: 22px; letter-spacing: 2px; color: var(--accent); margin-bottom: 12px; }
+  .modal p { font-size: 13px; line-height: 1.7; color: var(--muted); margin-bottom: 16px; }
+  .modal .actions { justify-content: flex-end; }
+
+  /* pb badge */
+  .pb-badge {
+    display: inline-block;
+    font-family: var(--mono); font-size: 10px;
+    background: var(--accent); color: #000;
+    padding: 1px 6px; letter-spacing: 1px;
+    font-weight: 700; margin-left: 8px;
+  }
+
+  /* ── MULTIPLE CHOICE FLASHCARD ── */
+  .mc-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  @media (max-width: 600px) { .mc-options { grid-template-columns: 1fr; } }
+  .mc-btn {
+    background: var(--surface); border: 1px solid var(--border-hi);
+    color: var(--text); font-family: var(--mono); font-size: 12px;
+    padding: 14px 16px; text-align: left; cursor: pointer;
+    transition: all .15s; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+  }
+  .mc-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .mc-btn.correct-choice { background: #0a1a0f; border-color: var(--green); color: var(--green); }
+  .mc-btn.wrong-choice { background: #1a0a0a; border-color: var(--red); color: var(--red); opacity: .55; }
+  .mc-btn:disabled { cursor: default; }
+
+  /* ── CIRCUIT ── */
+  .circuit-banner {
+    background: #150d1e; border: 1px solid #7d3c98;
+    padding: 10px 16px; font-family: var(--mono); font-size: 11px;
+    color: #c39bd3; margin-bottom: 12px; letter-spacing: .5px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .circuit-ex-list { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; max-height: 340px; overflow-y: auto; }
+  .circuit-ex-item {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--bg); border: 1px solid var(--border);
+    padding: 8px 12px; cursor: pointer; transition: border-color .15s; user-select: none;
+  }
+  .circuit-ex-item:hover { border-color: var(--border-hi); }
+  .circuit-ex-item.selected { border-color: var(--accent); background: #1a1508; }
+  .circuit-ex-item input[type=checkbox] { accent-color: var(--accent); flex-shrink: 0; width: 14px; height: 14px; }
+  .circuit-ex-item .cex-name { flex: 1; font-size: 12px; }
+  .circuit-order-list { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; }
+  .circuit-order-item {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg); border: 1px solid var(--border-hi); padding: 8px 12px;
+  }
+  .circuit-order-item .ex-label { flex: 1; font-family: var(--mono); font-size: 12px; }
+  .circuit-order-item .move-btns { display: flex; gap: 3px; }
+  .circuit-order-item .move-btns button { padding: 2px 7px; font-size: 10px; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border-hi); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  .hidden { display: none !important; }
+  .flex { display: flex; }
+  .gap8 { gap: 8px; }
+  .mt8 { margin-top: 8px; }
+  .mt16 { margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="flex" style="align-items:baseline;gap:0">
+    <span class="logo">TheGym <span>// stay sharp</span></span>
+  </div>
+  <div class="header-actions">
+    <button onclick="showView('data')">⚙ Data</button>
+    <button class="primary" onclick="showView('editor')">+ New Exercise</button>
+  </div>
+</header>
+
+<nav class="nav">
+  <div class="nav-tab active" data-view="dashboard" onclick="showView('dashboard')">Dashboard</div>
+  <div class="nav-tab" data-view="exercises" onclick="showView('exercises')">Exercises</div>
+  <div class="nav-tab" data-view="workout" onclick="showView('workout')">Workout</div>
+  <div class="nav-tab" data-view="editor" onclick="showView('editor')">Editor</div>
+  <div class="nav-tab" data-view="data" onclick="showView('data')">Data</div>
+</nav>
+
+<div class="main">
+
+  <!-- ══════════════ DASHBOARD ══════════════ -->
+  <div id="view-dashboard" class="view active">
+    <div class="section-title">DASHBOARD</div>
+    <div class="section-sub">// your training summary</div>
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-num" id="stat-exercises">0</div>
+        <div class="stat-label">Exercises</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" id="stat-sessions">0</div>
+        <div class="stat-label">Sessions</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" id="stat-reps">0</div>
+        <div class="stat-label">Total Reps</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" id="stat-pbs">0</div>
+        <div class="stat-label">Personal Bests</div>
+      </div>
+    </div>
+
+    <div class="section-title" style="font-size:16px;margin-bottom:8px">RECENT ACTIVITY</div>
+    <div id="recent-list" class="exercise-list">
+      <div class="empty-state">No sessions yet. Start a workout to begin tracking.</div>
+    </div>
+
+    <div style="margin-top:24px">
+      <button class="primary" onclick="showView('workout')" style="padding:10px 28px;font-size:13px">▶ START WORKOUT</button>
+    </div>
+  </div>
+
+  <!-- ══════════════ EXERCISES ══════════════ -->
+  <div id="view-exercises" class="view">
+    <div class="section-title">EXERCISES</div>
+    <div class="section-sub">// your exercise library</div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <button onclick="filterExercises('all')" id="filter-all" class="primary">ALL</button>
+      <button onclick="filterExercises('transcription')" id="filter-transcription">TRANSCRIPTION</button>
+      <button onclick="filterExercises('debug')" id="filter-debug">DEBUG</button>
+      <button onclick="filterExercises('flashcard')" id="filter-flashcard">FLASHCARD</button>
+      <button onclick="filterExercises('circuit')" id="filter-circuit">CIRCUIT</button>
+    </div>
+    <div id="exercise-list" class="exercise-list">
+      <div class="empty-state">No exercises yet. Create your first exercise to get started.</div>
+    </div>
+  </div>
+
+  <!-- ══════════════ WORKOUT ══════════════ -->
+  <div id="view-workout" class="view">
+    <!-- exercise picker -->
+    <div id="workout-picker">
+      <div class="section-title">WORKOUT</div>
+      <div class="section-sub">// select exercises to train</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+        <button onclick="startWorkout('all')" class="primary">TRAIN ALL</button>
+        <button onclick="startWorkout('transcription')">TRANSCRIPTION</button>
+        <button onclick="startWorkout('debug')">DEBUG</button>
+        <button onclick="startWorkout('flashcard')">FLASHCARD</button>
+        <button onclick="startWorkout('circuit-all')" style="border-color:#9b59b6;color:#9b59b6">ALL CIRCUITS</button>
+      </div>
+      <div id="workout-exercise-list" class="exercise-list">
+        <div class="empty-state">No exercises available. Add some in the Editor tab.</div>
+      </div>
+    </div>
+
+    <!-- active workout -->
+    <div id="workout-active" class="hidden">
+      <div class="workout-header">
+        <div>
+          <div class="workout-meta" id="workout-progress-label">Exercise 1 of 1</div>
+          <div class="workout-title" id="workout-title">—</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="timer" id="workout-timer">0:00</div>
+          <button onclick="endWorkout()">QUIT</button>
+        </div>
+      </div>
+      <div class="progress-wrap"><div class="progress-fill" id="workout-progress-fill" style="width:0%"></div></div>
+
+      <!-- circuit context banner (shared across exercise types) -->
+      <div id="workout-circuit-banner" class="circuit-banner hidden"></div>
+
+      <!-- TRANSCRIPTION exercise -->
+      <div id="ex-transcription" class="hidden">
+        <div class="split-pane">
+          <div class="pane">
+            <div class="pane-label">// reference — read this</div>
+            <pre id="trans-reference"></pre>
+          </div>
+          <div class="pane">
+            <div class="pane-label">// your input — type it exactly</div>
+            <textarea id="trans-input" spellcheck="false" autocorrect="off" autocapitalize="off" placeholder="Start typing..."></textarea>
+          </div>
+        </div>
+        <div id="trans-result" class="hidden"></div>
+        <div style="display:flex;gap:8px">
+          <button class="primary" onclick="checkTranscription()">CHECK</button>
+          <button onclick="skipExercise()">SKIP</button>
+        </div>
+      </div>
+
+      <!-- DEBUG exercise -->
+      <div id="ex-debug" class="hidden">
+        <div class="card" style="margin-bottom:12px">
+          <div class="pane-label" style="border:none;padding:0;margin-bottom:10px">// broken code</div>
+          <textarea id="debug-code" spellcheck="false" autocorrect="off" autocapitalize="off" style="min-height:200px;width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:13px;padding:12px;resize:vertical;outline:none;line-height:1.7"></textarea>
+        </div>
+        <div class="trace-box" id="debug-trace"></div>
+        <div id="debug-result" class="hidden" style="margin-top:12px"></div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="primary" onclick="checkDebug()">▶ RUN</button>
+          <button onclick="resetDebug()">RESET</button>
+          <button onclick="skipExercise()">SKIP</button>
+        </div>
+      </div>
+
+      <!-- FLASHCARD exercise -->
+      <div id="ex-flashcard" class="hidden">
+        <!-- question -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="pane-label" style="border:none;padding:0;margin-bottom:10px">// Question</div>
+          <div id="fc-question" style="font-size:16px;line-height:1.6;padding:4px 0"></div>
+        </div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:10px">// SELECT THE CORRECT ANSWER</div>
+        <div class="mc-options" id="fc-mc-options"></div>
+        <div style="display:flex;gap:8px"><button onclick="skipExercise()">SKIP</button></div>
+      </div>
+    </div>
+
+    <!-- workout complete -->
+    <div id="workout-complete" class="hidden">
+      <div class="section-title">SESSION COMPLETE</div>
+      <div class="section-sub">// results</div>
+      <div class="stats-grid" id="workout-results-grid"></div>
+      <div id="pb-announcements" style="margin-bottom:20px"></div>
+      <button class="primary" onclick="showView('dashboard')">BACK TO DASHBOARD</button>
+    </div>
+  </div>
+
+  <!-- ══════════════ EDITOR ══════════════ -->
+  <div id="view-editor" class="view">
+    <div class="section-title" id="editor-title">NEW EXERCISE</div>
+    <div class="section-sub">// create or edit an exercise</div>
+
+    <div class="editor-form">
+      <input type="hidden" id="edit-id">
+
+      <label>EXERCISE TYPE</label>
+      <select id="edit-type" onchange="updateEditorFields()">
+        <option value="transcription">Transcription — retype code exactly</option>
+        <option value="debug">Debug — fix code given a stack trace</option>
+        <option value="flashcard">Flashcard — multiple choice / recall</option>
+        <option value="circuit">Circuit — grouped sequence of exercises</option>
+      </select>
+
+      <label>NAME</label>
+      <input type="text" id="edit-name" placeholder="e.g. Python list comprehension, OSI model layers">
+
+      <label>TAGS (comma separated)</label>
+      <input type="text" id="edit-tags" placeholder="python, algorithms, networking">
+
+      <!-- transcription fields -->
+      <div id="fields-transcription">
+        <label>CODE TO TRANSCRIBE</label>
+        <textarea id="edit-code" rows="12" spellcheck="false" placeholder="Paste the reference code here..."></textarea>
+        <label>NOTES / EXPLANATION (optional)</label>
+        <textarea id="edit-notes" rows="3" placeholder="What does this code demonstrate?"></textarea>
+      </div>
+
+      <!-- debug fields -->
+      <div id="fields-debug" class="hidden">
+        <label>BROKEN CODE (what the user will edit)</label>
+        <textarea id="edit-broken" rows="10" spellcheck="false" placeholder="Paste the broken code here..."></textarea>
+        <label>CORRECT CODE (used to check the answer)</label>
+        <textarea id="edit-correct" rows="10" spellcheck="false" placeholder="Paste the correct version here..."></textarea>
+        <label>STACK TRACE / ERROR MESSAGE</label>
+        <textarea id="edit-trace" rows="5" spellcheck="false" placeholder="Paste the error / stack trace here..."></textarea>
+        <label>NOTES / EXPLANATION (optional)</label>
+        <textarea id="edit-debug-notes" rows="3" placeholder="What was the bug?"></textarea>
+      </div>
+
+      <!-- flashcard fields -->
+      <div id="fields-flashcard" class="hidden">
+        <label>QUESTION / PROMPT</label>
+        <textarea id="edit-question" rows="4" placeholder="What are the 7 layers of the OSI model?"></textarea>
+        <label>CORRECT ANSWER</label>
+        <textarea id="edit-answer" rows="3" placeholder="The right answer"></textarea>
+        <label>WRONG ANSWER 1 <span style="color:var(--muted);font-weight:400">— plausible distractor</span></label>
+        <textarea id="edit-wrong-1" rows="3" placeholder="A convincing wrong answer"></textarea>
+        <label>WRONG ANSWER 2</label>
+        <textarea id="edit-wrong-2" rows="3" placeholder="Another convincing wrong answer"></textarea>
+        <label>WRONG ANSWER 3</label>
+        <textarea id="edit-wrong-3" rows="3" placeholder="Another convincing wrong answer"></textarea>
+        <label>CATEGORY</label>
+        <input type="text" id="edit-category" placeholder="networking, python, linux, ...">
+      </div>
+
+      <!-- circuit fields -->
+      <div id="fields-circuit" class="hidden">
+        <label>DESCRIPTION (optional)</label>
+        <textarea id="edit-circuit-desc" rows="2" placeholder="What is this circuit for?"></textarea>
+        <label>EXERCISES IN CIRCUIT <span style="color:var(--muted);font-weight:400">(click to add/remove · use ↑↓ to reorder)</span></label>
+        <div class="circuit-ex-list" id="circuit-available-list"></div>
+        <div id="circuit-order-section" class="hidden" style="margin-top:14px">
+          <label style="margin-top:0">CIRCUIT ORDER</label>
+          <div class="circuit-order-list" id="circuit-order-list"></div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="primary" onclick="saveExercise()">SAVE EXERCISE</button>
+        <button onclick="clearEditor()">CLEAR</button>
+        <button class="danger hidden" id="btn-delete" onclick="deleteExercise()">DELETE</button>
+      </div>
+      <div id="editor-msg" style="margin-top:12px;font-family:var(--mono);font-size:12px"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════ DATA ══════════════ -->
+  <div id="view-data" class="view">
+    <div class="section-title">DATA</div>
+    <div class="section-sub">// your data lives here, in your browser</div>
+
+    <div class="card" style="max-width:600px">
+      <div style="font-family:var(--mono);font-size:12px;color:var(--muted);line-height:1.8">
+        All exercise data and session history is stored exclusively in your browser's localStorage.
+        Nothing leaves your machine unless you explicitly export it. Use the controls below to
+        back up, restore, or transfer your library.
+      </div>
+    </div>
+
+    <div class="data-grid">
+      <div class="data-card">
+        <h3>Export</h3>
+        <p>Download a full backup of all exercises and session history as JSON.</p>
+        <button class="primary" onclick="exportData()">↓ EXPORT JSON</button>
+      </div>
+      <div class="data-card">
+        <h3>Import</h3>
+        <p>Restore from a backup or merge in exercises from another device.</p>
+        <button onclick="document.getElementById('import-file').click()">↑ IMPORT JSON</button>
+        <input type="file" id="import-file" accept=".json" class="hidden" onchange="importData(event)">
+      </div>
+      <div class="data-card">
+        <h3>Export Exercises Only</h3>
+        <p>Share your exercise library without session history or personal bests.</p>
+        <button onclick="exportExercisesOnly()">↓ EXPORT EXERCISES</button>
+      </div>
+      <div class="data-card">
+        <h3>Clear All Data</h3>
+        <p>Permanently delete all exercises and history. Export a backup first.</p>
+        <button class="danger" onclick="confirmClearAll()">✕ CLEAR ALL</button>
+      </div>
+    </div>
+
+    <div style="margin-top:24px">
+      <div class="section-title" style="font-size:16px;margin-bottom:8px">STORAGE USAGE</div>
+      <div id="storage-info" style="font-family:var(--mono);font-size:12px;color:var(--muted)">Calculating...</div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- ══ MODAL ══ -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h2 id="modal-title">Confirm</h2>
+    <p id="modal-body"></p>
+    <div class="actions">
+      <button onclick="closeModal()">CANCEL</button>
+      <button class="danger" id="modal-confirm">CONFIRM</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// STORAGE
+// ══════════════════════════════════════════
+const DB = {
+  KEY_STATE: 'webutils.thegym.v1',
+  KEY_CORRUPT_BACKUP: 'webutils.thegym.corrupt.v1',
+  LEGACY_KEYS: {
+    exercises: 'thegym_exercises',
+    sessions: 'thegym_sessions',
+    pbs: 'thegym_pbs'
+  },
+  _recoveryNotified: false,
+
+  defaultState() {
+    return { version: 1, exercises: [], sessions: [], pbs: {} };
+  },
+  safeParse(raw, fallback) {
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : fallback;
+    } catch {
+      return fallback;
+    }
+  },
+  makeExerciseId(ex) {
+    if (ex && typeof ex.id === 'string' && ex.id.trim()) return ex.id.trim();
+    return 'ex_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  },
+  makeSessionId(s) {
+    if (s && typeof s.id === 'string' && s.id.trim()) return s.id.trim();
+    const parts = [
+      s && s.exerciseId ? s.exerciseId : 'unknown',
+      s && s.type ? s.type : 'unknown',
+      s && Number.isFinite(Number(s.ts)) ? Number(s.ts) : 0,
+      s && Number.isFinite(Number(s.score)) ? Number(s.score) : 'na',
+      s && Number.isFinite(Number(s.time)) ? Number(s.time) : 'na',
+      s && s.skipped ? 1 : 0
+    ];
+    return 'sess_' + parts.join('_');
+  },
+  normalizeExercise(ex) {
+    if (!ex || typeof ex !== 'object') return null;
+    const normalized = { ...ex };
+    normalized.id = this.makeExerciseId(ex);
+    normalized.type = ['transcription', 'debug', 'flashcard', 'circuit'].includes(ex.type) ? ex.type : 'transcription';
+    if (ex.type === 'circuit') {
+      normalized.exerciseIds = Array.isArray(ex.exerciseIds) ? ex.exerciseIds.filter(id => typeof id === 'string' && id.trim()) : [];
+      normalized.desc = typeof ex.desc === 'string' ? ex.desc : '';
+    }
+    normalized.name = typeof ex.name === 'string' ? ex.name.trim() : '';
+    normalized.tags = Array.isArray(ex.tags) ? ex.tags.map(t => String(t).trim()).filter(Boolean) : [];
+    normalized.created = Number.isFinite(Number(ex.created)) ? Number(ex.created) : Date.now();
+    return normalized.name ? normalized : null;
+  },
+  normalizeSession(session) {
+    if (!session || typeof session !== 'object') return null;
+    const normalized = { ...session };
+    normalized.id = this.makeSessionId(session);
+    normalized.exerciseId = typeof session.exerciseId === 'string' ? session.exerciseId : '';
+    normalized.type = typeof session.type === 'string' ? session.type : 'transcription';
+    normalized.ts = Number.isFinite(Number(session.ts)) ? Number(session.ts) : Date.now();
+    normalized.reps = Number.isFinite(Number(session.reps)) ? Number(session.reps) : 0;
+    if (session.score !== undefined) {
+      const score = Number(session.score);
+      if (Number.isFinite(score)) normalized.score = score;
+    }
+    if (session.time !== undefined) {
+      const time = Number(session.time);
+      if (Number.isFinite(time) && time >= 0) normalized.time = time;
+    }
+    if (session.skipped) normalized.skipped = true;
+    return normalized.exerciseId ? normalized : null;
+  },
+  normalizePBs(rawPBs) {
+    const result = {};
+    if (!rawPBs || typeof rawPBs !== 'object') return result;
+    Object.entries(rawPBs).forEach(([exerciseId, value]) => {
+      if (!exerciseId || !value || typeof value !== 'object') return;
+      const next = {};
+      if (Number.isFinite(Number(value.bestTime)) && Number(value.bestTime) >= 0) {
+        next.bestTime = Number(value.bestTime);
+      }
+      if (Number.isFinite(Number(value.score))) {
+        next.score = Number(value.score);
+      }
+      if (Object.keys(next).length) result[exerciseId] = next;
+    });
+    return result;
+  },
+  normalizeState(rawState) {
+    const state = this.defaultState();
+    if (!rawState || typeof rawState !== 'object') return state;
+    const exercises = Array.isArray(rawState.exercises) ? rawState.exercises : [];
+    const sessions = Array.isArray(rawState.sessions) ? rawState.sessions : [];
+    state.exercises = exercises.map(ex => this.normalizeExercise(ex)).filter(Boolean);
+    state.sessions = sessions
+      .map(s => this.normalizeSession(s))
+      .filter(Boolean)
+      .sort((a, b) => b.ts - a.ts)
+      .slice(0, 200);
+    state.pbs = this.normalizePBs(rawState.pbs);
+    return state;
+  },
+  migrateLegacy() {
+    const legacyExercises = this.safeParse(localStorage.getItem(this.LEGACY_KEYS.exercises), []);
+    const legacySessions = this.safeParse(localStorage.getItem(this.LEGACY_KEYS.sessions), []);
+    const legacyPBs = this.safeParse(localStorage.getItem(this.LEGACY_KEYS.pbs), {});
+    const hasLegacy =
+      (Array.isArray(legacyExercises) && legacyExercises.length > 0) ||
+      (Array.isArray(legacySessions) && legacySessions.length > 0) ||
+      (legacyPBs && typeof legacyPBs === 'object' && Object.keys(legacyPBs).length > 0);
+    if (!hasLegacy) return this.defaultState();
+
+    const migrated = this.normalizeState({
+      version: 1,
+      exercises: legacyExercises,
+      sessions: legacySessions,
+      pbs: legacyPBs
+    });
+    this.saveState(migrated);
+    localStorage.removeItem(this.LEGACY_KEYS.exercises);
+    localStorage.removeItem(this.LEGACY_KEYS.sessions);
+    localStorage.removeItem(this.LEGACY_KEYS.pbs);
+    return migrated;
+  },
+  hasLegacyData() {
+    const legacyExercises = this.safeParse(localStorage.getItem(this.LEGACY_KEYS.exercises), []);
+    const legacySessions = this.safeParse(localStorage.getItem(this.LEGACY_KEYS.sessions), []);
+    const legacyPBs = this.safeParse(localStorage.getItem(this.LEGACY_KEYS.pbs), {});
+    return (
+      (Array.isArray(legacyExercises) && legacyExercises.length > 0) ||
+      (Array.isArray(legacySessions) && legacySessions.length > 0) ||
+      (legacyPBs && typeof legacyPBs === 'object' && Object.keys(legacyPBs).length > 0)
+    );
+  },
+  notifyRecovery(message) {
+    if (this._recoveryNotified) return;
+    this._recoveryNotified = true;
+    setTimeout(() => {
+      alert(message);
+    }, 0);
+  },
+  recoverFromCorruptState(raw) {
+    try {
+      localStorage.setItem(this.KEY_CORRUPT_BACKUP, raw);
+      localStorage.removeItem(this.KEY_STATE);
+    } catch {}
+
+    if (this.hasLegacyData()) {
+      const migrated = this.migrateLegacy();
+      this.notifyRecovery('TheGym detected corrupted current data and recovered from legacy keys. Please verify your data and consider restoring from a recent backup.');
+      return migrated;
+    }
+
+    const fallback = this.defaultState();
+    this.saveState(fallback);
+    this.notifyRecovery('TheGym detected corrupted saved data and reset to a safe default. You may want to restore from a recent backup.');
+    return fallback;
+  },
+  getState() {
+    const raw = localStorage.getItem(this.KEY_STATE);
+    if (!raw) return this.migrateLegacy();
+    const parsed = this.safeParse(raw, null);
+    if (!parsed) return this.recoverFromCorruptState(raw);
+    return this.normalizeState(parsed);
+  },
+  saveState(state) {
+    localStorage.setItem(this.KEY_STATE, JSON.stringify(this.normalizeState(state)));
+  },
+  getExercises() {
+    return this.getState().exercises;
+  },
+  saveExercises(list) {
+    const state = this.getState();
+    state.exercises = Array.isArray(list) ? list.map(ex => this.normalizeExercise(ex)).filter(Boolean) : [];
+    this.saveState(state);
+  },
+  upsertExercises(list) {
+    if (!Array.isArray(list)) return;
+    const state = this.getState();
+    const byId = new Map(state.exercises.map(ex => [ex.id, ex]));
+    list.forEach(item => {
+      const normalized = this.normalizeExercise(item);
+      if (!normalized) return;
+      byId.set(normalized.id, normalized);
+    });
+    state.exercises = Array.from(byId.values());
+    this.saveState(state);
+  },
+  getSessions() {
+    return this.getState().sessions;
+  },
+  saveSessions(list) {
+    const state = this.getState();
+    state.sessions = (Array.isArray(list) ? list : [])
+      .map(s => this.normalizeSession(s))
+      .filter(Boolean)
+      .sort((a, b) => b.ts - a.ts)
+      .slice(0, 200);
+    this.saveState(state);
+  },
+  upsertSessions(list) {
+    if (!Array.isArray(list)) return;
+    const state = this.getState();
+    const byId = new Map(state.sessions.map(s => [s.id, s]));
+    list.forEach(item => {
+      const normalized = this.normalizeSession(item);
+      if (!normalized) return;
+      byId.set(normalized.id, normalized);
+    });
+    state.sessions = Array.from(byId.values())
+      .sort((a, b) => b.ts - a.ts)
+      .slice(0, 200);
+    this.saveState(state);
+  },
+  getPBs() {
+    return this.getState().pbs;
+  },
+  savePBs(pbs) {
+    const state = this.getState();
+    state.pbs = this.normalizePBs(pbs);
+    this.saveState(state);
+  },
+  upsertPBs(rawPBs) {
+    if (!rawPBs || typeof rawPBs !== 'object') return;
+    const state = this.getState();
+    const incoming = this.normalizePBs(rawPBs);
+    Object.entries(incoming).forEach(([exerciseId, value]) => {
+      if (!state.pbs[exerciseId]) state.pbs[exerciseId] = {};
+      if (Number.isFinite(value.bestTime) &&
+        (state.pbs[exerciseId].bestTime === undefined || value.bestTime < state.pbs[exerciseId].bestTime)) {
+        state.pbs[exerciseId].bestTime = value.bestTime;
+      }
+      if (Number.isFinite(value.score) &&
+        (state.pbs[exerciseId].score === undefined || value.score > state.pbs[exerciseId].score)) {
+        state.pbs[exerciseId].score = value.score;
+      }
+    });
+    this.saveState(state);
+  },
+  recordSession(session) {
+    const complete = { ...session, id: this.makeSessionId({ ...session, id: session.id || '' }) };
+    this.upsertSessions([complete]);
+  },
+  updatePB(exerciseId, type, value) {
+    // Returns true if this is a new PB
+    const pbs = this.getPBs();
+    if (!pbs[exerciseId]) pbs[exerciseId] = {};
+    const current = pbs[exerciseId][type];
+    let isNew = false;
+    // for time: lower is better. for score: higher is better.
+    if (type === 'bestTime') {
+      if (current === undefined || value < current) { pbs[exerciseId][type] = value; isNew = true; }
+    } else {
+      if (current === undefined || value > current) { pbs[exerciseId][type] = value; isNew = true; }
+    }
+    this.savePBs(pbs);
+    return isNew;
+  }
+};
+
+// ══════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  const tab = document.querySelector(`[data-view="${name}"]`);
+  if (tab) tab.classList.add('active');
+
+  if (name === 'dashboard') renderDashboard();
+  if (name === 'exercises') renderExerciseList();
+  if (name === 'workout') {
+    renderWorkoutPicker();
+    const activeVisible = !document.getElementById('workout-active').classList.contains('hidden');
+    if (!activeVisible) {
+      document.getElementById('workout-picker').classList.remove('hidden');
+      document.getElementById('workout-complete').classList.add('hidden');
+    }
+  }
+  if (name === 'data')      renderStorageInfo();
+  if (name === 'editor' && !document.getElementById('edit-id').value) clearEditor();
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function normalizeExerciseType(type) {
+  return ['transcription', 'debug', 'flashcard', 'circuit'].includes(type) ? type : 'transcription';
+}
+
+function setWorkoutActionButtonsDisabled(disabled) {
+  ['#ex-transcription button', '#ex-debug button', '#ex-flashcard button'].forEach(selector => {
+    document.querySelectorAll(selector).forEach(btn => {
+      btn.disabled = disabled;
+    });
+  });
+}
+
+// ══════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════
+function renderDashboard() {
+  const exercises = DB.getExercises();
+  const sessions  = DB.getSessions();
+  const pbs       = DB.getPBs();
+
+  document.getElementById('stat-exercises').textContent = exercises.length;
+  document.getElementById('stat-sessions').textContent  = sessions.length;
+  document.getElementById('stat-reps').textContent =
+    sessions.reduce((a, s) => a + (s.reps || 0), 0);
+  document.getElementById('stat-pbs').textContent =
+    Object.values(pbs).reduce((a, ex) => a + Object.keys(ex).length, 0);
+
+  const container = document.getElementById('recent-list');
+  if (!sessions.length) {
+    container.innerHTML = '<div class="empty-state">No sessions yet. Start a workout to begin tracking.</div>';
+    return;
+  }
+  container.innerHTML = sessions.slice(0, 8).map(s => {
+    const ex = exercises.find(e => e.id === s.exerciseId);
+    const safeType = normalizeExerciseType(s.type);
+    const clickable = ex ? `data-action="repeat" data-id="${escapeHtml(ex.id)}" data-type="${escapeHtml(ex.type)}" style="cursor:pointer" title="Click to run again"` : '';
+    return `<div class="exercise-row" ${clickable}>
+      <span class="tag ${safeType}">${escapeHtml(safeType)}</span>
+      <span class="ex-name">${escapeHtml(ex ? ex.name : '(deleted)')}</span>
+      <span class="ex-meta">${new Date(s.ts).toLocaleDateString()}</span>
+      <span class="ex-pb">${s.score !== undefined ? s.score + '%' : ''} ${s.time ? fmtTime(s.time) : ''}</span>
+      ${ex ? `<span class="row-actions" onclick="event.stopPropagation()"><button onclick="editExercise('${escapeHtml(ex.id)}')">✎ Edit</button></span>` : ''}
+    </div>`;
+  }).join('');
+  container.querySelectorAll('[data-action="repeat"]').forEach(row => {
+    row.addEventListener('click', () => {
+      const type = row.dataset.type;
+      showView('workout');
+      if (type === 'circuit') startWorkout('circuit', row.dataset.id);
+      else startWorkout('single', row.dataset.id);
+    });
+  });
+}
+
+// ══════════════════════════════════════════
+// EXERCISE LIST
+// ══════════════════════════════════════════
+let currentFilter = 'all';
+function filterExercises(type) {
+  currentFilter = type;
+  document.querySelectorAll('[id^="filter-"]').forEach(b => b.classList.remove('primary'));
+  document.getElementById('filter-' + type).classList.add('primary');
+  renderExerciseList();
+}
+function renderExerciseList() {
+  const exercises = DB.getExercises();
+  const pbs = DB.getPBs();
+  const filtered = currentFilter === 'all' ? exercises : exercises.filter(e => e.type === currentFilter);
+  const container = document.getElementById('exercise-list');
+  if (!filtered.length) {
+    container.innerHTML = '<div class="empty-state">No exercises found. Add some using the Editor.</div>';
+    return;
+  }
+  container.innerHTML = filtered.map(ex => {
+    const pb = pbs[ex.id];
+    const pbStr = pb ? (pb.bestTime ? '⚡ ' + fmtTime(pb.bestTime) : pb.score !== undefined ? '⚡ ' + pb.score + '%' : '') : '';
+    const isCircuit = ex.type === 'circuit';
+    const startLabel = isCircuit ? '▶ Run' : '▶ Start';
+    return `<div class="exercise-row" data-action="start-exercise" data-id="${escapeHtml(ex.id)}" title="Click to start this exercise">
+      <span class="tag ${normalizeExerciseType(ex.type)}">${escapeHtml(ex.type)}</span>
+      <span class="ex-name">${escapeHtml(ex.name)}</span>
+      <span class="ex-meta">${isCircuit ? escapeHtml((ex.exerciseIds||[]).length + ' exercises') : escapeHtml((ex.tags || []).join(', '))}</span>
+      <span class="ex-pb">${escapeHtml(pbStr)}</span>
+      <span class="row-actions" onclick="event.stopPropagation()">
+        <button onclick="editExercise('${escapeHtml(ex.id)}')" title="Edit">✎ Edit</button>
+      </span>
+    </div>`;
+  }).join('');
+  container.querySelectorAll('[data-action="start-exercise"]').forEach(row => {
+    row.addEventListener('click', () => {
+      const ex = DB.getExercises().find(e => e.id === row.dataset.id);
+      if (!ex) return;
+      if (ex.type === 'circuit') { showView('workout'); startWorkout('circuit', ex.id); }
+      else { showView('workout'); startWorkout('single', ex.id); }
+    });
+  });
+}
+
+// ══════════════════════════════════════════
+// EDITOR
+// ══════════════════════════════════════════
+function updateEditorFields() {
+  const type = document.getElementById('edit-type').value;
+  ['transcription','debug','flashcard','circuit'].forEach(t =>
+    document.getElementById('fields-' + t).classList.toggle('hidden', t !== type));
+  if (type === 'circuit') renderCircuitPicker();
+}
+function clearEditor() {
+  document.getElementById('edit-id').value = '';
+  document.getElementById('edit-type').value = 'transcription';
+  document.getElementById('edit-name').value = '';
+  document.getElementById('edit-tags').value = '';
+  document.getElementById('edit-code').value = '';
+  document.getElementById('edit-notes').value = '';
+  document.getElementById('edit-broken').value = '';
+  document.getElementById('edit-correct').value = '';
+  document.getElementById('edit-trace').value = '';
+  document.getElementById('edit-debug-notes').value = '';
+  document.getElementById('edit-question').value = '';
+  document.getElementById('edit-answer').value = '';
+  document.getElementById('edit-wrong-1').value = '';
+  document.getElementById('edit-wrong-2').value = '';
+  document.getElementById('edit-wrong-3').value = '';
+  document.getElementById('edit-category').value = '';
+  document.getElementById('edit-circuit-desc').value = '';
+  _circuitSelectedIds = [];
+  document.getElementById('editor-title').textContent = 'NEW EXERCISE';
+  document.getElementById('btn-delete').classList.add('hidden');
+  document.getElementById('editor-msg').textContent = '';
+  updateEditorFields();
+}
+function editExercise(id) {
+  const ex = DB.getExercises().find(e => e.id === id);
+  if (!ex) return;
+  clearEditor();
+  document.getElementById('edit-id').value = ex.id;
+  document.getElementById('edit-type').value = ex.type;
+  document.getElementById('edit-name').value = ex.name;
+  document.getElementById('edit-tags').value = (ex.tags || []).join(', ');
+  updateEditorFields();
+  if (ex.type === 'transcription') {
+    document.getElementById('edit-code').value = ex.code || '';
+    document.getElementById('edit-notes').value = ex.notes || '';
+  } else if (ex.type === 'debug') {
+    document.getElementById('edit-broken').value = ex.broken || '';
+    document.getElementById('edit-correct').value = ex.correct || '';
+    document.getElementById('edit-trace').value = ex.trace || '';
+    document.getElementById('edit-debug-notes').value = ex.notes || '';
+  } else if (ex.type === 'flashcard') {
+    document.getElementById('edit-question').value = ex.question || '';
+    document.getElementById('edit-answer').value = ex.answer || '';
+    document.getElementById('edit-wrong-1').value = (ex.wrongAnswers || [])[0] || '';
+    document.getElementById('edit-wrong-2').value = (ex.wrongAnswers || [])[1] || '';
+    document.getElementById('edit-wrong-3').value = (ex.wrongAnswers || [])[2] || '';
+    document.getElementById('edit-category').value = ex.category || '';
+  } else if (ex.type === 'circuit') {
+    document.getElementById('edit-circuit-desc').value = ex.desc || '';
+    _circuitSelectedIds = Array.isArray(ex.exerciseIds) ? [...ex.exerciseIds] : [];
+    renderCircuitPicker();
+  }
+  document.getElementById('editor-title').textContent = 'EDIT EXERCISE';
+  document.getElementById('btn-delete').classList.remove('hidden');
+  showView('editor');
+}
+function saveExercise() {
+  const type = document.getElementById('edit-type').value;
+  const name = document.getElementById('edit-name').value.trim();
+  if (!name) { setEditorMsg('Name is required.', 'red'); return; }
+
+  const tags = document.getElementById('edit-tags').value
+    .split(',').map(t => t.trim()).filter(Boolean);
+
+  let ex = { type, name, tags, created: Date.now() };
+  const existingId = document.getElementById('edit-id').value;
+  if (existingId) ex.id = existingId;
+  else ex.id = 'ex_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+
+  if (type === 'transcription') {
+    ex.code  = document.getElementById('edit-code').value;
+    ex.notes = document.getElementById('edit-notes').value;
+  } else if (type === 'debug') {
+    ex.broken  = document.getElementById('edit-broken').value;
+    ex.correct = document.getElementById('edit-correct').value;
+    ex.trace   = document.getElementById('edit-trace').value;
+    ex.notes   = document.getElementById('edit-debug-notes').value;
+  } else if (type === 'flashcard') {
+    ex.question    = document.getElementById('edit-question').value;
+    ex.answer      = document.getElementById('edit-answer').value;
+    ex.wrongAnswers = [
+      document.getElementById('edit-wrong-1').value,
+      document.getElementById('edit-wrong-2').value,
+      document.getElementById('edit-wrong-3').value,
+    ].filter(s => s.trim());
+    ex.category = document.getElementById('edit-category').value.trim();
+  } else if (type === 'circuit') {
+    ex.desc        = document.getElementById('edit-circuit-desc').value;
+    ex.exerciseIds = [..._circuitSelectedIds];
+  }
+
+  const exercises = DB.getExercises();
+  const idx = exercises.findIndex(e => e.id === ex.id);
+  if (idx >= 0) exercises[idx] = ex;
+  else exercises.push(ex);
+  DB.saveExercises(exercises);
+
+  setEditorMsg('✓ Saved.', 'green');
+  document.getElementById('edit-id').value = ex.id;
+  document.getElementById('btn-delete').classList.remove('hidden');
+  document.getElementById('editor-title').textContent = 'EDIT EXERCISE';
+}
+function deleteExercise() {
+  const id = document.getElementById('edit-id').value;
+  if (!id) return;
+  openModal('Delete Exercise', 'This will permanently delete this exercise and its personal best data. History logs will remain.',
+    () => {
+      const exercises = DB.getExercises().filter(e => e.id !== id);
+      DB.saveExercises(exercises);
+      const pbs = DB.getPBs();
+      delete pbs[id];
+      DB.savePBs(pbs);
+      clearEditor();
+      setEditorMsg('Exercise deleted.', 'red');
+    });
+}
+function setEditorMsg(msg, color) {
+  const el = document.getElementById('editor-msg');
+  el.textContent = msg;
+  el.style.color = color === 'green' ? 'var(--green)' : 'var(--red)';
+  setTimeout(() => { el.textContent = ''; }, 3000);
+}
+
+// ══════════════════════════════════════════
+// CIRCUIT EDITOR
+// ══════════════════════════════════════════
+let _circuitSelectedIds = [];  // ordered list of exercise IDs for the circuit being edited
+
+function renderCircuitPicker() {
+  const allExercises = DB.getExercises().filter(e => e.type !== 'circuit');
+  const availList = document.getElementById('circuit-available-list');
+  const orderSection = document.getElementById('circuit-order-section');
+  const orderList = document.getElementById('circuit-order-list');
+
+  availList.innerHTML = allExercises.length
+    ? allExercises.map(ex => {
+        const sel = _circuitSelectedIds.includes(ex.id);
+        return `<div class="circuit-ex-item${sel ? ' selected' : ''}" data-id="${escapeHtml(ex.id)}" onclick="toggleCircuitEx('${escapeHtml(ex.id)}')">
+          <input type="checkbox" ${sel ? 'checked' : ''} tabindex="-1" onclick="event.preventDefault()">
+          <span class="tag ${normalizeExerciseType(ex.type)}" style="font-size:9px">${escapeHtml(ex.type)}</span>
+          <span class="cex-name">${escapeHtml(ex.name)}</span>
+        </div>`;
+      }).join('')
+    : '<div class="empty-state" style="padding:20px">No exercises yet — create some first.</div>';
+
+  if (_circuitSelectedIds.length) {
+    orderSection.classList.remove('hidden');
+    orderList.innerHTML = _circuitSelectedIds.map((id, i) => {
+      const ex = allExercises.find(e => e.id === id);
+      if (!ex) return '';
+      return `<div class="circuit-order-item">
+        <span class="tag ${normalizeExerciseType(ex.type)}" style="font-size:9px">${escapeHtml(ex.type)}</span>
+        <span class="ex-label">${escapeHtml(ex.name)}</span>
+        <span class="move-btns">
+          <button onclick="moveCircuitEx(${i}, -1)" ${i === 0 ? 'disabled' : ''}>↑</button>
+          <button onclick="moveCircuitEx(${i}, 1)" ${i === _circuitSelectedIds.length - 1 ? 'disabled' : ''}>↓</button>
+          <button onclick="removeCircuitEx(${i})" class="danger" style="padding:2px 7px">✕</button>
+        </span>
+      </div>`;
+    }).join('');
+  } else {
+    orderSection.classList.add('hidden');
+  }
+}
+
+function toggleCircuitEx(id) {
+  const idx = _circuitSelectedIds.indexOf(id);
+  if (idx >= 0) _circuitSelectedIds.splice(idx, 1);
+  else _circuitSelectedIds.push(id);
+  renderCircuitPicker();
+}
+function moveCircuitEx(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= _circuitSelectedIds.length) return;
+  [_circuitSelectedIds[i], _circuitSelectedIds[j]] = [_circuitSelectedIds[j], _circuitSelectedIds[i]];
+  renderCircuitPicker();
+}
+function removeCircuitEx(i) {
+  _circuitSelectedIds.splice(i, 1);
+  renderCircuitPicker();
+}
+
+// ══════════════════════════════════════════
+// WORKOUT
+// ══════════════════════════════════════════
+let workoutState = {
+  queue: [],       // expanded list of individual exercise objects (annotated with _circuitId/_circuitName if from a circuit)
+  current: 0,
+  results: [],
+  startTime: null,
+  exStartTime: null,
+  timerInterval: null,
+  locked: false,
+  circuitMap: {}   // circuitId -> { name, startIdx, endIdx }
+};
+
+function renderWorkoutPicker() {
+  const exercises = DB.getExercises();
+  const container = document.getElementById('workout-exercise-list');
+  const pbs = DB.getPBs();
+  if (!exercises.length) {
+    container.innerHTML = '<div class="empty-state">No exercises yet. Create some in the Editor.</div>';
+    return;
+  }
+  const circuits  = exercises.filter(e => e.type === 'circuit');
+  const singles   = exercises.filter(e => e.type !== 'circuit');
+
+  const renderRow = (ex, action) => {
+    const pb = pbs[ex.id];
+    const pbStr = pb ? (pb.bestTime ? '⚡ ' + fmtTime(pb.bestTime) : pb.score !== undefined ? '⚡ ' + pb.score + '%' : '') : '';
+    const isCircuit = ex.type === 'circuit';
+    return `<div class="exercise-row" data-action="${action}" data-id="${escapeHtml(ex.id)}" data-type="${escapeHtml(ex.type)}" title="Click to start">
+      <span class="tag ${normalizeExerciseType(ex.type)}">${escapeHtml(ex.type)}</span>
+      <span class="ex-name">${escapeHtml(ex.name)}</span>
+      <span class="ex-meta">${isCircuit ? (ex.exerciseIds||[]).length + ' exercises' : escapeHtml((ex.tags||[]).join(', '))}</span>
+      <span class="ex-pb">${escapeHtml(pbStr)}</span>
+    </div>`;
+  };
+
+  let html = '';
+  if (circuits.length) {
+    html += `<div style="font-family:var(--mono);font-size:10px;color:#9b59b6;letter-spacing:1px;text-transform:uppercase;padding:8px 0 4px">Circuits</div>`;
+    html += circuits.map(e => renderRow(e, 'start-item')).join('');
+    html += `<div style="height:12px"></div>`;
+  }
+  if (singles.length) {
+    if (circuits.length) html += `<div style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;padding:4px 0">Individual Exercises</div>`;
+    html += singles.map(e => renderRow(e, 'start-item')).join('');
+  }
+  container.innerHTML = html;
+
+  container.querySelectorAll('[data-action="start-item"]').forEach(row => {
+    row.addEventListener('click', () => {
+      if (row.dataset.type === 'circuit') startWorkout('circuit', row.dataset.id || '');
+      else startWorkout('single', row.dataset.id || '');
+    });
+  });
+}
+
+function expandCircuit(circuit, allExercises) {
+  const ids = Array.isArray(circuit.exerciseIds) ? circuit.exerciseIds : [];
+  return ids
+    .map(id => allExercises.find(e => e.id === id && e.type !== 'circuit'))
+    .filter(Boolean)
+    .map(ex => ({ ...ex, _circuitId: circuit.id, _circuitName: circuit.name }));
+}
+
+function startWorkout(filter, singleId) {
+  const all = DB.getExercises();
+  const nonCircuits = all.filter(e => e.type !== 'circuit');
+  const circuits    = all.filter(e => e.type === 'circuit');
+  let queue = [];
+  const circuitMap = {};
+
+  if (filter === 'single') {
+    const ex = all.find(e => e.id === singleId);
+    if (!ex) return;
+    if (ex.type === 'circuit') {
+      const expanded = expandCircuit(ex, all);
+      if (!expanded.length) return;
+      circuitMap[ex.id] = { name: ex.name, startIdx: 0, endIdx: expanded.length - 1 };
+      queue = expanded;
+    } else {
+      queue = [ex];
+    }
+  } else if (filter === 'circuit') {
+    const circuit = all.find(e => e.id === singleId && e.type === 'circuit');
+    if (!circuit) return;
+    const expanded = expandCircuit(circuit, all);
+    if (!expanded.length) return;
+    circuitMap[circuit.id] = { name: circuit.name, startIdx: 0, endIdx: expanded.length - 1 };
+    queue = expanded;
+  } else if (filter === 'circuit-all') {
+    // Run all circuits back to back
+    circuits.forEach(c => {
+      const startIdx = queue.length;
+      const expanded = expandCircuit(c, all);
+      if (!expanded.length) return;
+      circuitMap[c.id] = { name: c.name, startIdx, endIdx: startIdx + expanded.length - 1 };
+      queue.push(...expanded);
+    });
+  } else if (filter === 'all') {
+    queue = shuffle([...nonCircuits]);
+  } else {
+    queue = shuffle(nonCircuits.filter(e => e.type === filter));
+  }
+
+  if (!queue.length) return;
+
+  workoutState = {
+    queue,
+    current: 0,
+    results: [],
+    startTime: Date.now(),
+    exStartTime: Date.now(),
+    timerInterval: null,
+    locked: false,
+    circuitMap
+  };
+
+  document.getElementById('workout-picker').classList.add('hidden');
+  document.getElementById('workout-active').classList.remove('hidden');
+  document.getElementById('workout-complete').classList.add('hidden');
+
+  startTimer();
+  renderCurrentExercise();
+}
+
+function renderCurrentExercise() {
+  const ex = workoutState.queue[workoutState.current];
+  const total = workoutState.queue.length;
+  const idx = workoutState.current;
+
+  document.getElementById('workout-title').textContent = ex.name;
+  document.getElementById('workout-progress-label').textContent =
+    `Exercise ${idx + 1} of ${total}`;
+  document.getElementById('workout-progress-fill').style.width =
+    (((idx + 1) / total) * 100) + '%';
+
+  workoutState.exStartTime = Date.now();
+  workoutState.locked = false;
+  setWorkoutActionButtonsDisabled(false);
+
+  // circuit banner
+  const banner = document.getElementById('workout-circuit-banner');
+  if (ex._circuitId) {
+    banner.textContent = '◈ Circuit: ' + ex._circuitName;
+    banner.classList.remove('hidden');
+  } else {
+    banner.classList.add('hidden');
+  }
+
+  // hide all exercise types
+  ['transcription','debug','flashcard'].forEach(t =>
+    document.getElementById('ex-' + t).classList.add('hidden'));
+
+  if (ex.type === 'transcription') {
+    document.getElementById('ex-transcription').classList.remove('hidden');
+    document.getElementById('trans-reference').textContent = ex.code || '';
+    document.getElementById('trans-input').value = '';
+    document.getElementById('trans-input').className = '';
+    document.getElementById('trans-result').classList.add('hidden');
+    document.getElementById('trans-input').focus();
+
+  } else if (ex.type === 'debug') {
+    document.getElementById('ex-debug').classList.remove('hidden');
+    document.getElementById('debug-code').value = ex.broken || '';
+    document.getElementById('debug-trace').textContent = ex.trace || '';
+    document.getElementById('debug-result').classList.add('hidden');
+    document.getElementById('debug-code').focus();
+
+  } else if (ex.type === 'flashcard') {
+    document.getElementById('ex-flashcard').classList.remove('hidden');
+    document.getElementById('fc-question').textContent = ex.question || '';
+    renderFlashcardMC(ex);
+  }
+}
+
+function checkTranscription() {
+  if (workoutState.locked) return;
+  workoutState.locked = true;
+  setWorkoutActionButtonsDisabled(true);
+
+  const ex = workoutState.queue[workoutState.current];
+  const input = document.getElementById('trans-input').value;
+  const ref   = ex.code || '';
+  const elapsed = (Date.now() - workoutState.exStartTime) / 1000;
+
+  const correct = input === ref;
+  const score = correct ? 100 : (ref.length
+    ? Math.round((longestCommonSubsequence(input, ref) / ref.length) * 100)
+    : 0);
+
+  document.getElementById('trans-input').className = correct ? 'correct' : 'incorrect';
+  const resultEl = document.getElementById('trans-result');
+  resultEl.className = 'result-bar ' + (correct ? 'pass' : 'fail');
+  resultEl.innerHTML = correct
+    ? `<span>✓ PERFECT — ${fmtTime(elapsed)}</span><span>100%</span>`
+    : `<span>✗ NOT QUITE — ${score}% match</span><span>${fmtTime(elapsed)}</span>`;
+  resultEl.classList.remove('hidden');
+
+  const isNewPB = correct ? DB.updatePB(ex.id, 'bestTime', elapsed) : false;
+  if (correct && isNewPB) resultEl.innerHTML += '<span class="pb-badge">NEW PB</span>';
+
+  workoutState.results.push({ exerciseId: ex.id, type: 'transcription',
+    correct, score, time: elapsed, ts: Date.now(), newPB: isNewPB, _circuitId: ex._circuitId });
+  DB.recordSession({ exerciseId: ex.id, type: 'transcription', score, time: elapsed, ts: Date.now(), reps: 1 });
+
+  setTimeout(() => advanceWorkout(), correct ? 1200 : 2000);
+}
+
+function resetDebug() {
+  const ex = workoutState.queue[workoutState.current];
+  document.getElementById('debug-code').value = ex.broken || '';
+  document.getElementById('debug-result').classList.add('hidden');
+}
+function checkDebug() {
+  if (workoutState.locked) return;
+  workoutState.locked = true;
+  setWorkoutActionButtonsDisabled(true);
+
+  const ex = workoutState.queue[workoutState.current];
+  const input   = document.getElementById('debug-code').value.trim();
+  const correct = (ex.correct || '').trim();
+  const elapsed = (Date.now() - workoutState.exStartTime) / 1000;
+
+  const score = input === correct ? 100 : (correct.length
+    ? Math.round((longestCommonSubsequence(input, correct) / correct.length) * 100)
+    : 0);
+  const pass = score >= 85;
+
+  const resultEl = document.getElementById('debug-result');
+  resultEl.className = 'result-bar ' + (pass ? 'pass' : 'fail');
+  resultEl.innerHTML = pass
+    ? `<span>✓ FIXED — ${fmtTime(elapsed)}</span><span>${score}%</span>`
+    : `<span>✗ NOT QUITE — ${score}% match</span><span>${fmtTime(elapsed)}</span>`;
+  if (ex.notes) resultEl.innerHTML += `<div style="margin-top:8px;font-size:11px;color:var(--muted)">${escapeHtml(ex.notes)}</div>`;
+  resultEl.classList.remove('hidden');
+
+  const isNewPB = pass ? DB.updatePB(ex.id, 'bestTime', elapsed) : false;
+  if (pass && isNewPB) resultEl.innerHTML += '<span class="pb-badge">NEW PB</span>';
+
+  workoutState.results.push({ exerciseId: ex.id, type: 'debug', pass, score, time: elapsed, ts: Date.now(), newPB: isNewPB, _circuitId: ex._circuitId });
+  DB.recordSession({ exerciseId: ex.id, type: 'debug', score, time: elapsed, ts: Date.now(), reps: 1 });
+
+  setTimeout(() => advanceWorkout(), 2200);
+}
+
+function renderFlashcardMC(ex) {
+  const options = shuffle([ex.answer, ...(ex.wrongAnswers || [])]);
+  const labels = ['A', 'B', 'C', 'D'];
+  document.getElementById('fc-mc-options').innerHTML = options.map((opt, i) =>
+    `<button class="mc-btn" data-correct="${opt === ex.answer}" onclick="selectMCAnswer(this)">${labels[i]}. ${escapeHtml(opt)}</button>`
+  ).join('');
+}
+
+function selectMCAnswer(btn) {
+  if (workoutState.locked) return;
+  workoutState.locked = true;
+  setWorkoutActionButtonsDisabled(true);
+  const isCorrect = btn.dataset.correct === 'true';
+  document.querySelectorAll('.mc-btn').forEach(b => {
+    b.disabled = true;
+    if (b.dataset.correct === 'true') b.classList.add('correct-choice');
+    else b.classList.add('wrong-choice');
+  });
+  const ex = workoutState.queue[workoutState.current];
+  const elapsed = (Date.now() - workoutState.exStartTime) / 1000;
+  const score = isCorrect ? 100 : 0;
+  const isNewPB = isCorrect ? DB.updatePB(ex.id, 'score', score) : false;
+  workoutState.results.push({ exerciseId: ex.id, type: 'flashcard', got: isCorrect, time: elapsed, ts: Date.now(), newPB: isNewPB, _circuitId: ex._circuitId });
+  DB.recordSession({ exerciseId: ex.id, type: 'flashcard', score, time: elapsed, ts: Date.now(), reps: 1 });
+  setTimeout(() => advanceWorkout(), isCorrect ? 900 : 2000);
+}
+
+function skipExercise() {
+  if (workoutState.locked) return;
+  workoutState.locked = true;
+  setWorkoutActionButtonsDisabled(true);
+
+  const ex = workoutState.queue[workoutState.current];
+  workoutState.results.push({ exerciseId: ex.id, skipped: true, ts: Date.now(), _circuitId: ex._circuitId });
+  advanceWorkout();
+}
+
+function advanceWorkout() {
+  workoutState.current++;
+  if (workoutState.current >= workoutState.queue.length) {
+    finishWorkout();
+  } else {
+    renderCurrentExercise();
+  }
+}
+
+function finishWorkout() {
+  clearInterval(workoutState.timerInterval);
+  workoutState.locked = false;
+  setWorkoutActionButtonsDisabled(false);
+  document.getElementById('workout-active').classList.add('hidden');
+  document.getElementById('workout-complete').classList.remove('hidden');
+
+  const results = workoutState.results;
+  const total   = results.length;
+  const done    = results.filter(r => !r.skipped).length;
+  const correct = results.filter(r => r.correct || r.pass || r.got).length;
+  const totalTime = (Date.now() - workoutState.startTime) / 1000;
+
+  document.getElementById('workout-results-grid').innerHTML = `
+    <div class="stat-box"><div class="stat-num">${total}</div><div class="stat-label">Exercises</div></div>
+    <div class="stat-box"><div class="stat-num">${done}</div><div class="stat-label">Completed</div></div>
+    <div class="stat-box"><div class="stat-num">${correct}</div><div class="stat-label">Correct</div></div>
+    <div class="stat-box"><div class="stat-num">${fmtTime(totalTime)}</div><div class="stat-label">Total Time</div></div>
+  `;
+
+  const pbAnnounce = results
+    .filter(r => !r.skipped && r.exerciseId && r.newPB)
+    .map(r => {
+      const ex = workoutState.queue.find(e => e.id === r.exerciseId);
+      return `<div class="result-bar pass" style="margin-bottom:4px">
+        <span>🏆 NEW PB — ${escapeHtml(ex ? ex.name : r.exerciseId)}</span>
+        <span class="pb-badge">PERSONAL BEST</span>
+      </div>`;
+    }).filter(Boolean);
+
+  // Circuit-level PBs
+  const circuitHTML = [];
+  Object.entries(workoutState.circuitMap).forEach(([cId, cInfo]) => {
+    const cResults = results.filter(r => r._circuitId === cId && !r.skipped);
+    if (!cResults.length) return;
+    const cTotal = cResults.length;
+    const cCorrect = cResults.filter(r => r.correct || r.pass || r.got).length;
+    const cScore = Math.round((cCorrect / cTotal) * 100);
+    const cTime = cResults.reduce((s, r) => s + (r.time || 0), 0);
+    const isNewTimePB = DB.updatePB(cId, 'bestTime', cTime);
+    const isNewScorePB = DB.updatePB(cId, 'score', cScore);
+    const newPBStr = (isNewTimePB || isNewScorePB) ? ' <span class="pb-badge">NEW PB</span>' : '';
+    circuitHTML.push(`<div class="circuit-banner" style="margin-bottom:4px;flex-wrap:wrap;gap:16px">
+      <span>◈ ${escapeHtml(cInfo.name)}</span>
+      <span>${cCorrect}/${cTotal} correct</span>
+      <span>${cScore}%</span>
+      <span>${fmtTime(cTime)} total</span>
+      ${newPBStr}
+    </div>`);
+    if (isNewTimePB || isNewScorePB) {
+      pbAnnounce.push(`<div class="result-bar pass" style="margin-bottom:4px">
+        <span>🏆 CIRCUIT PB — ${escapeHtml(cInfo.name)}</span>
+        <span class="pb-badge">PERSONAL BEST</span>
+      </div>`);
+    }
+  });
+
+  document.getElementById('pb-announcements').innerHTML =
+    (circuitHTML.length ? `<div style="margin-bottom:12px">${circuitHTML.join('')}</div>` : '') +
+    pbAnnounce.join('');
+}
+
+function endWorkout() {
+  clearInterval(workoutState.timerInterval);
+  workoutState.locked = false;
+  setWorkoutActionButtonsDisabled(false);
+  document.getElementById('workout-picker').classList.remove('hidden');
+  document.getElementById('workout-active').classList.add('hidden');
+  document.getElementById('workout-complete').classList.add('hidden');
+}
+
+function startTimer() {
+  if (workoutState.timerInterval) clearInterval(workoutState.timerInterval);
+  workoutState.timerInterval = setInterval(() => {
+    const elapsed = (Date.now() - workoutState.startTime) / 1000;
+    document.getElementById('workout-timer').textContent = fmtTime(elapsed);
+  }, 500);
+}
+
+// ══════════════════════════════════════════
+// DATA MANAGEMENT
+// ══════════════════════════════════════════
+function exportData() {
+  const state = DB.getState();
+  const data = {
+    version: 2,
+    exported: new Date().toISOString(),
+    state,
+    exercises: state.exercises,
+    sessions: state.sessions,
+    pbs: state.pbs
+  };
+  downloadJSON(data, 'thegym-backup-' + datestamp() + '.json');
+}
+function exportExercisesOnly() {
+  const data = {
+    version: 1,
+    exported: new Date().toISOString(),
+    exercises: DB.getExercises()
+  };
+  downloadJSON(data, 'thegym-exercises-' + datestamp() + '.json');
+}
+function importData(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      const incomingExercises = Array.isArray(data.state && data.state.exercises)
+        ? data.state.exercises
+        : (Array.isArray(data.exercises) ? data.exercises : []);
+      if (data.state && typeof data.state === 'object') {
+        DB.upsertExercises(data.state.exercises || []);
+        DB.upsertSessions(data.state.sessions || []);
+        DB.upsertPBs(data.state.pbs || {});
+      } else {
+        if (Array.isArray(data.exercises)) DB.upsertExercises(data.exercises);
+        if (Array.isArray(data.sessions)) DB.upsertSessions(data.sessions);
+        if (data.pbs && typeof data.pbs === 'object') DB.upsertPBs(data.pbs);
+      }
+      renderStorageInfo();
+      renderDashboard();
+      alert('Import successful. Upserted ' + incomingExercises.length + ' exercises by id.');
+    } catch(err) {
+      alert('Import failed: invalid JSON file.');
+    }
+  };
+  reader.readAsText(file);
+  evt.target.value = '';
+}
+function confirmClearAll() {
+  openModal('Clear All Data',
+    'This will permanently delete ALL exercises, session history, and personal bests. This cannot be undone. Export a backup first.',
+    () => {
+      localStorage.removeItem(DB.KEY_STATE);
+      localStorage.removeItem(DB.LEGACY_KEYS.exercises);
+      localStorage.removeItem(DB.LEGACY_KEYS.sessions);
+      localStorage.removeItem(DB.LEGACY_KEYS.pbs);
+      renderStorageInfo();
+      renderDashboard();
+    });
+}
+function renderStorageInfo() {
+  const stateRaw = localStorage.getItem(DB.KEY_STATE) || '';
+  const total = stateRaw.length;
+  const state = DB.getState();
+  const exCount = state.exercises.length;
+  const seCount = state.sessions.length;
+  const pbCount = Object.keys(state.pbs).length;
+  document.getElementById('storage-info').innerHTML =
+    `Exercises: ${fmt(exCount)} &nbsp;|&nbsp; Sessions: ${fmt(seCount)} &nbsp;|&nbsp; PB Records: ${fmt(pbCount)}<br>
+     <strong style="color:var(--text)">Storage key ${DB.KEY_STATE}: ${fmt(total)} bytes</strong> of localStorage`;
+}
+
+// ══════════════════════════════════════════
+// MODAL
+// ══════════════════════════════════════════
+function openModal(title, body, onConfirm) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').textContent  = body;
+  document.getElementById('modal-confirm').onclick   = () => { closeModal(); onConfirm(); };
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+}
+
+// ══════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════
+function fmtTime(s) {
+  if (s < 60) return s.toFixed(1) + 's';
+  const m = Math.floor(s / 60), sec = Math.round(s % 60);
+  return `${m}:${sec.toString().padStart(2,'0')}`;
+}
+function fmt(n) { return n.toLocaleString(); }
+function datestamp() {
+  return new Date().toISOString().slice(0,10);
+}
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+function downloadJSON(data, filename) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+}
+// Approximate similarity score
+function longestCommonSubsequence(a, b) {
+  const la = a.length, lb = b.length;
+  if (!la || !lb) return 0;
+  // Use a simplified character match ratio for large strings
+  let matches = 0;
+  const used = new Array(lb).fill(false);
+  for (let i = 0; i < la; i++) {
+    for (let j = 0; j < lb; j++) {
+      if (!used[j] && a[i] === b[j]) { matches++; used[j] = true; break; }
+    }
+  }
+  return matches;
+}
+
+// ══════════════════════════════════════════
+// SEED SAMPLE DATA (first run only)
+// ══════════════════════════════════════════
+function maybeSeedSamples() {
+  if (DB.getExercises().length > 0) return;
+  DB.saveExercises([
+    {
+      id: 'sample_1', type: 'transcription', name: 'Python list comprehension',
+      tags: ['python','idioms'],
+      code: `# Filter and transform in one expression
+squares_of_evens = [x**2 for x in range(20) if x % 2 == 0]
+
+# Nested comprehension — flatten a matrix
+matrix = [[1,2,3],[4,5,6],[7,8,9]]
+flat = [val for row in matrix for val in row]`,
+      notes: 'Core Python idiom — memorize the filter-then-transform pattern.'
+    },
+    {
+      id: 'sample_2', type: 'debug', name: 'Off-by-one in binary search',
+      tags: ['algorithms','python'],
+      broken: `def binary_search(arr, target):
+    lo, hi = 0, len(arr)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if arr[mid] == target:
+            return mid
+        elif arr[mid] < target:
+            lo = mid
+        else:
+            hi = mid
+    return -1`,
+      correct: `def binary_search(arr, target):
+    lo, hi = 0, len(arr) - 1
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        if arr[mid] == target:
+            return mid
+        elif arr[mid] < target:
+            lo = mid + 1
+        else:
+            hi = mid - 1
+    return -1`,
+      trace: `RecursionError / infinite loop detected after 10,000 iterations
+  File "search.py", line 4, in binary_search
+    while lo < hi:
+  [Previous line repeated indefinitely]
+
+Hint: check your boundary conditions and update expressions.`,
+      notes: 'Classic: hi should be len-1, lo <= hi, and updates must be mid±1.'
+    },
+    {
+      id: 'sample_3', type: 'flashcard', name: 'OSI Model — 7 Layers',
+      tags: ['networking','fundamentals'],
+      question: 'Name the 7 layers of the OSI model in order, from lowest to highest.',
+      answer: '1. Physical\n2. Data Link\n3. Network\n4. Transport\n5. Session\n6. Presentation\n7. Application',
+      wrongAnswers: [
+        '1. Physical\n2. Network\n3. Data Link\n4. Transport\n5. Session\n6. Presentation\n7. Application',
+        '1. Physical\n2. Data Link\n3. Network\n4. Session\n5. Transport\n6. Presentation\n7. Application',
+        '1. Physical\n2. Data Link\n3. Transport\n4. Network\n5. Session\n6. Application\n7. Presentation',
+      ],
+      category: 'networking'
+    },
+    {
+      id: 'sample_circuit_1', type: 'circuit', name: 'Python Fundamentals Circuit',
+      tags: ['python'],
+      desc: 'Covers list comprehensions, binary search debug, and OSI flashcard back-to-back.',
+      exerciseIds: ['sample_1', 'sample_2', 'sample_3']
+    },
+    {
+      id: 'sample_4', type: 'flashcard', name: 'Python concurrency primitives',
+      tags: ['python','concurrency'],
+      question: 'What concurrency primitives are available in the Python standard library?',
+      answer: 'threading: Thread, Lock, RLock, Semaphore, Event, Condition, Barrier\nmultiprocessing: Process, Pool, Queue, Pipe, Manager\nasyncio: coroutines, Tasks, Futures, Event loop, Queue\nconcurrent.futures: ThreadPoolExecutor, ProcessPoolExecutor\nqueue: Queue, LifoQueue, PriorityQueue (thread-safe)',
+      wrongAnswers: [
+        'threading: Thread, Lock\nmultiprocessing: Process, Pool\nasyncio: coroutines, Tasks\nconcurrent.futures: Executor\nqueue: Queue (not thread-safe)',
+        'threading: Thread, Mutex, Semaphore\nmultiprocessing: Process, fork()\nasyncio: async/await, EventLoop\nconcurrent.futures: Future, Executor\nqueue: Deque, PriorityQueue',
+        'threading: Thread, Lock, Semaphore, Event\nmultiprocessing: Process, Pool, Queue\nasyncio: coroutines, Tasks, Futures\nconcurrent.futures: ThreadPoolExecutor\nqueue: Queue, LifoQueue (not thread-safe)',
+      ],
+      category: 'python'
+    }
+  ]);
+}
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+maybeSeedSamples();
+renderDashboard();
+</script>
+</body>
+</html>
