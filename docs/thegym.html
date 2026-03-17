@@ -289,6 +289,11 @@
     white-space: pre;
   }
   .pane pre { color: var(--text); }
+  #trans-reference {
+    user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+  }
   .pane textarea.correct { color: var(--green); }
   .pane textarea.incorrect { color: var(--red); }
 
@@ -1952,6 +1957,25 @@ function longestCommonSubsequence(a, b) {
   return matches;
 }
 
+function setupTranscriptionInputGuards() {
+  const refEl = document.getElementById('trans-reference');
+  const inputEl = document.getElementById('trans-input');
+  if (!refEl || !inputEl) return;
+
+  const blockEvent = (e) => e.preventDefault();
+  ['copy', 'cut', 'paste', 'dragstart', 'drop', 'selectstart', 'contextmenu'].forEach(type => {
+    refEl.addEventListener(type, blockEvent);
+  });
+  ['paste', 'drop'].forEach(type => {
+    inputEl.addEventListener(type, blockEvent);
+  });
+  inputEl.addEventListener('keydown', (e) => {
+    const isPasteHotkey = (e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V');
+    const isShiftInsert = e.shiftKey && e.key === 'Insert';
+    if (isPasteHotkey || isShiftInsert) e.preventDefault();
+  });
+}
+
 // ══════════════════════════════════════════
 // SEED SAMPLE DATA (first run only)
 // ══════════════════════════════════════════
@@ -1961,10 +1985,8 @@ function maybeSeedSamples() {
     {
       id: 'sample_1', type: 'transcription', name: 'Python list comprehension',
       tags: ['python','idioms'],
-      code: `# Filter and transform in one expression
-squares_of_evens = [x**2 for x in range(20) if x % 2 == 0]
+      code: `squares_of_evens = [x**2 for x in range(20) if x % 2 == 0]
 
-# Nested comprehension — flatten a matrix
 matrix = [[1,2,3],[4,5,6],[7,8,9]]
 flat = [val for row in matrix for val in row]`,
       notes: 'Core Python idiom — memorize the filter-then-transform pattern.'
@@ -2029,6 +2051,7 @@ Hint: check your boundary conditions and update expressions.`,
 // INIT
 // ══════════════════════════════════════════
 maybeSeedSamples();
+setupTranscriptionInputGuards();
 renderDashboard();
 </script>
 </body>
