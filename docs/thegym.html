@@ -22,6 +22,44 @@
     --mono:      'IBM Plex Mono', monospace;
     --sans:      'IBM Plex Sans', sans-serif;
     --display:   'Bebas Neue', sans-serif;
+    --noise-opacity: .4;
+    --result-pass-bg: #0a1a0f;
+    --result-fail-bg: #1a0a0a;
+    --result-info-bg: #0a0f1a;
+    --result-info-text: #5da8e0;
+    --trace-bg: #1a0a0a;
+    --trace-text: #e07070;
+    --circuit-accent: #9b59b6;
+    --circuit-banner-bg: #150d1e;
+    --circuit-banner-border: #7d3c98;
+    --circuit-banner-text: #c39bd3;
+    --circuit-item-selected-bg: #1a1508;
+  }
+
+  [data-theme="light"] {
+    --bg:        #f7f4ec;
+    --surface:   #fffdf8;
+    --border:    #d9d0be;
+    --border-hi: #b8ac96;
+    --text:      #2f2b24;
+    --muted:     #6d6557;
+    --accent:    #a96f00;
+    --accent-dim:#7a4f00;
+    --red:       #b03a2e;
+    --green:     #1f8a4d;
+    --blue:      #1f6fa5;
+    --noise-opacity: .2;
+    --result-pass-bg: #e7f5eb;
+    --result-fail-bg: #fbeaea;
+    --result-info-bg: #e8f1fb;
+    --result-info-text: #1f6fa5;
+    --trace-bg: #fff1ef;
+    --trace-text: #8e3028;
+    --circuit-accent: #7b4aa1;
+    --circuit-banner-bg: #f0e9f8;
+    --circuit-banner-border: #b597cf;
+    --circuit-banner-text: #5f3a7d;
+    --circuit-item-selected-bg: #f4ecda;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -40,7 +78,7 @@
     content: '';
     position: fixed; inset: 0;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
-    pointer-events: none; z-index: 1000; opacity: .4;
+    pointer-events: none; z-index: 1000; opacity: var(--noise-opacity);
   }
 
   /* ── HEADER ── */
@@ -155,7 +193,7 @@
   .tag.transcription { border-color: var(--blue); color: var(--blue); }
   .tag.debug { border-color: var(--red); color: var(--red); }
   .tag.flashcard { border-color: var(--green); color: var(--green); }
-  .tag.circuit { border-color: #9b59b6; color: #9b59b6; }
+  .tag.circuit { border-color: var(--circuit-accent); color: var(--circuit-accent); }
 
   /* ── FORMS ── */
   label {
@@ -299,12 +337,12 @@
 
   /* stack trace pane */
   .trace-box {
-    background: #1a0a0a;
+    background: var(--trace-bg);
     border-top: 2px solid var(--red);
     padding: 14px 16px;
     font-family: var(--mono);
     font-size: 12px;
-    color: #e07070;
+    color: var(--trace-text);
     white-space: pre-wrap;
     max-height: 180px;
     overflow-y: auto;
@@ -377,9 +415,9 @@
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 16px;
   }
-  .result-bar.pass { background: #0a1a0f; border: 1px solid var(--green); color: var(--green); }
-  .result-bar.fail { background: #1a0a0a; border: 1px solid var(--red); color: var(--red); }
-  .result-bar.info { background: #0a0f1a; border: 1px solid var(--blue); color: #5da8e0; }
+  .result-bar.pass { background: var(--result-pass-bg); border: 1px solid var(--green); color: var(--green); }
+  .result-bar.fail { background: var(--result-fail-bg); border: 1px solid var(--red); color: var(--red); }
+  .result-bar.info { background: var(--result-info-bg); border: 1px solid var(--blue); color: var(--result-info-text); }
 
   /* timer */
   .timer {
@@ -446,15 +484,15 @@
     transition: all .15s; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
   }
   .mc-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
-  .mc-btn.correct-choice { background: #0a1a0f; border-color: var(--green); color: var(--green); }
-  .mc-btn.wrong-choice { background: #1a0a0a; border-color: var(--red); color: var(--red); opacity: .55; }
+  .mc-btn.correct-choice { background: var(--result-pass-bg); border-color: var(--green); color: var(--green); }
+  .mc-btn.wrong-choice { background: var(--result-fail-bg); border-color: var(--red); color: var(--red); opacity: .55; }
   .mc-btn:disabled { cursor: default; }
 
   /* ── CIRCUIT ── */
   .circuit-banner {
-    background: #150d1e; border: 1px solid #7d3c98;
+    background: var(--circuit-banner-bg); border: 1px solid var(--circuit-banner-border);
     padding: 10px 16px; font-family: var(--mono); font-size: 11px;
-    color: #c39bd3; margin-bottom: 12px; letter-spacing: .5px;
+    color: var(--circuit-banner-text); margin-bottom: 12px; letter-spacing: .5px;
     display: flex; align-items: center; gap: 10px;
   }
   .circuit-ex-list { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; max-height: 340px; overflow-y: auto; }
@@ -464,7 +502,7 @@
     padding: 8px 12px; cursor: pointer; transition: border-color .15s; user-select: none;
   }
   .circuit-ex-item:hover { border-color: var(--border-hi); }
-  .circuit-ex-item.selected { border-color: var(--accent); background: #1a1508; }
+  .circuit-ex-item.selected { border-color: var(--accent); background: var(--circuit-item-selected-bg); }
   .circuit-ex-item input[type=checkbox] { accent-color: var(--accent); flex-shrink: 0; width: 14px; height: 14px; }
   .circuit-ex-item .cex-name { flex: 1; font-size: 12px; }
   .circuit-order-list { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; }
@@ -496,6 +534,7 @@
     <span class="logo">TheGym <span>// stay sharp</span></span>
   </div>
   <div class="header-actions">
+    <button id="theme-toggle" onclick="toggleTheme()">Theme</button>
     <button onclick="showView('data')">⚙ Data</button>
     <button class="primary" onclick="showView('editor')">+ New Exercise</button>
   </div>
@@ -571,7 +610,7 @@
         <button onclick="startWorkout('transcription')">TRANSCRIPTION</button>
         <button onclick="startWorkout('debug')">DEBUG</button>
         <button onclick="startWorkout('flashcard')">FLASHCARD</button>
-        <button onclick="startWorkout('circuit-all')" style="border-color:#9b59b6;color:#9b59b6">ALL CIRCUITS</button>
+        <button onclick="startWorkout('circuit-all')" style="border-color:var(--circuit-accent);color:var(--circuit-accent)">ALL CIRCUITS</button>
       </div>
       <div id="workout-exercise-list" class="exercise-list">
         <div class="empty-state">No exercises available. Add some in the Editor tab.</div>
@@ -1056,6 +1095,36 @@ const DB = {
   }
 };
 
+const THEME_KEY = 'webutils.thegym.theme.v1';
+
+function getInitialTheme() {
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === 'light' || saved === 'dark') return saved;
+  return 'dark';
+}
+
+function applyTheme(theme) {
+  const normalized = theme === 'light' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', normalized);
+  const toggleBtn = document.getElementById('theme-toggle');
+  if (toggleBtn) {
+    toggleBtn.textContent = normalized === 'light' ? '☀ Light' : '☾ Dark';
+    toggleBtn.setAttribute('aria-label', 'Switch theme');
+    toggleBtn.title = normalized === 'light' ? 'Switch to dark theme' : 'Switch to light theme';
+  }
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  const next = current === 'light' ? 'dark' : 'light';
+  applyTheme(next);
+  localStorage.setItem(THEME_KEY, next);
+}
+
+function initTheme() {
+  applyTheme(getInitialTheme());
+}
+
 // ══════════════════════════════════════════
 // NAVIGATION
 // ══════════════════════════════════════════
@@ -1425,7 +1494,7 @@ function renderWorkoutPicker() {
 
   let html = '';
   if (circuits.length) {
-    html += `<div style="font-family:var(--mono);font-size:10px;color:#9b59b6;letter-spacing:1px;text-transform:uppercase;padding:8px 0 4px">Circuits</div>`;
+    html += `<div style="font-family:var(--mono);font-size:10px;color:var(--circuit-accent);letter-spacing:1px;text-transform:uppercase;padding:8px 0 4px">Circuits</div>`;
     html += circuits.map(e => renderRow(e, 'start-item')).join('');
     html += `<div style="height:12px"></div>`;
   }
@@ -2051,6 +2120,7 @@ Hint: check your boundary conditions and update expressions.`,
 // INIT
 // ══════════════════════════════════════════
 maybeSeedSamples();
+initTheme();
 setupTranscriptionInputGuards();
 renderDashboard();
 </script>
