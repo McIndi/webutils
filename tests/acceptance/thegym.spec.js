@@ -196,6 +196,38 @@ test.describe('thegym', () => {
     await expect(page.locator('#trans-input')).toBeVisible();
   });
 
+  test('debug exercise shows NOT QUITE for incorrect fix', async ({ page }) => {
+    await page.locator('.nav-tab[data-view="workout"]').click();
+    await page.getByRole('button', { name: 'DEBUG', exact: true }).click();
+
+    await expect(page.locator('#ex-debug')).toBeVisible();
+    await page.locator('#debug-code').fill('def binary_search(arr, target):\n    return False');
+    await page.getByRole('button', { name: '▶ RUN', exact: true }).click();
+
+    await expect(page.locator('#debug-result')).toContainText(/NOT QUITE/i);
+  });
+
+  test('debug exercise shows FIXED for correct code', async ({ page }) => {
+    await page.locator('.nav-tab[data-view="workout"]').click();
+    await page.getByRole('button', { name: 'DEBUG', exact: true }).click();
+
+    await expect(page.locator('#ex-debug')).toBeVisible();
+    await page.locator('#debug-code').fill(`def binary_search(arr, target):
+    lo, hi = 0, len(arr) - 1
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        if arr[mid] == target:
+            return mid
+        elif arr[mid] < target:
+            lo = mid + 1
+        else:
+            hi = mid - 1
+    return -1`);
+    await page.getByRole('button', { name: '▶ RUN', exact: true }).click();
+
+    await expect(page.locator('#debug-result')).toContainText(/FIXED/i);
+  });
+
   // ── Persistence ────────────────────────────────────────────────────────────
 
   test('new exercise persists after reload', async ({ page }) => {

@@ -1530,20 +1530,29 @@ function resetDebug() {
   document.getElementById('debug-code').value = ex.broken || '';
   document.getElementById('debug-result').classList.add('hidden');
 }
+function normalizeCodeForComparison(code) {
+  return String(code || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 function checkDebug() {
   if (workoutState.locked) return;
   workoutState.locked = true;
   setWorkoutActionButtonsDisabled(true);
 
   const ex = workoutState.queue[workoutState.current];
-  const input   = document.getElementById('debug-code').value.trim();
-  const correct = (ex.correct || '').trim();
+  const inputRaw = document.getElementById('debug-code').value;
+  const correctRaw = ex.correct || '';
+  const input = normalizeCodeForComparison(inputRaw);
+  const correct = normalizeCodeForComparison(correctRaw);
   const elapsed = (Date.now() - workoutState.exStartTime) / 1000;
 
   const score = input === correct ? 100 : (correct.length
     ? Math.round((longestCommonSubsequence(input, correct) / correct.length) * 100)
     : 0);
-  const pass = score >= 85;
+  // Debug tasks should only pass when the fixed code matches (ignoring whitespace-only differences).
+  const pass = input === correct;
 
   const resultEl = document.getElementById('debug-result');
   resultEl.className = 'result-bar ' + (pass ? 'pass' : 'fail');
