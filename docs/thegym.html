@@ -305,6 +305,58 @@
     overflow-y: auto;
     line-height: 1.6;
   }
+  .debug-code-list {
+    min-height: 200px;
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    overflow: auto;
+  }
+  .debug-code-line {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    gap: 10px;
+    align-items: start;
+    padding: 6px 10px;
+    border: none;
+    border-bottom: 1px solid #181818;
+    background: transparent;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    text-align: left;
+    cursor: pointer;
+  }
+  .debug-code-line:hover {
+    background: rgba(70, 130, 180, 0.12);
+  }
+  .debug-code-line.selected {
+    background: rgba(220, 80, 80, 0.15);
+    outline: 1px solid var(--red);
+    outline-offset: -1px;
+  }
+  .debug-code-list.locked .debug-code-line {
+    cursor: default;
+  }
+  .debug-code-list.locked .debug-code-line:hover {
+    background: transparent;
+  }
+  .debug-code-line-number {
+    color: var(--muted);
+    user-select: none;
+  }
+  .debug-code-line-text {
+    white-space: pre;
+    overflow-x: auto;
+  }
+  .inline-hint {
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
 
   /* flashcard question display */
   .flashcard-hint {
@@ -560,14 +612,13 @@
       <!-- DEBUG exercise -->
       <div id="ex-debug" class="hidden">
         <div class="card" style="margin-bottom:12px">
-          <div class="pane-label" style="border:none;padding:0;margin-bottom:10px">// broken code</div>
-          <textarea id="debug-code" spellcheck="false" autocorrect="off" autocapitalize="off" style="min-height:200px;width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:13px;padding:12px;resize:vertical;outline:none;line-height:1.7"></textarea>
+          <div class="pane-label" style="border:none;padding:0;margin-bottom:10px">// click the offending line</div>
+          <div id="debug-code" class="debug-code-list" role="listbox" aria-label="Broken code lines"></div>
+          <div id="debug-instructions" class="inline-hint">Select the line where the bug happens. Your first click is final.</div>
         </div>
         <div class="trace-box" id="debug-trace"></div>
         <div id="debug-result" class="hidden" style="margin-top:12px"></div>
         <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="primary" onclick="checkDebug()">▶ RUN</button>
-          <button onclick="resetDebug()">RESET</button>
           <button onclick="skipExercise()">SKIP</button>
         </div>
       </div>
@@ -606,7 +657,7 @@
       <label>EXERCISE TYPE</label>
       <select id="edit-type" onchange="updateEditorFields()">
         <option value="transcription">Transcription — retype code exactly</option>
-        <option value="debug">Debug — fix code given a stack trace</option>
+        <option value="debug">Debug — find the offending line from a stack trace</option>
         <option value="flashcard">Flashcard — multiple choice / recall</option>
         <option value="circuit">Circuit — grouped sequence of exercises</option>
       </select>
@@ -627,10 +678,10 @@
 
       <!-- debug fields -->
       <div id="fields-debug" class="hidden">
-        <label>BROKEN CODE (what the user will edit)</label>
+        <label>BROKEN CODE (what the user will inspect)</label>
         <textarea id="edit-broken" rows="10" spellcheck="false" placeholder="Paste the broken code here..."></textarea>
-        <label>CORRECT CODE (used to check the answer)</label>
-        <textarea id="edit-correct" rows="10" spellcheck="false" placeholder="Paste the correct version here..."></textarea>
+        <label>OFFENDING LINE NUMBERS (comma separated)</label>
+        <input type="text" id="edit-offending-lines" inputmode="numeric" placeholder="e.g. 2, 7">
         <label>STACK TRACE / ERROR MESSAGE</label>
         <textarea id="edit-trace" rows="5" spellcheck="false" placeholder="Paste the error / stack trace here..."></textarea>
         <label>NOTES / EXPLANATION (optional)</label>
@@ -780,6 +831,13 @@ const DB = {
     if (ex.type === 'circuit') {
       normalized.exerciseIds = Array.isArray(ex.exerciseIds) ? ex.exerciseIds.filter(id => typeof id === 'string' && id.trim()) : [];
       normalized.desc = typeof ex.desc === 'string' ? ex.desc : '';
+    }
+    if (ex.type === 'debug') {
+      normalized.broken = typeof ex.broken === 'string' ? ex.broken : '';
+      normalized.trace = typeof ex.trace === 'string' ? ex.trace : '';
+      normalized.notes = typeof ex.notes === 'string' ? ex.notes : '';
+      const rawLines = ex.offendingLines !== undefined ? ex.offendingLines : ex.offendingLineNumber;
+      normalized.offendingLines = normalizeLineNumbers(rawLines);
     }
     normalized.name = typeof ex.name === 'string' ? ex.name.trim() : '';
     normalized.tags = Array.isArray(ex.tags) ? ex.tags.map(t => String(t).trim()).filter(Boolean) : [];
@@ -1141,7 +1199,7 @@ function clearEditor() {
   document.getElementById('edit-code').value = '';
   document.getElementById('edit-notes').value = '';
   document.getElementById('edit-broken').value = '';
-  document.getElementById('edit-correct').value = '';
+  document.getElementById('edit-offending-lines').value = '';
   document.getElementById('edit-trace').value = '';
   document.getElementById('edit-debug-notes').value = '';
   document.getElementById('edit-question').value = '';
@@ -1171,7 +1229,7 @@ function editExercise(id) {
     document.getElementById('edit-notes').value = ex.notes || '';
   } else if (ex.type === 'debug') {
     document.getElementById('edit-broken').value = ex.broken || '';
-    document.getElementById('edit-correct').value = ex.correct || '';
+    document.getElementById('edit-offending-lines').value = normalizeLineNumbers(ex.offendingLines).join(', ');
     document.getElementById('edit-trace').value = ex.trace || '';
     document.getElementById('edit-debug-notes').value = ex.notes || '';
   } else if (ex.type === 'flashcard') {
@@ -1207,8 +1265,14 @@ function saveExercise() {
     ex.code  = document.getElementById('edit-code').value;
     ex.notes = document.getElementById('edit-notes').value;
   } else if (type === 'debug') {
+    const offendingLinesRaw = document.getElementById('edit-offending-lines').value;
+    const offendingLines = normalizeLineNumbers(offendingLinesRaw);
+    if (!offendingLines.length) {
+      setEditorMsg('Add at least one offending line number.', 'red');
+      return;
+    }
     ex.broken  = document.getElementById('edit-broken').value;
-    ex.correct = document.getElementById('edit-correct').value;
+    ex.offendingLines = offendingLines;
     ex.trace   = document.getElementById('edit-trace').value;
     ex.notes   = document.getElementById('edit-debug-notes').value;
   } else if (type === 'flashcard') {
@@ -1325,6 +1389,7 @@ let workoutState = {
   results: [],
   startTime: null,
   exStartTime: null,
+  debugSelectionLine: null,
   timerInterval: null,
   locked: false,
   circuitMap: {}   // circuitId -> { name, startIdx, endIdx }
@@ -1429,6 +1494,7 @@ function startWorkout(filter, singleId) {
     results: [],
     startTime: Date.now(),
     exStartTime: Date.now(),
+    debugSelectionLine: null,
     timerInterval: null,
     locked: false,
     circuitMap
@@ -1454,6 +1520,7 @@ function renderCurrentExercise() {
     (((idx + 1) / total) * 100) + '%';
 
   workoutState.exStartTime = Date.now();
+  workoutState.debugSelectionLine = null;
   workoutState.locked = false;
   setWorkoutActionButtonsDisabled(false);
 
@@ -1480,10 +1547,15 @@ function renderCurrentExercise() {
 
   } else if (ex.type === 'debug') {
     document.getElementById('ex-debug').classList.remove('hidden');
-    document.getElementById('debug-code').value = ex.broken || '';
+    renderDebugCode(ex.broken || '');
     document.getElementById('debug-trace').textContent = ex.trace || '';
     document.getElementById('debug-result').classList.add('hidden');
-    document.getElementById('debug-code').focus();
+    const instructions = document.getElementById('debug-instructions');
+    if (normalizeLineNumbers(ex.offendingLines).length) {
+      instructions.textContent = 'Select the line where the bug happens. Your first click is final.';
+    } else {
+      instructions.textContent = 'This debug exercise is missing offending line metadata. Skip or edit this exercise in the Editor.';
+    }
 
   } else if (ex.type === 'flashcard') {
     document.getElementById('ex-flashcard').classList.remove('hidden');
@@ -1526,39 +1598,93 @@ function checkTranscription() {
 }
 
 function resetDebug() {
-  const ex = workoutState.queue[workoutState.current];
-  document.getElementById('debug-code').value = ex.broken || '';
+  const codeEl = document.getElementById('debug-code');
+  codeEl.classList.remove('locked');
+  codeEl.querySelectorAll('.debug-code-line').forEach(line => line.classList.remove('selected'));
+  workoutState.debugSelectionLine = null;
   document.getElementById('debug-result').classList.add('hidden');
 }
-function normalizeCodeForComparison(code) {
-  return String(code || '')
-    .replace(/\r\n/g, '\n')
-    .replace(/\s+/g, ' ')
-    .trim();
+function normalizeLineNumbers(raw) {
+  if (Array.isArray(raw)) {
+    return [...new Set(raw
+      .map(item => Number(item))
+      .filter(num => Number.isInteger(num) && num > 0)
+    )].sort((a, b) => a - b);
+  }
+  if (typeof raw === 'number') {
+    return Number.isInteger(raw) && raw > 0 ? [raw] : [];
+  }
+  if (typeof raw === 'string') {
+    return [...new Set(raw
+      .split(',')
+      .map(part => Number(part.trim()))
+      .filter(num => Number.isInteger(num) && num > 0)
+    )].sort((a, b) => a - b);
+  }
+  return [];
 }
-function checkDebug() {
+function renderDebugCode(code) {
+  const container = document.getElementById('debug-code');
+  const lines = String(code || '').replace(/\r\n/g, '\n').split('\n');
+  container.innerHTML = '';
+  container.classList.remove('locked');
+  lines.forEach((lineText, idx) => {
+    const lineNo = idx + 1;
+    const lineBtn = document.createElement('button');
+    lineBtn.type = 'button';
+    lineBtn.className = 'debug-code-line';
+    lineBtn.dataset.line = String(lineNo);
+    lineBtn.setAttribute('aria-label', 'Line ' + lineNo);
+
+    const lineNumEl = document.createElement('span');
+    lineNumEl.className = 'debug-code-line-number';
+    lineNumEl.textContent = String(lineNo).padStart(2, '0');
+
+    const lineTextEl = document.createElement('span');
+    lineTextEl.className = 'debug-code-line-text';
+    lineTextEl.textContent = lineText === '' ? ' ' : lineText;
+
+    lineBtn.append(lineNumEl, lineTextEl);
+    lineBtn.addEventListener('click', () => checkDebug(lineNo));
+    container.appendChild(lineBtn);
+  });
+}
+function checkDebug(selectedLine) {
   if (workoutState.locked) return;
-  workoutState.locked = true;
-  setWorkoutActionButtonsDisabled(true);
+
+  const selected = Number(selectedLine);
+  if (!Number.isInteger(selected) || selected <= 0) return;
 
   const ex = workoutState.queue[workoutState.current];
-  const inputRaw = document.getElementById('debug-code').value;
-  const correctRaw = ex.correct || '';
-  const input = normalizeCodeForComparison(inputRaw);
-  const correct = normalizeCodeForComparison(correctRaw);
-  const elapsed = (Date.now() - workoutState.exStartTime) / 1000;
+  const expectedLines = normalizeLineNumbers(ex.offendingLines);
+  if (!expectedLines.length) {
+    const resultEl = document.getElementById('debug-result');
+    resultEl.className = 'result-bar fail';
+    resultEl.innerHTML = '<span>✗ EXERCISE MISCONFIGURED</span><span>No offending lines set</span>';
+    resultEl.classList.remove('hidden');
+    return;
+  }
 
-  const score = input === correct ? 100 : (correct.length
-    ? Math.round((longestCommonSubsequence(input, correct) / correct.length) * 100)
-    : 0);
-  // Debug tasks should only pass when the fixed code matches (ignoring whitespace-only differences).
-  const pass = input === correct;
+  workoutState.locked = true;
+  workoutState.debugSelectionLine = selected;
+  setWorkoutActionButtonsDisabled(true);
+
+  const codeEl = document.getElementById('debug-code');
+  codeEl.classList.add('locked');
+  codeEl.querySelectorAll('.debug-code-line').forEach(line => {
+    const lineNo = Number(line.dataset.line);
+    line.classList.toggle('selected', lineNo === selected);
+  });
+
+  const elapsed = (Date.now() - workoutState.exStartTime) / 1000;
+  const pass = expectedLines.includes(selected);
+  const score = pass ? 100 : 0;
 
   const resultEl = document.getElementById('debug-result');
   resultEl.className = 'result-bar ' + (pass ? 'pass' : 'fail');
   resultEl.innerHTML = pass
-    ? `<span>✓ FIXED — ${fmtTime(elapsed)}</span><span>${score}%</span>`
-    : `<span>✗ NOT QUITE — ${score}% match</span><span>${fmtTime(elapsed)}</span>`;
+    ? `<span>✓ CORRECT LINE — ${fmtTime(elapsed)}</span><span>Line ${selected}</span>`
+    : `<span>✗ WRONG LINE — ${fmtTime(elapsed)}</span><span>Picked ${selected}, expected ${expectedLines.join(', ')}</span>`;
   if (ex.notes) resultEl.innerHTML += `<div style="margin-top:8px;font-size:11px;color:var(--muted)">${escapeHtml(ex.notes)}</div>`;
   resultEl.classList.remove('hidden');
 
@@ -1568,7 +1694,7 @@ function checkDebug() {
   workoutState.results.push({ exerciseId: ex.id, type: 'debug', pass, score, time: elapsed, ts: Date.now(), newPB: isNewPB, _circuitId: ex._circuitId });
   DB.recordSession({ exerciseId: ex.id, type: 'debug', score, time: elapsed, ts: Date.now(), reps: 1 });
 
-  setTimeout(() => advanceWorkout(), 2200);
+  setTimeout(() => advanceWorkout(), 2000);
 }
 
 function renderFlashcardMC(ex) {
@@ -1857,17 +1983,7 @@ flat = [val for row in matrix for val in row]`,
         else:
             hi = mid
     return -1`,
-      correct: `def binary_search(arr, target):
-    lo, hi = 0, len(arr) - 1
-    while lo <= hi:
-        mid = (lo + hi) // 2
-        if arr[mid] == target:
-            return mid
-        elif arr[mid] < target:
-            lo = mid + 1
-        else:
-            hi = mid - 1
-    return -1`,
+      offendingLines: [2, 3, 8, 10],
       trace: `RecursionError / infinite loop detected after 10,000 iterations
   File "search.py", line 4, in binary_search
     while lo < hi:
