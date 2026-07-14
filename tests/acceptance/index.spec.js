@@ -20,8 +20,8 @@ test.describe('index', () => {
   });
 
   test('all registered apps appear as rows', async ({ page }) => {
-    // APP_REGISTRY has 8 entries
-    await expect(page.locator('#app-list .app-row')).toHaveCount(8);
+    // APP_REGISTRY has 9 entries
+    await expect(page.locator('#app-list .app-row')).toHaveCount(9);
   });
 
   test('each app row has a link to the app', async ({ page }) => {

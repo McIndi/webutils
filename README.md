@@ -88,6 +88,18 @@ Create standalone HTML pages from Markdown:
 **File**: `docs/static-page-generator.html`  
 **Storage key**: `webutils.static-page-generator.v1`
 
+### Secret Share
+Exchange one-way encrypted secrets without a server:
+- Generate an RSA-OAEP keypair; the private key is passphrase-encrypted before it touches storage
+- Copy a link embedding your public key (in the URL fragment) to share with a teammate
+- The teammate opens the link, types a secret, and gets back a link with the ciphertext embedded
+- Open that link and unlock your private key with your passphrase to decrypt
+- Hybrid encryption (AES-GCM secret, RSA-OAEP wraps the AES key) so message length isn't limited by the RSA key size
+- No server involved; the ciphertext and public keys only ever travel in URLs you share yourself
+
+**File**: `docs/secret-share.html`  
+**Storage key**: `webutils.secret-share.v1`
+
 ## Landing Page
 
 The landing page (`docs/index.html`) serves as a hub for all utilities and includes:

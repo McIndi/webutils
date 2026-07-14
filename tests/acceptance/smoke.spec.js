@@ -11,6 +11,7 @@ const expectations = {
   'static-page-generator.html': /Static Page Generator/i,
   'contentstudio.html': /Content Studio/i,
   'thegym.html': /TheGym/i,
+  'secret-share.html': /Secret Share/i,
 };
 
 test.describe('docs app smoke', () => {

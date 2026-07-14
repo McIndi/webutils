@@ -10,6 +10,7 @@ const KNOWN_APPS = [
   'static-page-generator.html',
   'contentstudio.html',
   'thegym.html',
+  'secret-share.html',
 ];
 
 async function gotoApp(page, fileName) {
