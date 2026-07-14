@@ -89,16 +89,50 @@ Create standalone HTML pages from Markdown:
 **Storage key**: `webutils.static-page-generator.v1`
 
 ### Secret Share
-Exchange one-way encrypted secrets without a server:
-- Generate an RSA-OAEP keypair; the private key is passphrase-encrypted before it touches storage
-- Copy a link embedding your public key (in the URL fragment) to share with a teammate
-- The teammate opens the link, types a secret, and gets back a link with the ciphertext embedded
-- Open that link and unlock your private key with your passphrase to decrypt
+Exchange one-way encrypted, signed secrets without a server:
+- Generate a keypair (RSA-OAEP for encryption, ECDSA P-256 for signing); private keys are passphrase-encrypted
+  before they touch storage
+- Copy a link embedding both public keys (in the URL fragment) to share with a teammate
+- **Sending requires your own keypair too**, generated the same way as the receiver's — every outgoing secret is
+  signed with it, so recipients can verify who actually sent it, not just that the link decrypts
+- The teammate opens the link, generates their own keypair if they don't have one yet, types a secret, and gets
+  back a link with the encrypted-and-signed payload embedded
+- Open that link and unlock your private key with your passphrase to decrypt; a valid signature is checked
+  automatically and shown alongside the plaintext
 - Hybrid encryption (AES-GCM secret, RSA-OAEP wraps the AES key) so message length isn't limited by the RSA key size
-- No server involved; the ciphertext and public keys only ever travel in URLs you share yourself
+- No server involved; ciphertext and public keys only ever travel in URLs you share yourself
+- **Trusted contacts**: after verifying a fingerprint with someone out-of-band (in person, a call, a separate
+  channel), save it under a name. Future links carrying that same key — and signed messages from that same
+  identity — are recognized automatically, and you can send that contact a new secret anytime from the Contacts
+  panel without repeating the link exchange. If a future link or signed message claims to be an existing contact
+  but carries a different key, you're warned before it can overwrite the saved one. The very first link from
+  someone is still only as trustworthy as the channel it arrived on — pinning doesn't replace out-of-band
+  verification, it just means you only need to do that verification once per contact instead of once per message.
+  The fingerprint covers both the encryption and signing public keys together, so an attacker can't mix a
+  legitimate encryption key with a substituted signing key without it showing up as a different fingerprint.
+- **Passphrase strength**: a 12-character minimum plus a rough entropy estimate (Shannon entropy over character
+  frequency) rejects long-but-predictable passphrases (e.g. repeated characters) and shows a live strength meter.
+- **Upgrading an existing keypair**: keypairs created before signing was added still work for receiving (old links
+  still decrypt) but can't sign outgoing secrets or use trusted-contact recognition at full strength until
+  upgraded from the identity panel. Upgrading keeps the existing encryption key and adds a signing key — this
+  changes your fingerprint, so existing contacts who pinned your old fingerprint will need to re-verify you once.
 
 **File**: `docs/secret-share.html`  
-**Storage key**: `webutils.secret-share.v1`
+**Storage keys**: `webutils.secret-share.v1` (keypair), `webutils.secret-share.contacts.v1` (trusted contacts —
+public key material only). Both are backed up and restored together as a single unit by the landing page's
+snapshot export/import, under the `secret-share` app entry — one export, one import, everything comes back.
+
+**Security notes**:
+- A valid signature only proves the message was signed by whoever holds the private key matching the embedded
+  sender identity — it does not by itself prove that identity belongs to a specific real person unless you've
+  pinned it as a trusted contact (or verified the fingerprint out-of-band for that message).
+- This app shares browser storage (`localStorage`) with every other WebUtils app when hosted on the same domain.
+  That's not a risk for the public-key contact data, but it does mean the app's security is only as strong as the
+  weakest app sharing its origin — a script-injection bug anywhere else on that origin could, in principle, read
+  this app's stored (passphrase-wrapped) private keys. For stronger isolation, download `secret-share.html` from
+  the WebUtils index (its own "Download" link) and host it on a separate domain or subdomain from the rest of
+  WebUtils. A distinct origin means no other app's code can ever reach this app's local storage. This app has no
+  external dependencies, so it works as a single downloaded file with no other setup.
 
 ## Landing Page
 

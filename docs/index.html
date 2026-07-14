@@ -769,6 +769,7 @@
           id: "secret-share",
           label: "Secret Share",
           key: "webutils.secret-share.v1",
+          extraKeys: [{ id: "contacts", key: "webutils.secret-share.contacts.v1" }],
           href: "secret-share.html",
           description: "Generate a keypair and exchange one-way encrypted secrets via shareable links.",
         },
@@ -1073,9 +1074,10 @@
         const descriptor = getStorageDescriptor(app);
         if (descriptor.type === "indexedDB") {
           await deleteIndexedDbRecord(descriptor);
-          return;
+        } else {
+          localStorage.removeItem(descriptor.key);
         }
-        localStorage.removeItem(descriptor.key);
+        clearExtraData(app);
       };
 
       const estimateDataBytes = (app, value) => {
@@ -1087,6 +1089,44 @@
           return estimateStoredBytes(JSON.stringify(serializeStructuredValue(value)));
         }
         return estimateStoredBytes(value);
+      };
+
+      // ── Extra localStorage keys (app data spread across more than one key,
+      //    e.g. Secret Share's keypair + its trusted-contacts list) ────────────
+      const readExtraData = (app) => {
+        const result = {};
+        if (!app.extraKeys) return result;
+        for (const extra of app.extraKeys) {
+          const value = localStorage.getItem(extra.key);
+          if (value !== null) result[extra.id] = value;
+        }
+        return result;
+      };
+
+      const writeExtraData = (app, extraValues) => {
+        if (!app.extraKeys || !extraValues) return;
+        for (const extra of app.extraKeys) {
+          if (Object.prototype.hasOwnProperty.call(extraValues, extra.id)) {
+            localStorage.setItem(extra.key, extraValues[extra.id]);
+          }
+        }
+      };
+
+      const clearExtraData = (app) => {
+        if (!app.extraKeys) return;
+        for (const extra of app.extraKeys) {
+          localStorage.removeItem(extra.key);
+        }
+      };
+
+      const estimateExtraBytes = (app) => {
+        if (!app.extraKeys) return 0;
+        let total = 0;
+        for (const extra of app.extraKeys) {
+          const value = localStorage.getItem(extra.key);
+          if (value !== null) total += estimateStoredBytes(value);
+        }
+        return total;
       };
 
       const exportAppData = async (app) => {
@@ -1202,8 +1242,9 @@
           } catch (error) {
             storedValue = null;
           }
-          const bytes = estimateDataBytes(app, storedValue);
-          const hasData = storedValue !== null && storedValue !== undefined;
+          const extraBytes = estimateExtraBytes(app);
+          const bytes = estimateDataBytes(app, storedValue) + extraBytes;
+          const hasData = (storedValue !== null && storedValue !== undefined) || extraBytes > 0;
 
           const meta = document.createElement("div");
           meta.className = "app-meta";
@@ -1249,7 +1290,7 @@
         for (const app of APP_REGISTRY) {
           try {
             const value = await readAppData(app);
-            if (value !== null && value !== undefined) {
+            if ((value !== null && value !== undefined) || estimateExtraBytes(app) > 0) {
               hasData = true;
               break;
             }
@@ -1290,7 +1331,7 @@
 
       const buildSnapshot = async (selectedIds) => {
         const snapshot = {
-          version: 3,
+          version: 4,
           generator: "webutils",
           createdAt: new Date().toISOString(),
           apps: {},
@@ -1302,25 +1343,29 @@
           }
           const descriptor = getStorageDescriptor(app);
           const value = await readAppData(app);
+          const extra = readExtraData(app);
+          const hasExtra = Object.keys(extra).length > 0;
+          if (value === null && !hasExtra) {
+            continue;
+          }
+          const entry = { appId: app.id };
           if (value !== null) {
             if (descriptor.type === "indexedDB") {
-              snapshot.apps[app.id] = {
-                appId: app.id,
-                storage: "indexedDB",
-                dbName: descriptor.dbName,
-                storeName: descriptor.storeName,
-                recordKey: descriptor.recordKey,
-                value: serializeStructuredValue(value),
-              };
+              entry.storage = "indexedDB";
+              entry.dbName = descriptor.dbName;
+              entry.storeName = descriptor.storeName;
+              entry.recordKey = descriptor.recordKey;
+              entry.value = serializeStructuredValue(value);
             } else {
-              snapshot.apps[app.id] = {
-                appId: app.id,
-                storage: "localStorage",
-                key: descriptor.key,
-                value,
-              };
+              entry.storage = "localStorage";
+              entry.key = descriptor.key;
+              entry.value = value;
             }
           }
+          if (hasExtra) {
+            entry.extra = extra;
+          }
+          snapshot.apps[app.id] = entry;
         }
 
         return snapshot;
@@ -1335,8 +1380,8 @@
 
         if (typeof snapshot.version !== "number") {
           issues.push("Missing or invalid 'version' field (expected a number).");
-        } else if (![2, 3].includes(snapshot.version)) {
-          issues.push(`Unrecognized snapshot version: ${snapshot.version}. Supported versions: 2, 3.`);
+        } else if (![2, 3, 4].includes(snapshot.version)) {
+          issues.push(`Unrecognized snapshot version: ${snapshot.version}. Supported versions: 2, 3, 4.`);
         }
 
         if (!snapshot.createdAt) {
@@ -1367,24 +1412,30 @@
               continue;
             }
 
-            if (!entry.storage) {
-              issues.push(`${prefix}: missing 'storage' field.`);
-            } else if (!["localStorage", "indexedDB"].includes(entry.storage)) {
-              issues.push(`${prefix}: invalid storage type "${entry.storage}".`);
-            }
+            const hasExtra =
+              entry.extra && typeof entry.extra === "object" && Object.keys(entry.extra).length > 0;
+            const hasPrimaryValue = entry.value !== undefined && entry.value !== null;
 
-            if (entry.value === undefined || entry.value === null) {
+            if (!hasPrimaryValue && !hasExtra) {
               issues.push(`${prefix}: missing 'value' field.`);
             }
 
-            if (entry.storage === "localStorage" && !entry.key) {
-              issues.push(`${prefix}: localStorage entry missing 'key' field.`);
-            }
+            if (hasPrimaryValue) {
+              if (!entry.storage) {
+                issues.push(`${prefix}: missing 'storage' field.`);
+              } else if (!["localStorage", "indexedDB"].includes(entry.storage)) {
+                issues.push(`${prefix}: invalid storage type "${entry.storage}".`);
+              }
 
-            if (entry.storage === "indexedDB") {
-              if (!entry.dbName) issues.push(`${prefix}: indexedDB entry missing 'dbName'.`);
-              if (!entry.storeName) issues.push(`${prefix}: indexedDB entry missing 'storeName'.`);
-              if (!entry.recordKey) issues.push(`${prefix}: indexedDB entry missing 'recordKey'.`);
+              if (entry.storage === "localStorage" && !entry.key) {
+                issues.push(`${prefix}: localStorage entry missing 'key' field.`);
+              }
+
+              if (entry.storage === "indexedDB") {
+                if (!entry.dbName) issues.push(`${prefix}: indexedDB entry missing 'dbName'.`);
+                if (!entry.storeName) issues.push(`${prefix}: indexedDB entry missing 'storeName'.`);
+                if (!entry.recordKey) issues.push(`${prefix}: indexedDB entry missing 'recordKey'.`);
+              }
             }
           }
         }
@@ -1473,14 +1524,17 @@
           if (!entry) {
             continue;
           }
+          let restoredThis = false;
+          if (entry.extra && typeof entry.extra === "object") {
+            writeExtraData(app, entry.extra);
+            restoredThis = true;
+          }
           const descriptor = getStorageDescriptor(app);
           if (descriptor.type === "indexedDB") {
             if (entry.storage === "indexedDB" && entry.value !== undefined) {
               await writeAppData(app, deserializeStructuredValue(entry.value));
-              restored += 1;
-              continue;
-            }
-            if (app.id === "zip-workbench" && typeof entry.value === "string") {
+              restoredThis = true;
+            } else if (app.id === "zip-workbench" && typeof entry.value === "string") {
               try {
                 const legacy = JSON.parse(entry.value);
                 const legacyBytes = fromBase64(legacy.zipBase64 || "");
@@ -1490,10 +1544,9 @@
                   zipName: legacy.zipName || "archive.zip",
                   zipBytes: legacyBytes.buffer,
                 });
-                restored += 1;
+                restoredThis = true;
               } catch (error) {}
-            }
-            if (app.id === "repo2prompt" && typeof entry.value === "string") {
+            } else if (app.id === "repo2prompt" && typeof entry.value === "string") {
               try {
                 const legacy = JSON.parse(entry.value);
                 if (legacy && typeof legacy === "object") {
@@ -1504,16 +1557,15 @@
                     files: Array.isArray(legacy.files) ? legacy.files : [],
                     extensionFilter: Array.isArray(legacy.extensionFilter) ? legacy.extensionFilter : [],
                   });
-                  restored += 1;
+                  restoredThis = true;
                 }
               } catch (error) {}
             }
-            continue;
-          }
-          if (typeof entry.value === "string") {
+          } else if (typeof entry.value === "string") {
             await writeAppData(app, entry.value);
-            restored += 1;
+            restoredThis = true;
           }
+          if (restoredThis) restored += 1;
         }
         return restored;
       };
