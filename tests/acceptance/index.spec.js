@@ -3,6 +3,31 @@ const { gotoApp, clearWebUtilsStorage, seedLocalStorage, acceptConfirmDialog } =
 
 const BASE = 'http://127.0.0.1:4173';
 
+async function enableIndexedDbWriteFailures(page) {
+  await page.addInitScript(() => {
+    if (
+      !window.__idbWriteFailureHarness &&
+      window.IDBDatabase &&
+      window.IDBDatabase.prototype &&
+      typeof window.IDBDatabase.prototype.transaction === 'function'
+    ) {
+      const originalTransaction = window.IDBDatabase.prototype.transaction;
+      let failReadWrite = true;
+      window.__setIdbReadWriteFailure = (enabled) => {
+        failReadWrite = !!enabled;
+      };
+      window.IDBDatabase.prototype.transaction = function (...args) {
+        const mode = args[1];
+        if (failReadWrite && mode === 'readwrite') {
+          throw new Error('IndexedDB unavailable for test');
+        }
+        return originalTransaction.apply(this, args);
+      };
+      window.__idbWriteFailureHarness = true;
+    }
+  });
+}
+
 test.describe('index', () => {
   test.beforeEach(async ({ page }) => {
     await clearWebUtilsStorage(page);
@@ -429,6 +454,277 @@ test.describe('index', () => {
     expect(storedNotes).toBeNull();
     const storedRegex = await page.evaluate(() => localStorage.getItem('webutils.regex-workbench.v1'));
     expect(storedRegex).toBeNull();
+  });
+
+  test('transactional restore: localStorage-only import succeeds without incomplete-report dialog', async ({ page }) => {
+    const snapshot = {
+      version: 4,
+      createdAt: new Date().toISOString(),
+      apps: {
+        notes: {
+          storage: 'localStorage',
+          key: 'webutils.notes.v1',
+          value: JSON.stringify({ notes: [{ id: 'n1', title: 'Restored' }] }),
+        },
+      },
+    };
+
+    await page.locator('#import-file').setInputFiles({
+      name: 'notes-only.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(snapshot)),
+    });
+
+    await page.locator('#import-button').click();
+    await acceptConfirmDialog(page);
+
+    await expect(page.locator('#data-status')).toContainText('Imported data for 1 app(s).');
+    await expect(page.locator('#confirm-title')).not.toContainText('Restore incomplete');
+  });
+
+  test('transactional restore: mid-restore failure shows per-app report', async ({ page }) => {
+    await enableIndexedDbWriteFailures(page);
+    await page.goto(`${BASE}/docs/index.html`);
+    await page.waitForLoadState('domcontentloaded');
+
+    const snapshot = {
+      version: 4,
+      createdAt: new Date().toISOString(),
+      apps: {
+        kanban: {
+          storage: 'localStorage',
+          key: 'webutils.kanban.v2',
+          value: JSON.stringify({ tracks: [{ id: 't1', name: 'Imported', cards: [] }] }),
+        },
+        'zip-workbench': {
+          storage: 'indexedDB',
+          dbName: 'webutils-storage-v1',
+          storeName: 'app-data',
+          recordKey: 'webutils.zip-workbench.v3',
+          value: {
+            schemaVersion: 1,
+            savedAt: new Date().toISOString(),
+            zipName: 'sample.zip',
+            zipBytes: { __type: 'ArrayBuffer', base64: '' },
+          },
+        },
+      },
+    };
+
+    await page.locator('#import-file').setInputFiles({
+      name: 'mid-fail.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(snapshot)),
+    });
+
+    await page.locator('#import-button').click();
+    await acceptConfirmDialog(page);
+
+    const rollbackDialog = page.locator('#confirm-dialog');
+    await expect(rollbackDialog).toBeVisible();
+    await expect(page.locator('#confirm-title')).toHaveText('Restore incomplete');
+    await expect(rollbackDialog).toContainText('Kanban task board: Restored');
+    await expect(rollbackDialog).toContainText('Zip Workbench: FAILED');
+  });
+
+  test('transactional restore: rollback restores the exact prior state', async ({ page }) => {
+    await seedLocalStorage(page, 'webutils.kanban.v2', {
+      tracks: [{ id: 'seed', name: 'Before', cards: [] }],
+    });
+    const seededRaw = await page.evaluate(() => localStorage.getItem('webutils.kanban.v2'));
+
+    await enableIndexedDbWriteFailures(page);
+    await page.goto(`${BASE}/docs/index.html`);
+    await page.waitForLoadState('domcontentloaded');
+
+    const snapshot = {
+      version: 4,
+      createdAt: new Date().toISOString(),
+      apps: {
+        kanban: {
+          storage: 'localStorage',
+          key: 'webutils.kanban.v2',
+          value: JSON.stringify({ tracks: [{ id: 'new', name: 'After', cards: [] }] }),
+        },
+        'zip-workbench': {
+          storage: 'indexedDB',
+          dbName: 'webutils-storage-v1',
+          storeName: 'app-data',
+          recordKey: 'webutils.zip-workbench.v3',
+          value: {
+            schemaVersion: 1,
+            savedAt: new Date().toISOString(),
+            zipName: 'sample.zip',
+            zipBytes: { __type: 'ArrayBuffer', base64: '' },
+          },
+        },
+      },
+    };
+
+    await page.locator('#import-file').setInputFiles({
+      name: 'rollback-exact.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(snapshot)),
+    });
+
+    await page.locator('#import-button').click();
+    await acceptConfirmDialog(page);
+
+    const rollbackDialog = page.locator('#confirm-dialog');
+    await expect(rollbackDialog).toBeVisible();
+    await page.evaluate(() => {
+      if (typeof window.__setIdbReadWriteFailure === 'function') {
+        window.__setIdbReadWriteFailure(false);
+      }
+    });
+    await rollbackDialog.locator('#confirm-accept').click();
+
+    await expect(page.locator('#data-status')).toContainText('Import rolled back');
+    const currentRaw = await page.evaluate(() => localStorage.getItem('webutils.kanban.v2'));
+    expect(currentRaw).toBe(seededRaw);
+  });
+
+  test('transactional restore: rollback removes keys created by partial restore', async ({ page }) => {
+    await enableIndexedDbWriteFailures(page);
+    await page.goto(`${BASE}/docs/index.html`);
+    await page.waitForLoadState('domcontentloaded');
+    await page.evaluate(() => localStorage.removeItem('webutils.kanban.v2'));
+    const beforeRaw = await page.evaluate(() => localStorage.getItem('webutils.kanban.v2'));
+    expect(beforeRaw).toBeNull();
+
+    const snapshot = {
+      version: 4,
+      createdAt: new Date().toISOString(),
+      apps: {
+        kanban: {
+          storage: 'localStorage',
+          key: 'webutils.kanban.v2',
+          value: JSON.stringify({ tracks: [{ id: 'new', name: 'Created', cards: [] }] }),
+        },
+        'zip-workbench': {
+          storage: 'indexedDB',
+          dbName: 'webutils-storage-v1',
+          storeName: 'app-data',
+          recordKey: 'webutils.zip-workbench.v3',
+          value: {
+            schemaVersion: 1,
+            savedAt: new Date().toISOString(),
+            zipName: 'sample.zip',
+            zipBytes: { __type: 'ArrayBuffer', base64: '' },
+          },
+        },
+      },
+    };
+
+    await page.locator('#import-file').setInputFiles({
+      name: 'rollback-remove.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(snapshot)),
+    });
+
+    await page.locator('#import-button').click();
+    await acceptConfirmDialog(page);
+
+    const rollbackDialog = page.locator('#confirm-dialog');
+    await expect(rollbackDialog).toBeVisible();
+    await page.evaluate(() => {
+      if (typeof window.__setIdbReadWriteFailure === 'function') {
+        window.__setIdbReadWriteFailure(false);
+      }
+    });
+    await rollbackDialog.locator('#confirm-accept').click();
+    await expect(page.locator('#data-status')).toContainText('Import rolled back');
+
+    const currentRaw = await page.evaluate(() => localStorage.getItem('webutils.kanban.v2'));
+    expect(currentRaw).toBeNull();
+  });
+
+  test('transactional restore: keep-partial path leaves already-restored data', async ({ page }) => {
+    await enableIndexedDbWriteFailures(page);
+    await page.goto(`${BASE}/docs/index.html`);
+    await page.waitForLoadState('domcontentloaded');
+
+    const snapshot = {
+      version: 4,
+      createdAt: new Date().toISOString(),
+      apps: {
+        kanban: {
+          storage: 'localStorage',
+          key: 'webutils.kanban.v2',
+          value: JSON.stringify({ tracks: [{ id: 'new', name: 'KeepPartial', cards: [] }] }),
+        },
+        'zip-workbench': {
+          storage: 'indexedDB',
+          dbName: 'webutils-storage-v1',
+          storeName: 'app-data',
+          recordKey: 'webutils.zip-workbench.v3',
+          value: {
+            schemaVersion: 1,
+            savedAt: new Date().toISOString(),
+            zipName: 'sample.zip',
+            zipBytes: { __type: 'ArrayBuffer', base64: '' },
+          },
+        },
+      },
+    };
+
+    await page.locator('#import-file').setInputFiles({
+      name: 'keep-partial.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(snapshot)),
+    });
+
+    await page.locator('#import-button').click();
+    await acceptConfirmDialog(page);
+
+    const rollbackDialog = page.locator('#confirm-dialog');
+    await expect(rollbackDialog).toBeVisible();
+    await rollbackDialog.locator('button[value="cancel"]').click();
+
+    await expect(page.locator('#data-status')).toContainText('Kept partial import: 1 of 2 apps restored');
+    const currentKanban = await page.evaluate(() => JSON.parse(localStorage.getItem('webutils.kanban.v2')));
+    expect(currentKanban.tracks[0].name).toBe('KeepPartial');
+  });
+
+  test('transactional restore: per-app import uses failure report flow', async ({ page }) => {
+    await enableIndexedDbWriteFailures(page);
+    await page.goto(`${BASE}/docs/index.html`);
+    await page.waitForLoadState('domcontentloaded');
+
+    const snapshot = {
+      version: 4,
+      createdAt: new Date().toISOString(),
+      apps: {
+        'zip-workbench': {
+          storage: 'indexedDB',
+          dbName: 'webutils-storage-v1',
+          storeName: 'app-data',
+          recordKey: 'webutils.zip-workbench.v3',
+          value: {
+            schemaVersion: 1,
+            savedAt: new Date().toISOString(),
+            zipName: 'sample.zip',
+            zipBytes: { __type: 'ArrayBuffer', base64: '' },
+          },
+        },
+      },
+    };
+
+    const zipRow = page.locator('#app-list .app-row').filter({ hasText: 'Zip Workbench' });
+    const fileChooserPromise = page.waitForEvent('filechooser');
+    await zipRow.getByRole('button', { name: 'Import' }).click();
+    const fileChooser = await fileChooserPromise;
+    await fileChooser.setFiles({
+      name: 'zip-only-fail.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(snapshot)),
+    });
+
+    await acceptConfirmDialog(page);
+    const rollbackDialog = page.locator('#confirm-dialog');
+    await expect(rollbackDialog).toBeVisible();
+    await expect(page.locator('#confirm-title')).toHaveText('Restore incomplete');
+    await expect(rollbackDialog).toContainText('Zip Workbench: FAILED');
   });
 
   test('existing tests continue to pass: validate ok/error states remain', async ({ page }) => {

@@ -1447,9 +1447,10 @@
               // Restore only this app's entry — the preview promised no
               // other app would be touched, even in a multi-app snapshot.
               const scopedSnapshot = { ...snapshot, apps: { [app.id]: snapshot.apps[app.id] } };
-              const restored = await restoreSnapshot(scopedSnapshot);
-              setStatus(`Imported ${app.label} (${restored} dataset${restored !== 1 ? "s" : ""}).`);
-              await renderAppNav();
+              await executeSnapshotRestoreFlow(
+                scopedSnapshot,
+                (restoredCount) => `Imported ${app.label} (${restoredCount} dataset${restoredCount !== 1 ? "s" : ""}).`
+              );
             } catch (error) {
               setStatus("Import failed. The file may be invalid.");
             }
@@ -1762,6 +1763,270 @@
         } catch {}
       };
 
+      const buildRestoreReportNode = (results) => {
+        const container = document.createElement("div");
+        container.style.cssText = "margin:12px 0 0;padding:12px;background:var(--bg);border:1px solid var(--stroke);border-radius:4px;font-size:13px;line-height:1.5";
+
+        const intro = document.createElement("div");
+        intro.textContent = "Restore results:";
+        intro.style.cssText = "margin-bottom:8px";
+        container.appendChild(intro);
+
+        const list = document.createElement("ul");
+        list.style.cssText = "margin:0;padding-left:18px";
+        for (const result of results) {
+          const item = document.createElement("li");
+          let message = "";
+          if (result.status === "restored") {
+            message = "Restored";
+          } else if (result.status === "failed") {
+            const detail = result.error && result.error.message ? result.error.message : "Unknown error";
+            message = `FAILED: ${detail}`;
+          } else if (result.status === "not-applied") {
+            message = "Not applied (stopped after failure)";
+          } else {
+            message = "Skipped (nothing to restore)";
+          }
+          item.textContent = `${result.app.label}: ${message}`;
+          list.appendChild(item);
+        }
+        container.appendChild(list);
+        return container;
+      };
+
+      const captureRollbackJournal = async (snapshot) => {
+        const journal = [];
+        for (const app of APP_REGISTRY) {
+          if (!snapshot.apps[app.id]) {
+            continue;
+          }
+          const value = await readAppData(app);
+          const extra = {};
+          for (const entry of app.extraKeys || []) {
+            extra[entry.id] = localStorage.getItem(entry.key);
+          }
+          journal.push({ app, primary: { existed: value !== null, value }, extra });
+        }
+        return journal;
+      };
+
+      const applySnapshotEntry = async (app, entry) => {
+        let restoredThis = false;
+        if (entry.extra && typeof entry.extra === "object") {
+          writeExtraData(app, entry.extra);
+          restoredThis = true;
+        }
+
+        const descriptor = getStorageDescriptor(app);
+        if (descriptor.type === "indexedDB") {
+          if (entry.storage === "indexedDB" && entry.value !== undefined) {
+            await writeAppData(app, deserializeStructuredValue(entry.value));
+            restoredThis = true;
+          } else if (app.id === "zip-workbench" && typeof entry.value === "string") {
+            let legacy;
+            try {
+              legacy = JSON.parse(entry.value);
+            } catch (error) {
+              return restoredThis;
+            }
+            const legacyBytes = fromBase64(legacy.zipBase64 || "");
+            await writeAppData(app, {
+              schemaVersion: 1,
+              savedAt: new Date().toISOString(),
+              zipName: legacy.zipName || "archive.zip",
+              zipBytes: legacyBytes.buffer,
+            });
+            restoredThis = true;
+          } else if (app.id === "repo2prompt" && typeof entry.value === "string") {
+            let legacy;
+            try {
+              legacy = JSON.parse(entry.value);
+            } catch (error) {
+              return restoredThis;
+            }
+            if (!legacy || typeof legacy !== "object") {
+              return restoredThis;
+            }
+            await writeAppData(app, {
+              schemaVersion: 1,
+              savedAt: new Date().toISOString(),
+              url: typeof legacy.url === "string" ? legacy.url : "",
+              files: Array.isArray(legacy.files) ? legacy.files : [],
+              extensionFilter: Array.isArray(legacy.extensionFilter) ? legacy.extensionFilter : [],
+            });
+            restoredThis = true;
+          }
+        } else if (typeof entry.value === "string") {
+          await writeAppData(app, entry.value);
+          restoredThis = true;
+        }
+
+        return restoredThis;
+      };
+
+      const restoreSnapshotStaged = async (snapshot) => {
+        const results = [];
+        let restoredCount = 0;
+        let encounteredFailure = false;
+
+        for (const app of APP_REGISTRY) {
+          const entry = snapshot.apps[app.id];
+          if (!entry) {
+            continue;
+          }
+
+          if (encounteredFailure) {
+            results.push({ app, status: "not-applied", error: null });
+            continue;
+          }
+
+          try {
+            const restored = await applySnapshotEntry(app, entry);
+            const status = restored ? "restored" : "skipped";
+            if (restored) {
+              restoredCount += 1;
+            }
+            results.push({ app, status, error: null });
+          } catch (error) {
+            results.push({ app, status: "failed", error });
+            encounteredFailure = true;
+          }
+        }
+
+        return { restoredCount, results };
+      };
+
+      const rollbackFromJournal = async (journal, appIdsToRollBack) => {
+        const failures = [];
+        const appIdSet = new Set(appIdsToRollBack);
+
+        for (const record of journal) {
+          if (!appIdSet.has(record.app.id)) {
+            continue;
+          }
+
+          try {
+            const descriptor = getStorageDescriptor(record.app);
+            if (record.primary.existed) {
+              await writeAppData(record.app, record.primary.value);
+            } else if (descriptor.type === "indexedDB") {
+              await deleteIndexedDbRecord(descriptor);
+            } else {
+              localStorage.removeItem(descriptor.key);
+            }
+
+            for (const extra of record.app.extraKeys || []) {
+              const priorValue = record.extra[extra.id];
+              if (priorValue === null || priorValue === undefined) {
+                localStorage.removeItem(extra.key);
+              } else {
+                localStorage.setItem(extra.key, priorValue);
+              }
+            }
+          } catch (error) {
+            failures.push({ app: record.app, error });
+          }
+        }
+
+        return { ok: failures.length === 0, failures };
+      };
+
+      const buildRescueSnapshotFromJournal = (journal, appIdsToRollBack) => {
+        const appIdSet = new Set(appIdsToRollBack);
+        const snapshot = {
+          version: 4,
+          generator: "webutils",
+          createdAt: new Date().toISOString(),
+          apps: {},
+        };
+
+        for (const record of journal) {
+          if (!appIdSet.has(record.app.id)) {
+            continue;
+          }
+
+          const descriptor = getStorageDescriptor(record.app);
+          const entry = { appId: record.app.id };
+
+          if (record.primary.existed) {
+            if (descriptor.type === "indexedDB") {
+              entry.storage = "indexedDB";
+              entry.dbName = descriptor.dbName;
+              entry.storeName = descriptor.storeName;
+              entry.recordKey = descriptor.recordKey;
+              entry.value = serializeStructuredValue(record.primary.value);
+            } else {
+              entry.storage = "localStorage";
+              entry.key = descriptor.key;
+              entry.value = record.primary.value;
+            }
+          }
+
+          const extra = {};
+          for (const [extraId, extraValue] of Object.entries(record.extra || {})) {
+            if (extraValue !== null && extraValue !== undefined) {
+              extra[extraId] = extraValue;
+            }
+          }
+          if (Object.keys(extra).length > 0) {
+            entry.extra = extra;
+          }
+
+          if (entry.value !== undefined || entry.extra) {
+            snapshot.apps[record.app.id] = entry;
+          }
+        }
+
+        return snapshot;
+      };
+
+      const executeSnapshotRestoreFlow = async (snapshot, successStatusBuilder) => {
+        let journal;
+        try {
+          journal = await captureRollbackJournal(snapshot);
+        } catch (error) {
+          setStatus("Import aborted - could not back up current data for rollback.");
+          return;
+        }
+
+        const staged = await restoreSnapshotStaged(snapshot);
+        const failedResult = staged.results.find((result) => result.status === "failed");
+        if (!failedResult) {
+          setStatus(successStatusBuilder(staged.restoredCount));
+          await renderAppNav();
+          return;
+        }
+
+        const touchedAppIds = staged.results
+          .filter((result) => result.status === "restored" || result.status === "failed")
+          .map((result) => result.app.id);
+
+        const reportNode = buildRestoreReportNode(staged.results);
+        const shouldRollback = await requestConfirmation({
+          title: "Restore incomplete",
+          message: "The import stopped partway. Roll back to the data you had before this import?",
+          confirmText: "Roll back",
+          bodyNode: reportNode,
+        });
+
+        if (shouldRollback) {
+          const rollback = await rollbackFromJournal(journal, touchedAppIds);
+          if (rollback.ok) {
+            setStatus("Import rolled back - your previous data was restored.");
+          } else {
+            const names = rollback.failures.map((item) => item.app.label).join(", ");
+            const rescueSnapshot = buildRescueSnapshotFromJournal(journal, touchedAppIds);
+            downloadSnapshot(rescueSnapshot);
+            setStatus(`Rollback was incomplete for: ${names}. Downloaded a rescue snapshot of pre-import data.`);
+          }
+        } else {
+          const total = staged.results.filter((result) => result.status !== "not-applied").length;
+          setStatus(`Kept partial import: ${staged.restoredCount} of ${total} apps restored. Re-importing the same snapshot after fixing the issue is safe.`);
+        }
+
+        await renderAppNav();
+      };
+
       exportButton.addEventListener("click", async () => {
         const selected = new Set(
           Array.from(exportList.querySelectorAll("input[type='checkbox']"))
@@ -1937,59 +2202,6 @@
         }
       });
 
-      const restoreSnapshot = async (snapshot) => {
-        let restored = 0;
-        for (const app of APP_REGISTRY) {
-          const entry = snapshot.apps[app.id];
-          if (!entry) {
-            continue;
-          }
-          let restoredThis = false;
-          if (entry.extra && typeof entry.extra === "object") {
-            writeExtraData(app, entry.extra);
-            restoredThis = true;
-          }
-          const descriptor = getStorageDescriptor(app);
-          if (descriptor.type === "indexedDB") {
-            if (entry.storage === "indexedDB" && entry.value !== undefined) {
-              await writeAppData(app, deserializeStructuredValue(entry.value));
-              restoredThis = true;
-            } else if (app.id === "zip-workbench" && typeof entry.value === "string") {
-              try {
-                const legacy = JSON.parse(entry.value);
-                const legacyBytes = fromBase64(legacy.zipBase64 || "");
-                await writeAppData(app, {
-                  schemaVersion: 1,
-                  savedAt: new Date().toISOString(),
-                  zipName: legacy.zipName || "archive.zip",
-                  zipBytes: legacyBytes.buffer,
-                });
-                restoredThis = true;
-              } catch (error) {}
-            } else if (app.id === "repo2prompt" && typeof entry.value === "string") {
-              try {
-                const legacy = JSON.parse(entry.value);
-                if (legacy && typeof legacy === "object") {
-                  await writeAppData(app, {
-                    schemaVersion: 1,
-                    savedAt: new Date().toISOString(),
-                    url: typeof legacy.url === "string" ? legacy.url : "",
-                    files: Array.isArray(legacy.files) ? legacy.files : [],
-                    extensionFilter: Array.isArray(legacy.extensionFilter) ? legacy.extensionFilter : [],
-                  });
-                  restoredThis = true;
-                }
-              } catch (error) {}
-            }
-          } else if (typeof entry.value === "string") {
-            await writeAppData(app, entry.value);
-            restoredThis = true;
-          }
-          if (restoredThis) restored += 1;
-        }
-        return restored;
-      };
-
       importButton.addEventListener("click", async () => {
         const file = importFile.files[0];
         if (!file) {
@@ -2030,9 +2242,7 @@
             return;
           }
 
-          const restored = await restoreSnapshot(snapshot);
-          setStatus(`Imported data for ${restored} app(s).`);
-          await renderAppNav();
+          await executeSnapshotRestoreFlow(snapshot, (restoredCount) => `Imported data for ${restoredCount} app(s).`);
         } catch (error) {
           setStatus("Import failed. The file may be invalid.");
         } finally {

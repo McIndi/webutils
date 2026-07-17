@@ -184,7 +184,7 @@ The landing page (`docs/index.html`) serves as a hub for all utilities and inclu
 1. Go to "Data controls" on the landing page
 2. Choose a previously exported snapshot file
 3. Click "Import snapshot" and confirm
-4. Data for known apps is restored from the snapshot
+4. Data for known apps is restored from the snapshot; if a write fails mid-restore, you get a detailed report and can roll back to pre-import data
 
 ### Clearing Data
 - Use the "Clear all app data" button in Data controls with caution
@@ -257,10 +257,10 @@ Top 5 improvements that increase daily usefulness while preserving the static, l
   - Added: import previews showing exactly what will change before writes are applied (both full and per-app imports).
   - Result: safer validate/import flows and fewer schema-related breakages.
 
-2. **Transactional restore flow with clear rollback behavior**
-  - Add a staged restore pipeline: validate, dry-run checks, then apply writes.
-  - If a restore fails mid-way, surface a detailed partial-restore report and offer rollback or re-apply guidance.
-  - Outcome: avoids mixed-state restores and improves trust in recovery operations.
+2. **[✓ DONE] Transactional restore flow with clear rollback behavior**
+  - Implemented: staged restore with pre-write rollback journal capture, per-app restore outcomes, and stop-on-failure behavior.
+  - Added: partial-restore report with rollback/keep-partial choice and rescue snapshot download when rollback itself is incomplete.
+  - Result: avoids mixed-state restores and improves trust in recovery operations.
 
 3. **Unified backup experience across index and in-app surfaces**
   - Extend current landing-page backup reminders to track backup freshness per app, not only globally.
