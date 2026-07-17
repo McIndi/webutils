@@ -215,6 +215,32 @@
         height: 10px;
       }
 
+      .backup-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid var(--stroke);
+        border-radius: 10px;
+        padding: 8px 10px;
+        background: var(--panel);
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .backup-chip a {
+        border: 1px solid var(--stroke);
+        border-radius: 8px;
+        padding: 4px 8px;
+        text-decoration: none;
+        color: var(--ink);
+        background: transparent;
+        font: inherit;
+        font-size: 0.82rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+      }
+
       main {
         width: 100%;
         margin: 0;
@@ -483,6 +509,11 @@
         <label for="zip-file">Load from file</label>
         <input id="zip-file" type="file" accept=".zip" />
         <button class="danger" id="clear-session" type="button">Clear</button>
+        <div class="backup-chip" id="backup-chip" hidden>
+          <span id="backup-chip-status"></span>
+          <a id="backup-chip-export" href="index.html">Back up on the index page</a>
+          <a id="backup-chip-restore" href="index.html">Restore...</a>
+        </div>
       </div>
       <p>
         Paste a ZIP URL, pick the files you want, and copy a combined prompt-friendly
@@ -578,6 +609,49 @@
       const STORAGE_KEY_V2 = "webutils.repo2prompt.v2";
       const STORAGE_DB_NAME = "webutils-storage-v1";
       const STORAGE_STORE_NAME = "app-data";
+      const BACKUP_STATUS_KEY = "webutils.backupStatus.v1";
+      const BACKUP_APP_ID = "repo2prompt";
+      const formatRelativeTime = (iso) => {
+        const timestamp = Date.parse(iso);
+        if (!Number.isFinite(timestamp)) return "unknown time";
+        const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+        if (seconds < 60) return "just now";
+        if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
+        if (seconds < 86400) return `${Math.floor(seconds / 3600)} h ago`;
+        return `${Math.floor(seconds / 86400)} d ago`;
+      };
+
+      const readBackupStatus = () => {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(BACKUP_STATUS_KEY) || "{}");
+          return parsed && typeof parsed === "object" ? parsed : {};
+        } catch { return {}; }
+      };
+
+      const renderBackupChip = async () => {
+        const chip = document.getElementById("backup-chip");
+        const chipStatus = document.getElementById("backup-chip-status");
+        if (!chip || !chipStatus) return;
+        let payload = null;
+        try { payload = await readStoredPayload(); } catch {}
+        if (!payload || typeof payload !== "object") {
+          chip.hidden = true;
+          return;
+        }
+        chip.hidden = false;
+        const savedAt = typeof payload.savedAt === "string" ? payload.savedAt : null;
+        const status = readBackupStatus();
+        const entry = status[BACKUP_APP_ID];
+        const exportedAt = entry && typeof entry.exportedAt === "string" ? entry.exportedAt : null;
+        if (!exportedAt) {
+          chipStatus.textContent = "Never backed up";
+        } else if (savedAt && savedAt > exportedAt) {
+          chipStatus.textContent = "Changes not backed up";
+        } else {
+          chipStatus.textContent = `Backed up ${formatRelativeTime(exportedAt)}`;
+        }
+      };
+
       const urlInput = document.getElementById("zip-url");
       const loadButton = document.getElementById("load-zip");
       const fileInput = document.getElementById("zip-file");
@@ -754,6 +828,7 @@
             regexFilter: state.regexFilter,
           };
           await writeStoredPayload(stateToSave);
+          renderBackupChip();
         } catch (error) {
           setStatus("Storage full. Consider clearing or reloading the ZIP.");
         }
@@ -1321,6 +1396,7 @@
         }
         renderExtensionFilters();
         renderFiles();
+        renderBackupChip();
       };
 
       const APP_THEME_KEY = "webutils.theme.v1";

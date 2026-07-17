@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const fs = require('node:fs/promises');
 const { gotoApp, clearWebUtilsStorage, seedLocalStorage, acceptConfirmDialog } = require('./helpers/storage');
 
 test.describe('regex-workbench', () => {
@@ -155,5 +156,34 @@ test.describe('regex-workbench', () => {
     });
     await gotoApp(page, 'regex-workbench.html');
     await expect(page.locator('#preset-list .preset-row', { hasText: 'StartsCap' })).toBeVisible();
+  });
+
+  // ── Backup chip ────────────────────────────────────────────────────────────
+
+  test('backup chip is visible with data and shows Never backed up', async ({ page }) => {
+    await page.locator('#pattern').fill('hello');
+    const chip = page.locator('#backup-chip');
+    await expect(chip).toBeVisible();
+    await expect(page.locator('#backup-chip-status')).toContainText('Never backed up');
+  });
+
+  test('backup chip quick-backup exports v4 snapshot', async ({ page }) => {
+    await page.locator('#pattern').fill('world');
+
+    const downloadPromise = page.waitForEvent('download');
+    await page.locator('#backup-chip-export').click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/webutils-regex-workbench-.*\.json/i);
+
+    const downloadPath = await download.path();
+    const raw = await fs.readFile(downloadPath, 'utf8');
+    const parsed = JSON.parse(raw);
+    expect(parsed.version).toBe(4);
+    expect(parsed.generator).toBe('webutils');
+    expect(parsed.apps['regex-workbench']).toBeTruthy();
+    expect(parsed.apps['regex-workbench'].storage).toBe('localStorage');
+    expect(parsed.apps['regex-workbench'].key).toBe('webutils.regex-workbench.v1');
+
+    await expect(page.locator('#backup-chip-status')).toContainText('Backed up');
   });
 });

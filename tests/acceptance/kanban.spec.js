@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const fs = require('node:fs/promises');
 const { gotoApp, clearWebUtilsStorage, acceptConfirmDialog } = require('./helpers/storage');
 
 test.describe('kanban', () => {
@@ -230,5 +231,59 @@ test.describe('kanban', () => {
     await acceptConfirmDialog(page);
     await expect(page.locator('.card-title', { hasText: 'Imported card' })).toBeVisible();
     await expect(page.locator('.card-title', { hasText: 'Original card' })).not.toBeVisible();
+  });
+
+  test('backup chip quick-backup exports v4 snapshot and marks status backed up', async ({ page }) => {
+    const chip = page.locator('#backup-chip');
+    await expect(chip).toBeVisible();
+    await expect(page.locator('#backup-chip-status')).toContainText('Never backed up');
+
+    const downloadPromise = page.waitForEvent('download');
+    await page.locator('#backup-chip-export').click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/webutils-kanban-.*\.json/i);
+
+    const downloadPath = await download.path();
+    const raw = await fs.readFile(downloadPath, 'utf8');
+    const parsed = JSON.parse(raw);
+    expect(parsed.version).toBe(4);
+    expect(parsed.generator).toBe('webutils');
+    expect(parsed.apps.kanban).toBeTruthy();
+    expect(parsed.apps.kanban.storage).toBe('localStorage');
+    expect(parsed.apps.kanban.key).toBe('webutils.kanban.v2');
+    expect(typeof parsed.apps.kanban.value).toBe('string');
+
+    await expect(page.locator('#backup-chip-status')).toContainText('Backed up');
+  });
+
+  test('backup chip snapshot round-trips through index per-app import', async ({ page }) => {
+    await page.locator('details.track-add-task summary').click();
+    await page.locator('input[id^="title-"]').fill('Round trip card');
+    await page.locator('details.track-add-task button[type="submit"]').click();
+    await expect(page.locator('.card-title', { hasText: 'Round trip card' })).toBeVisible();
+
+    const downloadPromise = page.waitForEvent('download');
+    await page.locator('#backup-chip-export').click();
+    const download = await downloadPromise;
+    const downloadPath = await download.path();
+
+    await page.evaluate(() => {
+      localStorage.removeItem('webutils.kanban.v2');
+    });
+
+    await gotoApp(page, 'index.html');
+    const kanbanRow = page.locator('#app-list .app-row').filter({ hasText: 'Kanban' });
+    const chooserPromise = page.waitForEvent('filechooser');
+    await kanbanRow.getByRole('button', { name: 'Import' }).click();
+    const chooser = await chooserPromise;
+    await chooser.setFiles(downloadPath);
+
+    const dialog = page.locator('#confirm-dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.locator('#confirm-accept').click();
+    await expect(page.locator('#data-status')).toContainText('Imported Kanban task board');
+
+    await gotoApp(page, 'kanban.html');
+    await expect(page.locator('.card-title', { hasText: 'Round trip card' })).toBeVisible();
   });
 });

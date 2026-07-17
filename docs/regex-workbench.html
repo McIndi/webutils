@@ -190,6 +190,36 @@
         color: var(--ink);
       }
 
+      .backup-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid var(--stroke);
+        border-radius: 10px;
+        padding: 8px 10px;
+        background: var(--panel);
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .backup-chip button,
+      .backup-chip a {
+        border: 1px solid var(--stroke);
+        border-radius: 8px;
+        padding: 4px 8px;
+        text-decoration: none;
+        color: var(--ink);
+        background: transparent;
+        font: inherit;
+        font-size: 0.82rem;
+        cursor: pointer;
+      }
+
+      .backup-chip a {
+        display: inline-flex;
+        align-items: center;
+      }
+
       main {
         width: 100%;
         flex: 1;
@@ -568,6 +598,11 @@
     </header>
 
     <div class="toolbar">
+      <div class="backup-chip" id="backup-chip" hidden>
+        <span id="backup-chip-status"></span>
+        <button type="button" id="backup-chip-export">Back up</button>
+        <a id="backup-chip-restore" href="index.html">Restore...</a>
+      </div>
       <a href="index.html">Back to index</a>
     </div>
 
@@ -652,6 +687,10 @@
 
     <script>
       const STORAGE_KEY = "webutils.regex-workbench.v1";
+      const BACKUP_STATUS_KEY = "webutils.backupStatus.v1";
+      const LAST_EXPORT_KEY = "webutils.lastExport.v1";
+      const BACKUP_APP_ID = "regex-workbench";
+      const BACKUP_APP_LABEL = "Regex Workbench";
 
       const patternInput = document.getElementById("pattern");
       const presetNameInput = document.getElementById("preset-name");
@@ -668,6 +707,10 @@
       const confirmMessage = document.getElementById("confirm-message");
       const confirmAccept = document.getElementById("confirm-accept");
       let confirmResolve = null;
+
+      const backupChip = document.getElementById("backup-chip");
+      const backupChipStatus = document.getElementById("backup-chip-status");
+      const backupChipExport = document.getElementById("backup-chip-export");
 
       // Tab switching
       document.querySelectorAll(".tab-button").forEach((btn) => {
@@ -709,8 +752,138 @@
         confirmResolve = null;
       });
 
+      const fnv1a = (str) => {
+        let h = 0x811c9dc5;
+        for (let i = 0; i < str.length; i += 1) {
+          h ^= str.charCodeAt(i);
+          h = Math.imul(h, 0x01000193);
+        }
+        return (h >>> 0).toString(16);
+      };
+
+      const formatRelativeTime = (iso) => {
+        const timestamp = Date.parse(iso);
+        if (!Number.isFinite(timestamp)) {
+          return "unknown time";
+        }
+        const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+        if (seconds < 60) {
+          return "just now";
+        }
+        if (seconds < 3600) {
+          return `${Math.floor(seconds / 60)} min ago`;
+        }
+        if (seconds < 86400) {
+          return `${Math.floor(seconds / 3600)} h ago`;
+        }
+        return `${Math.floor(seconds / 86400)} d ago`;
+      };
+
+      const readBackupStatus = () => {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(BACKUP_STATUS_KEY) || "{}");
+          return parsed && typeof parsed === "object" ? parsed : {};
+        } catch {
+          return {};
+        }
+      };
+
+      const writeBackupStatus = (status) => {
+        try {
+          localStorage.setItem(BACKUP_STATUS_KEY, JSON.stringify(status));
+        } catch {}
+      };
+
+      const getBackupPrimaryValue = () => localStorage.getItem(STORAGE_KEY);
+
+      const getBackupFreshness = () => {
+        const value = getBackupPrimaryValue();
+        if (value === null) {
+          return { state: "no-data", exportedAt: null, hash: null };
+        }
+        const hash = fnv1a(value);
+        const status = readBackupStatus();
+        const entry = status[BACKUP_APP_ID];
+        if (!entry || typeof entry !== "object" || typeof entry.exportedAt !== "string") {
+          return { state: "never", exportedAt: null, hash };
+        }
+        if (entry.hash !== hash) {
+          return { state: "stale", exportedAt: entry.exportedAt, hash };
+        }
+        return { state: "fresh", exportedAt: entry.exportedAt, hash };
+      };
+
+      const renderBackupChip = () => {
+        if (!backupChip || !backupChipStatus) {
+          return;
+        }
+        const freshness = getBackupFreshness();
+        if (freshness.state === "no-data") {
+          backupChip.hidden = true;
+          return;
+        }
+        backupChip.hidden = false;
+        if (freshness.state === "never") {
+          backupChipStatus.textContent = "Never backed up";
+        } else if (freshness.state === "stale") {
+          backupChipStatus.textContent = "Changes not backed up";
+        } else {
+          backupChipStatus.textContent = `Backed up ${formatRelativeTime(freshness.exportedAt)}`;
+        }
+      };
+
+      const recordBackupFromCurrentData = () => {
+        const freshness = getBackupFreshness();
+        if (freshness.state === "no-data" || !freshness.hash) {
+          return;
+        }
+        const status = readBackupStatus();
+        status[BACKUP_APP_ID] = {
+          exportedAt: new Date().toISOString(),
+          hash: freshness.hash,
+        };
+        writeBackupStatus(status);
+        try {
+          localStorage.setItem(LAST_EXPORT_KEY, new Date().toISOString());
+        } catch {}
+      };
+
+      const exportBackupSnapshot = () => {
+        const value = getBackupPrimaryValue();
+        if (value === null) {
+          return;
+        }
+        const snapshot = {
+          version: 4,
+          generator: "webutils",
+          createdAt: new Date().toISOString(),
+          apps: {
+            [BACKUP_APP_ID]: {
+              appId: BACKUP_APP_ID,
+              storage: "localStorage",
+              key: STORAGE_KEY,
+              value,
+            },
+          },
+        };
+        const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        link.href = url;
+        link.download = `webutils-${BACKUP_APP_ID}-${timestamp}.json`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+
+        recordBackupFromCurrentData();
+        renderBackupChip();
+      };
+
       const saveState = () => {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        renderBackupChip();
       };
 
       const loadState = () => {
@@ -730,6 +903,7 @@
           state.sample = "";
           state.presets = [];
         }
+        renderBackupChip();
       };
 
       const escapeHtml = (value) =>
@@ -1040,6 +1214,7 @@
 
       savePresetButton.addEventListener("click", handleSavePreset);
       clearSampleButton.addEventListener("click", handleClearSample);
+      backupChipExport.addEventListener("click", exportBackupSnapshot);
 
       const APP_THEME_KEY = "webutils.theme.v1";
       const getAppTheme = () => {

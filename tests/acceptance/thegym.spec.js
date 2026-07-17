@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const fs = require('node:fs/promises');
 const { gotoApp, clearWebUtilsStorage, seedLocalStorage, acceptGymModal } = require('./helpers/storage');
 
 test.describe('thegym', () => {
@@ -240,5 +241,54 @@ test.describe('thegym', () => {
 
     await gotoApp(page, 'thegym.html');
     await expect(page.locator('#stat-exercises')).toHaveText('6');
+  });
+
+  // ── Backup chip ────────────────────────────────────────────────────
+
+  test('backup chip is visible with data and shows Never backed up', async ({ page }) => {
+    await page.locator('.nav-tab[data-view="data"]').click();
+    const chip = page.locator('#backup-chip');
+    await expect(chip).toBeVisible();
+    await expect(page.locator('#backup-chip-status')).toContainText('Never backed up');
+  });
+
+  test('EXPORT JSON updates backup chip to Backed up', async ({ page }) => {
+    await page.locator('.nav-tab[data-view="data"]').click();
+    await expect(page.locator('#backup-chip-status')).toContainText('Never backed up');
+
+    const downloadPromise = page.waitForEvent('download');
+    await page.locator('button.primary', { hasText: /EXPORT JSON/i }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/thegym-backup-.*\.json/i);
+
+    await expect(page.locator('#backup-chip-status')).toContainText('Backed up');
+
+    const backupStatus = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem('webutils.backupStatus.v1') || '{}')
+    );
+    expect(backupStatus.thegym).toBeTruthy();
+    expect(typeof backupStatus.thegym.exportedAt).toBe('string');
+    expect(typeof backupStatus.thegym.hash).toBe('string');
+  });
+
+  test('backup chip quick-backup exports v4 snapshot and marks backed up', async ({ page }) => {
+    await page.locator('.nav-tab[data-view="data"]').click();
+    await expect(page.locator('#backup-chip-status')).toContainText('Never backed up');
+
+    const downloadPromise = page.waitForEvent('download');
+    await page.locator('#backup-chip-export').click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/webutils-thegym-.*\.json/i);
+
+    const downloadPath = await download.path();
+    const raw = await fs.readFile(downloadPath, 'utf8');
+    const parsed = JSON.parse(raw);
+    expect(parsed.version).toBe(4);
+    expect(parsed.generator).toBe('webutils');
+    expect(parsed.apps.thegym).toBeTruthy();
+    expect(parsed.apps.thegym.storage).toBe('localStorage');
+    expect(parsed.apps.thegym.key).toBe('webutils.thegym.v1');
+
+    await expect(page.locator('#backup-chip-status')).toContainText('Backed up');
   });
 });

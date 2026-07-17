@@ -325,6 +325,11 @@
         font-size: 0.9rem;
       }
 
+      .app-meta-warning {
+        color: var(--accent-dark);
+        font-weight: 600;
+      }
+
       .data-grid {
         display: grid;
         gap: 16px;
@@ -948,6 +953,7 @@
       };
 
       const LAST_EXPORT_KEY = "webutils.lastExport.v1";
+      const BACKUP_STATUS_KEY = "webutils.backupStatus.v1";
       const THEGYM_STATE_KEY = "webutils.thegym.v1";
       const THEGYM_LEGACY_KEYS = {
         exercises: "thegym_exercises",
@@ -967,6 +973,7 @@
       const backupWarning = document.getElementById("backup-warning");
       const backupWarningText = document.getElementById("backup-warning-text");
       const backupWarningDismiss = document.getElementById("backup-warning-dismiss");
+      let backupWarningDismissed = false;
 
       // Hidden file input for per-app imports
       const perAppImportFile = document.createElement("input");
@@ -1339,6 +1346,7 @@
           localStorage.removeItem(descriptor.key);
         }
         clearExtraData(app);
+        removeBackupStatusEntry(app.id);
       };
 
       const estimateDataBytes = (app, value) => {
@@ -1390,6 +1398,137 @@
         return total;
       };
 
+      const fnv1a = (str) => {
+        let h = 0x811c9dc5;
+        for (let i = 0; i < str.length; i += 1) {
+          h ^= str.charCodeAt(i);
+          h = Math.imul(h, 0x01000193);
+        }
+        return (h >>> 0).toString(16);
+      };
+
+      const formatRelativeTime = (iso) => {
+        const timestamp = Date.parse(iso);
+        if (!Number.isFinite(timestamp)) {
+          return "unknown time";
+        }
+        const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+        if (seconds < 60) {
+          return "just now";
+        }
+        if (seconds < 3600) {
+          return `${Math.floor(seconds / 60)} min ago`;
+        }
+        if (seconds < 86400) {
+          return `${Math.floor(seconds / 3600)} h ago`;
+        }
+        return `${Math.floor(seconds / 86400)} d ago`;
+      };
+
+      const readBackupStatus = () => safeJsonParse(localStorage.getItem(BACKUP_STATUS_KEY), {});
+
+      const writeBackupStatus = (status) => {
+        localStorage.setItem(BACKUP_STATUS_KEY, JSON.stringify(status));
+      };
+
+      const removeBackupStatusEntry = (appId) => {
+        try {
+          const status = readBackupStatus();
+          if (!status || typeof status !== "object" || !Object.prototype.hasOwnProperty.call(status, appId)) {
+            return;
+          }
+          delete status[appId];
+          writeBackupStatus(status);
+        } catch {}
+      };
+
+      const buildCanonicalLocalStorageHashInput = (app, value, extraValues) => {
+        let input = value ?? "";
+        const sortedExtras = [...(app.extraKeys || [])].sort((a, b) => a.id.localeCompare(b.id));
+        for (const extra of sortedExtras) {
+          const extraValue = Object.prototype.hasOwnProperty.call(extraValues, extra.id)
+            ? extraValues[extra.id]
+            : null;
+          input += `${extra.id}=${extraValue ?? ""}`;
+        }
+        return input;
+      };
+
+      const recordAppBackups = async (appIds) => {
+        const status = readBackupStatus();
+        const now = new Date().toISOString();
+
+        for (const appId of appIds) {
+          const app = APP_REGISTRY.find((candidate) => candidate.id === appId);
+          if (!app) {
+            continue;
+          }
+          try {
+            const descriptor = getStorageDescriptor(app);
+            const value = await readAppData(app);
+            const extra = readExtraData(app);
+            const hasData = (value !== null && value !== undefined) || Object.keys(extra).length > 0;
+            if (!hasData) {
+              continue;
+            }
+
+            if (descriptor.type === "indexedDB") {
+              status[app.id] = { exportedAt: now };
+            } else {
+              const hashInput = buildCanonicalLocalStorageHashInput(app, value, extra);
+              status[app.id] = {
+                exportedAt: now,
+                hash: fnv1a(hashInput),
+              };
+            }
+          } catch {}
+        }
+
+        try {
+          writeBackupStatus(status);
+        } catch {}
+      };
+
+      const getAppFreshness = async (app, backupStatus) => {
+        const status = backupStatus || readBackupStatus();
+        let value = null;
+        let extra = {};
+        try {
+          value = await readAppData(app);
+          extra = readExtraData(app);
+        } catch {
+          return { state: "no-data", exportedAt: null };
+        }
+
+        const hasData = (value !== null && value !== undefined) || Object.keys(extra).length > 0;
+        if (!hasData) {
+          return { state: "no-data", exportedAt: null };
+        }
+
+        const entry = status && typeof status === "object" ? status[app.id] : null;
+        if (!entry || typeof entry !== "object" || !isStr(entry.exportedAt)) {
+          return { state: "never", exportedAt: null };
+        }
+
+        const descriptor = getStorageDescriptor(app);
+        if (descriptor.type === "indexedDB") {
+          const exportedTime = Date.parse(entry.exportedAt);
+          const savedAt = value && typeof value === "object" ? value.savedAt : null;
+          const savedTime = Date.parse(savedAt);
+          if (Number.isFinite(exportedTime) && Number.isFinite(savedTime) && savedTime > exportedTime) {
+            return { state: "stale", exportedAt: entry.exportedAt };
+          }
+          return { state: "fresh", exportedAt: entry.exportedAt };
+        }
+
+        const hashInput = buildCanonicalLocalStorageHashInput(app, value, extra);
+        const currentHash = fnv1a(hashInput);
+        if (entry.hash !== currentHash) {
+          return { state: "stale", exportedAt: entry.exportedAt };
+        }
+        return { state: "fresh", exportedAt: entry.exportedAt };
+      };
+
       const exportAppData = async (app) => {
         const snapshot = await buildSnapshot(new Set([app.id]));
         if (Object.keys(snapshot.apps).length === 0) {
@@ -1406,7 +1545,9 @@
         link.click();
         link.remove();
         URL.revokeObjectURL(url);
+        await recordAppBackups([app.id]);
         recordExport();
+        await renderAppNav();
         setStatus(`Exported ${app.label}.`);
       };
 
@@ -1488,6 +1629,7 @@
 
       const renderAppNav = async () => {
         appList.innerHTML = "";
+        const backupStatus = readBackupStatus();
         for (const app of APP_REGISTRY) {
           const row = document.createElement("div");
           row.className = "app-row";
@@ -1516,10 +1658,30 @@
           const extraBytes = estimateExtraBytes(app);
           const bytes = estimateDataBytes(app, storedValue) + extraBytes;
           const hasData = (storedValue !== null && storedValue !== undefined) || extraBytes > 0;
+          const freshness = await getAppFreshness(app, backupStatus);
 
           const meta = document.createElement("div");
           meta.className = "app-meta";
-          meta.textContent = hasData ? `Stored data: ${formatBytes(bytes)}` : "No data saved";
+          if (!hasData || freshness.state === "no-data") {
+            meta.textContent = "No data saved";
+          } else {
+            meta.appendChild(document.createTextNode(`Stored data: ${formatBytes(bytes)} · `));
+            if (freshness.state === "never") {
+              const warning = document.createElement("span");
+              warning.className = "app-meta-warning";
+              warning.textContent = "Never backed up";
+              meta.appendChild(warning);
+            } else if (freshness.state === "stale") {
+              const warning = document.createElement("span");
+              warning.className = "app-meta-warning";
+              warning.textContent = `Changed since last backup (${formatRelativeTime(freshness.exportedAt)})`;
+              meta.appendChild(warning);
+            } else {
+              meta.appendChild(
+                document.createTextNode(`Backed up ${formatRelativeTime(freshness.exportedAt)}`)
+              );
+            }
+          }
 
           const topRow = document.createElement("div");
           topRow.style.display = "flex";
@@ -1554,37 +1716,43 @@
           row.append(topRow, description, meta, actions);
           appList.appendChild(row);
         }
+        await checkBackupWarning();
       };
 
       const checkBackupWarning = async () => {
-        let hasData = false;
+        const backupStatus = readBackupStatus();
+        const unprotectedApps = [];
         for (const app of APP_REGISTRY) {
           try {
-            const value = await readAppData(app);
-            if ((value !== null && value !== undefined) || estimateExtraBytes(app) > 0) {
-              hasData = true;
-              break;
+            const freshness = await getAppFreshness(app, backupStatus);
+            if (freshness.state === "never" || freshness.state === "stale") {
+              unprotectedApps.push(app.label);
             }
           } catch {}
         }
-        if (!hasData || !backupWarning) return;
 
-        const lastExport = localStorage.getItem(LAST_EXPORT_KEY);
-        if (!lastExport) {
-          backupWarningText.textContent =
-            "You have saved data with no backup on record. Export a snapshot to protect your data.";
-          backupWarning.hidden = false;
+        if (!backupWarning) {
           return;
         }
-        const hoursSince = (Date.now() - new Date(lastExport).getTime()) / 3_600_000;
-        if (hoursSince >= 24) {
-          const label =
-            hoursSince >= 48
-              ? `${Math.floor(hoursSince / 24)} days`
-              : `${Math.floor(hoursSince)} hours`;
-          backupWarningText.textContent = `Last backup was ${label} ago. Consider exporting a snapshot.`;
-          backupWarning.hidden = false;
+
+        if (unprotectedApps.length === 0) {
+          backupWarning.hidden = true;
+          backupWarningDismissed = false;
+          return;
         }
+
+        if (backupWarningDismissed) {
+          backupWarning.hidden = true;
+          return;
+        }
+
+        const shownLabels = unprotectedApps.slice(0, 3).join(", ");
+        const remaining = unprotectedApps.length - 3;
+        const labelText = remaining > 0 ? `${shownLabels}, and ${remaining} more` : shownLabels;
+        const noun = unprotectedApps.length === 1 ? "app" : "apps";
+        const verb = unprotectedApps.length === 1 ? "has" : "have";
+        backupWarningText.textContent = `${unprotectedApps.length} ${noun} ${verb} data that isn't in any backup: ${labelText}. Export a snapshot to protect it.`;
+        backupWarning.hidden = false;
       };
 
       const renderExportList = () => {
@@ -1759,6 +1927,7 @@
       const recordExport = () => {
         try {
           localStorage.setItem(LAST_EXPORT_KEY, new Date().toISOString());
+          backupWarningDismissed = false;
           if (backupWarning) backupWarning.hidden = true;
         } catch {}
       };
@@ -2047,7 +2216,9 @@
             return;
           }
           downloadSnapshot(snapshot);
+          await recordAppBackups(Object.keys(snapshot.apps));
           recordExport();
+          await renderAppNav();
           setStatus(`Exported ${count} app data sets.`);
         } catch (error) {
           setStatus("Export failed. Check browser storage permissions.");
@@ -2263,6 +2434,7 @@
             const snapshot = await buildSnapshot(allIds);
             if (Object.keys(snapshot.apps).length > 0) {
               downloadSnapshot(snapshot);
+              await recordAppBackups(Object.keys(snapshot.apps));
               recordExport();
             }
           } catch {
@@ -2291,12 +2463,13 @@
       });
 
       backupWarningDismiss.addEventListener("click", () => {
+        backupWarningDismissed = true;
         backupWarning.hidden = true;
       });
 
       migrateTheGymLegacyState();
       renderExportList();
-      renderAppNav().then(checkBackupWarning);
+      renderAppNav();
 
       const APP_THEME_KEY = "webutils.theme.v1";
       const getAppTheme = () => {

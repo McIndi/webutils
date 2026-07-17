@@ -165,7 +165,8 @@ The landing page (`docs/index.html`) serves as a hub for all utilities and inclu
 - **App navigation**: Links to open each app, plus download buttons to save files locally
 - **Data controls**: Export/import snapshots of saved data across all apps, with validation and preview before import
 - **Clear all data**: Destructive action (with confirmation) to wipe all stored data
-- **Storage info**: Shows how much data each app currently stores
+- **Storage info**: Shows how much data each app currently stores, along with per-app backup freshness (never backed up / backed up N ago / changed since last backup)
+- **Backup banner**: Warns when one or more apps have data that is not covered by any backup
 
 ## Getting Started
 
@@ -196,6 +197,18 @@ The landing page (`docs/index.html`) serves as a hub for all utilities and inclu
 - **Snapshots**: You can export all your data as a JSON file and restore it anytime
 - **No accounts**: Everything is stored locally; no login or syncing required
 - **Confirmation dialogs**: Destructive actions (delete, clear, import) always ask for confirmation to prevent accidents
+
+### Backups
+
+A per-app backup ledger is stored at `localStorage` key `webutils.backupStatus.v1`. Each entry records when that app's data was last exported and a hash of the data at the time.
+
+- **Freshness states**: `never` (no export recorded), `fresh` (hash matches last export), or `stale` (data changed since last export).
+- **localStorage apps** (Kanban, Notes Wiki, Regex Workbench, Static Page Generator, Content Studio, TheGym, Secret Share): freshness is computed by hashing the current stored value and comparing it against the ledger.
+- **IndexedDB apps** (Zip Workbench, Repo2Prompt): freshness is determined by comparing the record's `savedAt` timestamp against the ledger's `exportedAt`.
+- **Landing page rows**: each app row shows its current freshness alongside the stored-data size.
+- **Backup banner**: appears when any app with data has never been backed up or has changed since the last backup.
+- **In-app backup chip**: each app's toolbar (or Data section for TheGym) shows a compact chip with status text and a **Back up** button. Clicking it downloads a version-4 single-app snapshot that can be restored via the landing page's per-app Import. IndexedDB apps show the chip with a link to the index page instead of a direct download button.
+- **Native exports also count**: TheGym's EXPORT JSON and Notes Wiki's Export JSON update the backup ledger so the chip reflects the latest export regardless of which path was used.
 
 ## Privacy & Security
 
@@ -262,11 +275,11 @@ Top 5 improvements that increase daily usefulness while preserving the static, l
   - Added: partial-restore report with rollback/keep-partial choice and rescue snapshot download when rollback itself is incomplete.
   - Result: avoids mixed-state restores and improves trust in recovery operations.
 
-3. **Unified backup experience across index and in-app surfaces**
-  - Extend current landing-page backup reminders to track backup freshness per app, not only globally.
-  - Surface quick backup, scoped restore, and "last backup" status inside each app.
-  - Continue supporting lightweight snapshots, plus optional portable bundles when runtime assets are needed.
-  - Outcome: better day-to-day data hygiene and portability without leaving app context.
+3. **[✓ DONE] Unified backup experience across index and in-app surfaces**
+  - Implemented: `webutils.backupStatus.v1` ledger tracks per-app backup freshness (hash-based for localStorage apps, `savedAt`-based for IndexedDB apps).
+  - Added: per-app freshness status on landing-page rows and a banner naming specific stale/never-backed apps.
+  - Added: in-app backup chip in every app (full quick-backup for localStorage apps, status+link for IndexedDB apps).
+  - Result: better day-to-day data hygiene and portability without leaving app context.
 
 4. **Unified keyboard shortcuts and command controls**
   - Introduce a shared shortcut map and command palette pattern across all apps, with app-specific commands layered on top.

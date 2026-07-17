@@ -209,4 +209,19 @@ test.describe('notes', () => {
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toMatch(/notes.*\.json/i);
   });
+
+  test('export JSON also updates backup chip status to backed up', async ({ page }) => {
+    await page.locator('#new-note').click();
+    await page.locator('input[id^="edit-title-"]').fill('Backup ledger note');
+    await page.locator('.open-note button.primary', { hasText: 'Save' }).click();
+
+    await expect(page.locator('#backup-chip')).toBeVisible();
+    await expect(page.locator('#backup-chip-status')).toContainText('Never backed up');
+
+    const downloadPromise = page.waitForEvent('download');
+    await page.locator('#export-notes').click();
+    await downloadPromise;
+
+    await expect(page.locator('#backup-chip-status')).toContainText('Backed up');
+  });
 });

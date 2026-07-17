@@ -34,6 +34,8 @@ This document captures decisions, conventions, and architectural patterns that a
 - Snapshots are JSON files containing a version, timestamp, and per-app storage payloads.
 - The snapshot export list is driven by an app registry on the landing page; add new apps there to include them in backups.
 - Import restores only known apps in the registry and overwrites their stored values.
+- A per-app backup ledger (`webutils.backupStatus.v1`) records when each app's data was last exported and a hash of the exported state. Every export path (landing-page full export, per-app export, in-app quick backup, and app-native exports such as TheGym's EXPORT JSON) writes to this ledger as a merge, never a blind overwrite.
+- For localStorage apps, freshness is computed by FNV-1a hashing the current stored string (plus any `extraKeys`, sorted by id) and comparing against the ledger hash. For IndexedDB apps, freshness is determined by comparing the record's `savedAt` ISO field against the ledger's `exportedAt`.
 
 ## App registry (landing page)
 - The landing page maintains an `APP_REGISTRY` array that drives the Utilities navigation and data controls.
@@ -60,6 +62,7 @@ This document captures decisions, conventions, and architectural patterns that a
    - Use `webutils.my-app.v1` as the storage key
    - Implement `saveState()` and `loadState()` functions
    - Use the confirmation dialog pattern for destructive actions
+   - Include the standard backup chip block (copy from `kanban.html` — the `BACKUP_APP_ID`, `BACKUP_APP_LABEL`, `BACKUP_STORAGE_KEY` constants, the `.backup-chip` CSS, the chip HTML markup, and the JS functions `fnv1a` through `exportBackupSnapshot`). Update the three constants to match the new app. Register the storage key inside the chip's `getBackupPrimaryValue` function.
 
 2. **Register the app** in `docs/index.html`:
    - Add an entry to the `APP_REGISTRY` array

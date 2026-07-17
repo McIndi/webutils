@@ -28,6 +28,10 @@ async function enableIndexedDbWriteFailures(page) {
   });
 }
 
+function appRow(page, label) {
+  return page.locator('#app-list .app-row').filter({ hasText: label });
+}
+
 test.describe('index', () => {
   test.beforeEach(async ({ page }) => {
     await clearWebUtilsStorage(page);
@@ -188,6 +192,102 @@ test.describe('index', () => {
 
   test('backup warning is hidden by default', async ({ page }) => {
     await expect(page.locator('#backup-warning')).toBeHidden();
+  });
+
+  test('export records per-app freshness for rows and ledger', async ({ page }) => {
+    await seedLocalStorage(page, 'webutils.notes.v1', { notes: [{ id: 'n1', title: 'Seed' }] });
+    await page.goto(`${BASE}/docs/index.html`);
+    await page.waitForLoadState('domcontentloaded');
+
+    const downloadPromise = page.waitForEvent('download');
+    await page.locator('#export-button').click();
+    await downloadPromise;
+
+    await expect(appRow(page, 'Notes Wiki').locator('.app-meta')).toContainText('Backed up');
+    const ledgerEntry = await page.evaluate(() => {
+      const parsed = JSON.parse(localStorage.getItem('webutils.backupStatus.v1') || '{}');
+      return parsed.notes || null;
+    });
+    expect(ledgerEntry).toBeTruthy();
+    expect(typeof ledgerEntry.exportedAt).toBe('string');
+    expect(typeof ledgerEntry.hash).toBe('string');
+  });
+
+  test('changing data after export marks app stale and names it in banner', async ({ page }) => {
+    await seedLocalStorage(page, 'webutils.notes.v1', { notes: [{ id: 'n1', title: 'Seed' }] });
+    await page.goto(`${BASE}/docs/index.html`);
+    await page.waitForLoadState('domcontentloaded');
+
+    const downloadPromise = page.waitForEvent('download');
+    await page.locator('#export-button').click();
+    await downloadPromise;
+
+    await page.evaluate(() => {
+      localStorage.setItem(
+        'webutils.notes.v1',
+        JSON.stringify({ notes: [{ id: 'n1', title: 'Mutated after backup' }] }),
+      );
+    });
+    await page.reload();
+    await page.waitForLoadState('domcontentloaded');
+
+    await expect(appRow(page, 'Notes Wiki').locator('.app-meta')).toContainText('Changed since last backup');
+    await expect(page.locator('#backup-warning')).toBeVisible();
+    await expect(page.locator('#backup-warning-text')).toContainText('Notes Wiki');
+  });
+
+  test('never-backed-up data shows warning banner and row status', async ({ page }) => {
+    await seedLocalStorage(page, 'webutils.notes.v1', { notes: [{ id: 'n1', title: 'Unbacked' }] });
+    await page.goto(`${BASE}/docs/index.html`);
+    await page.waitForLoadState('domcontentloaded');
+
+    await expect(appRow(page, 'Notes Wiki').locator('.app-meta')).toContainText('Never backed up');
+    await expect(page.locator('#backup-warning')).toBeVisible();
+    await expect(page.locator('#backup-warning-text')).toContainText("isn't in any backup");
+    await expect(page.locator('#backup-warning-text')).toContainText('Notes Wiki');
+  });
+
+  test('per-app export updates only that app ledger entry', async ({ page }) => {
+    await seedLocalStorage(page, 'webutils.kanban.v2', {
+      tracks: [{ id: 't1', name: 'Board', cards: [] }],
+    });
+    await seedLocalStorage(page, 'webutils.notes.v1', { notes: [{ id: 'n1', title: 'Unbacked' }] });
+    await page.goto(`${BASE}/docs/index.html`);
+    await page.waitForLoadState('domcontentloaded');
+
+    const kanban = appRow(page, 'Kanban task board');
+    const downloadPromise = page.waitForEvent('download');
+    await kanban.getByRole('button', { name: 'Export' }).click();
+    await downloadPromise;
+
+    const ledger = await page.evaluate(() => JSON.parse(localStorage.getItem('webutils.backupStatus.v1') || '{}'));
+    expect(ledger.kanban).toBeTruthy();
+    expect(ledger.notes).toBeFalsy();
+    await expect(kanban.locator('.app-meta')).toContainText('Backed up');
+    await expect(appRow(page, 'Notes Wiki').locator('.app-meta')).toContainText('Never backed up');
+  });
+
+  test('delete clears backup ledger entry for that app', async ({ page }) => {
+    await seedLocalStorage(page, 'webutils.kanban.v2', {
+      tracks: [{ id: 't1', name: 'Board', cards: [] }],
+    });
+    await page.goto(`${BASE}/docs/index.html`);
+    await page.waitForLoadState('domcontentloaded');
+
+    const kanban = appRow(page, 'Kanban task board');
+    const downloadPromise = page.waitForEvent('download');
+    await kanban.getByRole('button', { name: 'Export' }).click();
+    await downloadPromise;
+
+    await kanban.getByRole('button', { name: 'Delete' }).click();
+    const dialog = page.locator('#confirm-dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.locator('button[value="cancel"]').click();
+    await acceptConfirmDialog(page);
+
+    const ledger = await page.evaluate(() => JSON.parse(localStorage.getItem('webutils.backupStatus.v1') || '{}'));
+    expect(ledger.kanban).toBeFalsy();
+    await expect(kanban.locator('.app-meta')).toContainText('No data saved');
   });
 
   // ── Security & Validation: Hardened Import (Task 1-4) ──────────────────────
