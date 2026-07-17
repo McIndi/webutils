@@ -88,6 +88,30 @@ Create standalone HTML pages from Markdown:
 **File**: `docs/static-page-generator.html`  
 **Storage key**: `webutils.static-page-generator.v1`
 
+### Content Studio
+Manage project messaging and publication workflows in one local workspace:
+- Track projects with status, one-liners, descriptions, links, and tags
+- Build a reusable asset library (blurbs, links, achievements, snippets)
+- Define platforms with character limits, tone notes, and posting norms
+- Compose Markdown drafts with live preview and character counting
+- Run per-platform pre-publish checklists before logging posts
+- Keep a searchable publication log by project and platform
+- All state persists locally and can be included in landing-page snapshots
+
+**File**: `docs/contentstudio.html`  
+**Storage key**: `webutils.contentstudio.v1`
+
+### TheGym
+Practice coding skills with structured, local-first drills:
+- Build custom exercises for transcription, debug, flashcard, and circuit sessions
+- Run focused workouts by type or through multi-step circuit sequences
+- Track session history and personal bests in browser storage
+- Export/import full backups, plus exercise-only exports for sharing
+- Includes migration from legacy keys into a versioned unified state key
+
+**File**: `docs/thegym.html`  
+**Storage key**: `webutils.thegym.v1` (migrates from legacy `thegym_exercises`, `thegym_sessions`, `thegym_pbs`)
+
 ### Secret Share
 Exchange one-way encrypted, signed secrets without a server:
 - Generate a keypair (RSA-OAEP for encryption, ECDSA P-256 for signing); private keys are passphrase-encrypted
@@ -218,6 +242,41 @@ Notes Wiki uses:
 
 Static Page Generator uses:
 - **marked** (Markdown rendering)
+
+Content Studio uses:
+- **CodeMirror 5** (editor)
+- **marked** (Markdown rendering)
+- **DOMPurify** (HTML sanitization)
+
+## Gap Roadmap (No Backend)
+
+Top 5 improvements that increase daily usefulness while preserving the static, local-first model:
+
+1. **Hardened import pipeline: safe render + semantic validation + preview**
+  - Keep structural snapshot checks, add app-specific payload validators, and render validation results with text-safe DOM APIs.
+  - Add import previews that show exactly what will change before writes are applied.
+  - Outcome: safer validate/import flows and fewer schema-related breakages.
+
+2. **Transactional restore flow with clear rollback behavior**
+  - Add a staged restore pipeline: validate, dry-run checks, then apply writes.
+  - If a restore fails mid-way, surface a detailed partial-restore report and offer rollback or re-apply guidance.
+  - Outcome: avoids mixed-state restores and improves trust in recovery operations.
+
+3. **Unified backup experience across index and in-app surfaces**
+  - Extend current landing-page backup reminders to track backup freshness per app, not only globally.
+  - Surface quick backup, scoped restore, and "last backup" status inside each app.
+  - Continue supporting lightweight snapshots, plus optional portable bundles when runtime assets are needed.
+  - Outcome: better day-to-day data hygiene and portability without leaving app context.
+
+4. **Unified keyboard shortcuts and command controls**
+  - Introduce a shared shortcut map and command palette pattern across all apps, with app-specific commands layered on top.
+  - Standardize high-value actions (open search, quick export, quick import, theme toggle, navigation) behind consistent keys.
+  - Outcome: faster repeat use and lower context-switch overhead for power users.
+
+5. **Cross-app deep linking with @ autocomplete over local data**
+  - Add deep-link targets for key entities (notes, assets, projects, cards, regex presets, workouts) and pass context between apps.
+  - Introduce an ecosystem-wide `@` mention/autocomplete layer that searches local app data and inserts links or references.
+  - Outcome: less copy/paste friction and stronger workflow continuity across the entire toolkit.
 
 ## License
 
