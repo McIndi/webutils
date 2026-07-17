@@ -16,6 +16,15 @@ async function unlockPassphrase(page, passphrase) {
   await dialog.locator('#passphrase-accept').click();
 }
 
+// Encrypting now signs the message, which prompts the sender to unlock
+// their own keypair with their passphrase.
+async function encryptSecret(page, passphrase) {
+  await page.locator('#encrypt-secret').click();
+  await unlockPassphrase(page, passphrase);
+  await expect(page.locator('#encrypted-link-box')).toBeVisible();
+  return page.locator('#encrypted-link-output').inputValue();
+}
+
 test.describe('secret-share', () => {
   test.beforeEach(async ({ page }) => {
     await clearWebUtilsStorage(page);
@@ -29,14 +38,14 @@ test.describe('secret-share', () => {
     await expect(page.locator('#decrypt-panel')).toBeHidden();
   });
 
-  test('generating a keypair requires a passphrase of at least 6 characters', async ({ page }) => {
+  test('generating a keypair requires a passphrase of at least 12 characters', async ({ page }) => {
     await page.locator('#generate-keypair').click();
     const dialog = page.locator('#passphrase-dialog');
     await dialog.locator('#passphrase-input').fill('short');
     await dialog.locator('#passphrase-confirm-input').fill('short');
     await dialog.locator('#passphrase-accept').click();
     await expect(dialog).toBeVisible();
-    await expect(page.locator('#passphrase-error')).toHaveText(/at least 6 characters/);
+    await expect(page.locator('#passphrase-error')).toHaveText(/at least 12 characters/);
   });
 
   test('generating a keypair requires matching confirmation', async ({ page }) => {
@@ -59,8 +68,10 @@ test.describe('secret-share', () => {
     const stored = await page.evaluate(() => localStorage.getItem('webutils.secret-share.v1'));
     expect(stored).toBeTruthy();
     const record = JSON.parse(stored);
-    expect(record.publicKeyJwk).toBeTruthy();
-    expect(record.wrappedPrivateKey).toBeTruthy();
+    expect(record.encryptPublicKeyJwk).toBeTruthy();
+    expect(record.wrappedEncryptPrivateKey).toBeTruthy();
+    expect(record.signPublicKeyJwk).toBeTruthy();
+    expect(record.wrappedSignPrivateKey).toBeTruthy();
   });
 
   test('keypair and fingerprint persist after reload', async ({ page }) => {
@@ -109,9 +120,7 @@ test.describe('secret-share', () => {
     await expect(page.locator('#send-fingerprint')).not.toBeEmpty();
 
     await page.locator('#plaintext-input').fill('the launch codes are 12345');
-    await page.locator('#encrypt-secret').click();
-    await expect(page.locator('#encrypted-link-box')).toBeVisible();
-    const encryptedLink = await page.locator('#encrypted-link-output').inputValue();
+    const encryptedLink = await encryptSecret(page, 'correct-horse-battery');
     expect(encryptedLink).toContain('secret-share.html#msg=');
 
     // Receiver opens the encrypted link and decrypts it with their passphrase.
@@ -132,8 +141,7 @@ test.describe('secret-share', () => {
 
     await page.goto(shareLink);
     await page.locator('#plaintext-input').fill('top secret');
-    await page.locator('#encrypt-secret').click();
-    const encryptedLink = await page.locator('#encrypted-link-output').inputValue();
+    const encryptedLink = await encryptSecret(page, 'correct-horse-battery');
 
     await page.goto(encryptedLink);
     await page.locator('#decrypt-secret').click();
@@ -151,8 +159,7 @@ test.describe('secret-share', () => {
 
     await page.goto(shareLink);
     await page.locator('#plaintext-input').fill('clear me');
-    await page.locator('#encrypt-secret').click();
-    const encryptedLink = await page.locator('#encrypted-link-output').inputValue();
+    const encryptedLink = await encryptSecret(page, 'correct-horse-battery');
 
     await page.goto(encryptedLink);
     await page.locator('#decrypt-secret').click();

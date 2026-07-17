@@ -775,6 +775,178 @@
         },
       ];
 
+      const PAYLOAD_VALIDATORS = {
+        kanban: (parsed, appLabel) => {
+          const issues = [];
+          const warnings = [];
+          if (!isObj(parsed)) {
+            issues.push(`${appLabel}: stored value must be an object.`);
+            return { issues, warnings };
+          }
+          const spec = {
+            tracks: { type: "array" },
+            bragFile: { type: "array", required: false },
+            activeTrackId: { type: "string", required: false },
+            visibleTrackIds: { type: "array", required: false },
+            unifiedLane: { type: "string", required: false },
+          };
+          const check = checkFields(parsed, spec, `${appLabel}: `);
+          issues.push(...check.issues);
+          warnings.push(...check.warnings);
+          return { issues, warnings };
+        },
+        "regex-workbench": (parsed, appLabel) => {
+          const issues = [];
+          const warnings = [];
+          if (!isObj(parsed)) {
+            issues.push(`${appLabel}: stored value must be an object.`);
+            return { issues, warnings };
+          }
+          const spec = {
+            pattern: { type: "string", required: false },
+            flags: { type: "string", required: false },
+            sample: { type: "string", required: false },
+            presets: { type: "array", required: false },
+          };
+          const check = checkFields(parsed, spec, `${appLabel}: `);
+          issues.push(...check.issues);
+          warnings.push(...check.warnings);
+          return { issues, warnings };
+        },
+        notes: (parsed, appLabel) => {
+          const issues = [];
+          const warnings = [];
+          if (!isObj(parsed)) {
+            issues.push(`${appLabel}: stored value must be an object.`);
+            return { issues, warnings };
+          }
+          const spec = {
+            notes: { type: "array", required: false },
+            openIds: { type: "array", required: false },
+            viewById: { type: "object", required: false },
+            search: { type: "string", required: false },
+            selectedTags: { type: "array", required: false },
+            sort: { type: "string", required: false },
+          };
+          const check = checkFields(parsed, spec, `${appLabel}: `);
+          issues.push(...check.issues);
+          warnings.push(...check.warnings);
+          return { issues, warnings };
+        },
+        "static-page-generator": (parsed, appLabel) => {
+          const issues = [];
+          const warnings = [];
+          if (!isObj(parsed)) {
+            issues.push(`${appLabel}: stored value must be an object.`);
+            return { issues, warnings };
+          }
+          const spec = {
+            markdown: { type: "string", required: false },
+            themeId: { type: "string", required: false },
+            pageTitle: { type: "string", required: false },
+            fileName: { type: "string", required: false },
+            showToc: { type: "boolean", required: false },
+          };
+          const check = checkFields(parsed, spec, `${appLabel}: `);
+          issues.push(...check.issues);
+          warnings.push(...check.warnings);
+          return { issues, warnings };
+        },
+        "content-studio": (parsed, appLabel) => {
+          const issues = [];
+          const warnings = [];
+          if (!isObj(parsed)) {
+            issues.push(`${appLabel}: stored value must be an object.`);
+            return { issues, warnings };
+          }
+          const spec = {
+            projects: { type: "array", required: false },
+            assets: { type: "array", required: false },
+            platforms: { type: "array", required: false },
+            log: { type: "array", required: false },
+            draft: { type: "object", required: false },
+          };
+          const check = checkFields(parsed, spec, `${appLabel}: `);
+          issues.push(...check.issues);
+          warnings.push(...check.warnings);
+          return { issues, warnings };
+        },
+        thegym: (parsed, appLabel) => {
+          const issues = [];
+          const warnings = [];
+          if (!isObj(parsed)) {
+            issues.push(`${appLabel}: stored value must be an object.`);
+            return { issues, warnings };
+          }
+          const spec = {
+            version: { type: "number", required: false },
+            exercises: { type: "array", required: false },
+            sessions: { type: "array", required: false },
+            pbs: { type: "object", required: false },
+          };
+          const check = checkFields(parsed, spec, `${appLabel}: `);
+          issues.push(...check.issues);
+          warnings.push(...check.warnings);
+          return { issues, warnings };
+        },
+        "secret-share": (parsed, appLabel) => {
+          const issues = [];
+          const warnings = [];
+          if (!isObj(parsed)) {
+            issues.push(`${appLabel}: stored value must be an object.`);
+            return { issues, warnings };
+          }
+          // Accept schemaVersion 1, 2, or absent for pre-versioned records
+          if (parsed.schemaVersion !== undefined && ![1, 2].includes(parsed.schemaVersion)) {
+            issues.push(`${appLabel}: unsupported schemaVersion ${parsed.schemaVersion}.`);
+          }
+          // Don't over-constrain; main value is just an identity record
+          return { issues, warnings };
+        },
+        "zip-workbench": (parsed, appLabel) => {
+          const issues = [];
+          const warnings = [];
+          // After deserialization, check structure
+          if (!isObj(parsed)) {
+            issues.push(`${appLabel}: stored value must be an object.`);
+            return { issues, warnings };
+          }
+          // Support both legacy (zipBase64 string) and new (schemaVersion 1 with zipBytes)
+          const hasLegacyFormat = isStr(parsed.zipBase64);
+          if (!hasLegacyFormat && parsed.schemaVersion !== 1) {
+            issues.push(`${appLabel}: invalid or missing schemaVersion.`);
+          }
+          if (!hasLegacyFormat && !isStr(parsed.zipName)) {
+            issues.push(`${appLabel}: missing 'zipName' field.`);
+          }
+          if (!hasLegacyFormat && parsed.zipBytes === undefined) {
+            issues.push(`${appLabel}: missing 'zipBytes' field.`);
+          }
+          return { issues, warnings };
+        },
+        "repo2prompt": (parsed, appLabel) => {
+          const issues = [];
+          const warnings = [];
+          // After deserialization, check structure
+          if (!isObj(parsed)) {
+            issues.push(`${appLabel}: stored value must be an object.`);
+            return { issues, warnings };
+          }
+          // Support both legacy (plain object) and new (schemaVersion 1)
+          const hasLegacyFormat = !parsed.schemaVersion;
+          if (!hasLegacyFormat && parsed.schemaVersion !== 1) {
+            issues.push(`${appLabel}: invalid schemaVersion.`);
+          }
+          if (!hasLegacyFormat && !isStr(parsed.url)) {
+            issues.push(`${appLabel}: missing 'url' field.`);
+          }
+          if (!hasLegacyFormat && !isArr(parsed.files)) {
+            issues.push(`${appLabel}: missing 'files' field (should be an array).`);
+          }
+          return { issues, warnings };
+        },
+      };
+
       const LAST_EXPORT_KEY = "webutils.lastExport.v1";
       const THEGYM_STATE_KEY = "webutils.thegym.v1";
       const THEGYM_LEGACY_KEYS = {
@@ -854,13 +1026,27 @@
         } catch {}
       };
 
-      const requestConfirmation = ({ title, message, confirmText }) => {
+      const requestConfirmation = ({ title, message, confirmText, bodyNode }) => {
         if (!confirmDialog || typeof confirmDialog.showModal !== "function") {
           return Promise.resolve(window.confirm(message || title));
         }
         confirmTitle.textContent = title;
         confirmMessage.textContent = message;
         confirmAccept.textContent = confirmText || "Confirm";
+        
+        // Clear and re-insert body node if provided
+        const form = confirmDialog.querySelector("form");
+        const actions = form.querySelector(".confirm-actions");
+        
+        // Remove any previously inserted body nodes (look for a data attribute)
+        const prevBody = form.querySelector("[data-preview-body]");
+        if (prevBody) prevBody.remove();
+        
+        if (bodyNode) {
+          bodyNode.setAttribute("data-preview-body", "true");
+          actions.parentNode.insertBefore(bodyNode, actions);
+        }
+        
         return new Promise((resolve) => {
           confirmResolve = resolve;
           confirmDialog.showModal();
@@ -878,6 +1064,81 @@
 
       const setStatus = (text) => {
         dataStatus.textContent = text;
+      };
+
+      const renderValidationIssues = (container, issues, warnings = []) => {
+        container.replaceChildren();
+        
+        if (issues.length > 0) {
+          const strong = document.createElement("strong");
+          strong.textContent = "Issues found:";
+          const ul = document.createElement("ul");
+          ul.style.cssText = "margin:4px 0 0;padding-left:18px";
+          for (const issue of issues) {
+            const li = document.createElement("li");
+            li.textContent = issue;
+            ul.appendChild(li);
+          }
+          container.append(strong, ul);
+        }
+        
+        if (warnings.length > 0) {
+          const warningDiv = document.createElement("div");
+          warningDiv.style.cssText = "margin-top:12px";
+          const strong = document.createElement("strong");
+          strong.textContent = "Warnings:";
+          const ul = document.createElement("ul");
+          ul.style.cssText = "margin:4px 0 0;padding-left:18px";
+          for (const warning of warnings) {
+            const li = document.createElement("li");
+            li.textContent = warning;
+            ul.appendChild(li);
+          }
+          warningDiv.append(strong, ul);
+          container.appendChild(warningDiv);
+        }
+      };
+
+      // Validation helper functions
+      const isObj = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
+      const isArr = (v) => Array.isArray(v);
+      const isStr = (v) => typeof v === "string";
+
+      const checkFields = (obj, spec, prefix = "") => {
+        const issues = [];
+        const warnings = [];
+        if (!isObj(obj)) {
+          issues.push(`${prefix}Expected an object, got ${typeof obj}.`);
+          return { issues, warnings };
+        }
+        const seenKeys = new Set();
+        for (const [key, type] of Object.entries(spec)) {
+          seenKeys.add(key);
+          if (!Object.prototype.hasOwnProperty.call(obj, key)) {
+            if (type.required !== false) {
+              issues.push(`${prefix}Missing field '${key}'.`);
+            }
+            continue;
+          }
+          const value = obj[key];
+          if (type.type === "string" && !isStr(value)) {
+            issues.push(`${prefix}Field '${key}' should be a string.`);
+          } else if (type.type === "number" && typeof value !== "number") {
+            issues.push(`${prefix}Field '${key}' should be a number.`);
+          } else if (type.type === "boolean" && typeof value !== "boolean") {
+            issues.push(`${prefix}Field '${key}' should be a boolean.`);
+          } else if (type.type === "array" && !isArr(value)) {
+            issues.push(`${prefix}Field '${key}' should be an array.`);
+          } else if (type.type === "object" && !isObj(value)) {
+            issues.push(`${prefix}Field '${key}' should be an object.`);
+          }
+        }
+        for (const key of Object.keys(obj)) {
+          if (!seenKeys.has(key)) {
+            warnings.push(`${prefix}Unknown field '${key}' (will be preserved).`);
+          }
+        }
+        return { issues, warnings };
       };
 
       const formatBytes = (bytes) => {
@@ -1162,7 +1423,7 @@
                 setStatus("Snapshot format not recognized.");
                 resolve(); return;
               }
-              const { valid, issues } = validateSnapshot(snapshot);
+              const { valid, issues, warnings } = validateSnapshot(snapshot);
               if (!valid) {
                 setStatus(`Import aborted — ${issues.length} issue(s): ${issues[0]}`);
                 resolve(); return;
@@ -1171,13 +1432,22 @@
                 setStatus(`This snapshot does not contain data for ${app.label}.`);
                 resolve(); return;
               }
+              
+              // Build and show preview for this app only
+              const preview = await buildImportPreview(snapshot, app.id);
+              const previewNode = buildPreviewNode(preview, snapshot, warnings);
               const confirmed = await requestConfirmation({
                 title: `Import ${app.label}?`,
-                message: `This will overwrite saved data for ${app.label}.`,
+                message: "Review the changes below and confirm to import.",
                 confirmText: "Import",
+                bodyNode: previewNode,
               });
               if (!confirmed) { resolve(); return; }
-              const restored = await restoreSnapshot(snapshot);
+
+              // Restore only this app's entry — the preview promised no
+              // other app would be touched, even in a multi-app snapshot.
+              const scopedSnapshot = { ...snapshot, apps: { [app.id]: snapshot.apps[app.id] } };
+              const restored = await restoreSnapshot(scopedSnapshot);
               setStatus(`Imported ${app.label} (${restored} dataset${restored !== 1 ? "s" : ""}).`);
               await renderAppNav();
             } catch (error) {
@@ -1373,9 +1643,10 @@
 
       const validateSnapshot = (snapshot) => {
         const issues = [];
+        const warnings = [];
 
         if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) {
-          return { valid: false, issues: ["File is not a valid JSON object."] };
+          return { valid: false, issues: ["File is not a valid JSON object."], warnings: [] };
         }
 
         if (typeof snapshot.version !== "number") {
@@ -1402,6 +1673,8 @@
 
           for (const [appId, entry] of appEntries) {
             const prefix = `App "${appId}"`;
+            const appReg = APP_REGISTRY.find((a) => a.id === appId);
+            const appLabel = appReg ? appReg.label : appId;
 
             if (!knownIds.has(appId)) {
               issues.push(`${prefix}: unrecognized app ID.`);
@@ -1436,12 +1709,36 @@
                 if (!entry.storeName) issues.push(`${prefix}: indexedDB entry missing 'storeName'.`);
                 if (!entry.recordKey) issues.push(`${prefix}: indexedDB entry missing 'recordKey'.`);
               }
+
+              // Payload validation
+              if (PAYLOAD_VALIDATORS[appId] && knownIds.has(appId) && entry.storage) {
+                let parsed = null;
+                try {
+                  if (entry.storage === "localStorage") {
+                    if (typeof entry.value !== "string") {
+                      issues.push(`${appLabel}: stored value is not a string.`);
+                      continue;
+                    }
+                    parsed = JSON.parse(entry.value);
+                  } else if (entry.storage === "indexedDB") {
+                    parsed = deserializeStructuredValue(entry.value);
+                  }
+                } catch (error) {
+                  issues.push(`${appLabel}: stored value is not valid JSON.`);
+                  continue;
+                }
+
+                const validation = PAYLOAD_VALIDATORS[appId](parsed, appLabel);
+                issues.push(...validation.issues);
+                warnings.push(...validation.warnings);
+              }
             }
           }
         }
 
-        return { valid: issues.length === 0, issues };
+        return { valid: issues.length === 0, issues, warnings };
       };
+
 
       const downloadSnapshot = (snapshot) => {
         const blob = new Blob([JSON.stringify(snapshot, null, 2)], {
@@ -1492,6 +1789,121 @@
         }
       });
 
+      const buildImportPreview = async (snapshot, onlyAppId) => {
+        const preview = [];
+        const processedApps = new Set();
+
+        for (const app of APP_REGISTRY) {
+          if (onlyAppId && app.id !== onlyAppId) {
+            continue;
+          }
+
+          const entry = snapshot.apps?.[app.id];
+          if (!entry || (entry.value === undefined && !entry.extra)) {
+            continue;
+          }
+
+          processedApps.add(app.id);
+          
+          // Read current stored data
+          let currentSize = 0;
+          try {
+            const current = await readAppData(app);
+            if (current) {
+              currentSize = estimateDataBytes(app, current);
+            }
+            
+            // Also check extra data if app has it
+            if (app.extraKeys && app.extraKeys.length > 0) {
+              for (const extraKey of app.extraKeys) {
+                const extraCurrent = localStorage.getItem(extraKey.key);
+                if (extraCurrent) {
+                  currentSize += estimateStoredBytes(extraCurrent);
+                }
+              }
+            }
+          } catch (error) {
+            // If we can't read current data, assume it doesn't exist
+          }
+
+          // Calculate incoming size (indexedDB entries hold serialized
+          // structured values, not strings — measure their JSON form)
+          let incomingSize = 0;
+          if (entry.value !== undefined && entry.value !== null) {
+            incomingSize =
+              entry.storage === "indexedDB"
+                ? estimateStoredBytes(JSON.stringify(entry.value))
+                : estimateStoredBytes(entry.value);
+          }
+          if (entry.extra) {
+            incomingSize += estimateStoredBytes(JSON.stringify(entry.extra));
+          }
+
+          preview.push({
+            appId: app.id,
+            label: app.label,
+            action: currentSize > 0 ? "overwrite" : "create",
+            currentSize,
+            incomingSize,
+          });
+        }
+
+        return preview;
+      };
+
+      const buildPreviewNode = (preview, snapshot, warnings = []) => {
+        const container = document.createElement("div");
+        container.style.cssText = "margin:12px 0 0;padding:12px;background:var(--bg);border:1px solid var(--stroke);border-radius:4px;font-size:13px;line-height:1.5";
+
+        // Snapshot metadata
+        const metaDiv = document.createElement("div");
+        metaDiv.style.cssText = "margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--stroke);color:var(--muted)";
+        metaDiv.textContent = `Snapshot: v${snapshot.version}, ${new Date(snapshot.createdAt).toLocaleString()}`;
+        container.appendChild(metaDiv);
+
+        // Import changes
+        const changesDiv = document.createElement("div");
+        changesDiv.style.cssText = "margin-bottom:8px";
+        const changesBold = document.createElement("strong");
+        changesBold.textContent = "Changes:";
+        changesDiv.appendChild(changesBold);
+
+        const changesList = document.createElement("ul");
+        changesList.style.cssText = "margin:4px 0 0 16px;padding:0";
+        for (const item of preview) {
+          const li = document.createElement("li");
+          li.style.cssText = "margin:4px 0";
+          const action = item.action === "overwrite" 
+            ? `overwrite (${formatBytes(item.currentSize)} → ${formatBytes(item.incomingSize)})`
+            : `create (${formatBytes(item.incomingSize)})`;
+          li.textContent = `${item.label}: ${action}`;
+          changesList.appendChild(li);
+        }
+        changesDiv.appendChild(changesList);
+        container.appendChild(changesDiv);
+
+        // Warnings
+        if (warnings.length > 0) {
+          const warningsDiv = document.createElement("div");
+          warningsDiv.style.cssText = "margin-top:8px;padding-top:8px;border-top:1px solid var(--stroke)";
+          const warnBold = document.createElement("strong");
+          warnBold.textContent = "Warnings:";
+          warningsDiv.appendChild(warnBold);
+          const warnList = document.createElement("ul");
+          warnList.style.cssText = "margin:4px 0 0 16px;padding:0";
+          for (const warning of warnings) {
+            const li = document.createElement("li");
+            li.style.cssText = "margin:4px 0;color:var(--accent-dark)";
+            li.textContent = warning;
+            warnList.appendChild(li);
+          }
+          warningsDiv.appendChild(warnList);
+          container.appendChild(warningsDiv);
+        }
+
+        return container;
+      };
+
       validateButton.addEventListener("click", async () => {
         const file = importFile.files[0];
         if (!file) {
@@ -1502,14 +1914,22 @@
         try {
           const text = await file.text();
           const parsed = JSON.parse(text);
-          const { valid, issues } = validateSnapshot(parsed);
+          const { valid, issues, warnings } = validateSnapshot(parsed);
           if (valid) {
             const appCount = Object.keys(parsed.apps || {}).length;
             validateResult.className = "validate-result ok visible";
-            validateResult.textContent = `Valid snapshot (version ${parsed.version}, ${appCount} app${appCount !== 1 ? "s" : ""}, created ${new Date(parsed.createdAt).toLocaleString()}).`;
+            const message = `Valid snapshot (version ${parsed.version}, ${appCount} app${appCount !== 1 ? "s" : ""}, created ${new Date(parsed.createdAt).toLocaleString()}).`;
+            if (warnings.length > 0) {
+              renderValidationIssues(validateResult, [], warnings);
+              const summary = document.createElement("div");
+              summary.textContent = message;
+              validateResult.prepend(summary);
+            } else {
+              validateResult.textContent = message;
+            }
           } else {
             validateResult.className = "validate-result error visible";
-            validateResult.innerHTML = `<strong>Issues found:</strong><ul style="margin:4px 0 0;padding-left:18px">${issues.map((i) => `<li>${i}</li>`).join("")}</ul>`;
+            renderValidationIssues(validateResult, issues, warnings);
           }
         } catch (error) {
           validateResult.className = "validate-result error visible";
@@ -1577,16 +1997,6 @@
           return;
         }
 
-        const confirmed = await requestConfirmation({
-          title: "Import snapshot?",
-          message: "This will overwrite saved data for apps included in the snapshot.",
-          confirmText: "Import",
-        });
-
-        if (!confirmed) {
-          return;
-        }
-
         try {
           const text = await file.text();
           const snapshot = JSON.parse(text);
@@ -1594,11 +2004,32 @@
             setStatus("Snapshot format not recognized.");
             return;
           }
-          const { valid, issues } = validateSnapshot(snapshot);
+          
+          const { valid, issues, warnings } = validateSnapshot(snapshot);
           if (!valid) {
             setStatus(`Import aborted — ${issues.length} issue(s) found. Use Validate for details.`);
             return;
           }
+
+          // Build and show preview
+          const preview = await buildImportPreview(snapshot);
+          if (preview.length === 0) {
+            setStatus("Snapshot contains no app data for this system.");
+            return;
+          }
+
+          const previewNode = buildPreviewNode(preview, snapshot, warnings);
+          const confirmed = await requestConfirmation({
+            title: "Import snapshot?",
+            message: "Review the changes below and confirm to import.",
+            confirmText: "Import",
+            bodyNode: previewNode,
+          });
+
+          if (!confirmed) {
+            return;
+          }
+
           const restored = await restoreSnapshot(snapshot);
           setStatus(`Imported data for ${restored} app(s).`);
           await renderAppNav();

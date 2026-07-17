@@ -164,4 +164,296 @@ test.describe('index', () => {
   test('backup warning is hidden by default', async ({ page }) => {
     await expect(page.locator('#backup-warning')).toBeHidden();
   });
+
+  // ── Security & Validation: Hardened Import (Task 1-4) ──────────────────────
+
+  test('XSS: validate renders malicious snapshot content as text (regression)', async ({ page }) => {
+    const snapshot = {
+      version: 4,
+      createdAt: '<img src=x onerror="window.__pwned=1">',
+      apps: {
+        '<script>alert("xss")</script>': {
+          storage: 'localStorage',
+          key: 'dummy',
+          value: JSON.stringify({}),
+        },
+      },
+    };
+
+    await page.locator('#import-file').setInputFiles({
+      name: 'xss-snapshot.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(snapshot)),
+    });
+
+    await page.locator('#validate-button').click();
+    await expect(page.locator('#validate-result')).toHaveClass(/visible/);
+
+    // Verify malicious content is rendered as text, not executed
+    const pwned = await page.evaluate(() => window.__pwned);
+    expect(pwned).toBeUndefined();
+    await expect(page.locator('#validate-result img')).toHaveCount(0);
+    await expect(page.locator('#validate-result script')).toHaveCount(0);
+
+    // Verify the string appears in the result (as text, not as HTML)
+    const resultText = await page.locator('#validate-result').textContent();
+    expect(resultText).toContain('<script>alert');
+  });
+
+  test('semantic validation: bad JSON in localStorage value is caught', async ({ page }) => {
+    const snapshot = {
+      version: 4,
+      createdAt: new Date().toISOString(),
+      apps: {
+        kanban: {
+          storage: 'localStorage',
+          key: 'webutils.kanban.v2',
+          value: 'not valid json {]',
+        },
+      },
+    };
+
+    await page.locator('#import-file').setInputFiles({
+      name: 'bad-json.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(snapshot)),
+    });
+
+    await page.locator('#validate-button').click();
+    await expect(page.locator('#validate-result')).toHaveClass(/error/);
+    const resultText = await page.locator('#validate-result').textContent();
+    expect(resultText).toContain('Kanban');
+    expect(resultText).toContain('not valid JSON');
+  });
+
+  test('semantic validation: wrong field type is caught', async ({ page }) => {
+    const snapshot = {
+      version: 4,
+      createdAt: new Date().toISOString(),
+      apps: {
+        thegym: {
+          storage: 'localStorage',
+          key: 'webutils.thegym.v1',
+          value: JSON.stringify({
+            version: 1,
+            exercises: 'not an array, should be array',
+            sessions: [],
+            pbs: {},
+          }),
+        },
+      },
+    };
+
+    await page.locator('#import-file').setInputFiles({
+      name: 'wrong-type.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(snapshot)),
+    });
+
+    await page.locator('#validate-button').click();
+    await expect(page.locator('#validate-result')).toHaveClass(/error/);
+    const resultText = await page.locator('#validate-result').textContent();
+    expect(resultText).toContain('TheGym');
+    expect(resultText).toContain('should be an array');
+  });
+
+  test('import preview shows before write; cancel leaves storage unchanged', async ({ page }) => {
+    // Seed existing kanban data
+    await seedLocalStorage(page, 'webutils.kanban.v2', {
+      tracks: [{ id: 't1', name: 'Todo', cards: [] }],
+    });
+
+    // Create a snapshot with kanban + notes
+    const snapshot = {
+      version: 4,
+      createdAt: new Date().toISOString(),
+      apps: {
+        kanban: {
+          storage: 'localStorage',
+          key: 'webutils.kanban.v2',
+          value: JSON.stringify({
+            tracks: [{ id: 't2', name: 'Updated', cards: [] }],
+          }),
+        },
+        notes: {
+          storage: 'localStorage',
+          key: 'webutils.notes.v1',
+          value: JSON.stringify({ notes: [{ id: 'n1', title: 'New Note' }] }),
+        },
+      },
+    };
+
+    await page.goto(`${BASE}/docs/index.html`);
+    await page.waitForLoadState('domcontentloaded');
+
+    await page.locator('#import-file').setInputFiles({
+      name: 'preview-snapshot.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(snapshot)),
+    });
+
+    await page.locator('#import-button').click();
+
+    // Dialog should be visible with preview
+    const dialog = page.locator('#confirm-dialog');
+    await expect(dialog).toBeVisible();
+    const dialogText = await dialog.textContent();
+    expect(dialogText).toContain('Kanban');
+    expect(dialogText).toContain('Notes');
+    expect(dialogText).toContain('Changes');
+
+    // Cancel the import
+    await dialog.locator('button[value="cancel"]').click();
+
+    // Verify storage is unchanged
+    const storedKanban = await page.evaluate(() => JSON.parse(localStorage.getItem('webutils.kanban.v2')));
+    expect(storedKanban.tracks[0].name).toBe('Todo');
+
+    const storedNotes = await page.evaluate(() => localStorage.getItem('webutils.notes.v1'));
+    expect(storedNotes).toBeNull();
+  });
+
+  test('import preview confirm applies the snapshot and reports success', async ({ page }) => {
+    await seedLocalStorage(page, 'webutils.kanban.v2', {
+      tracks: [{ id: 't1', name: 'Todo', cards: [] }],
+    });
+
+    const snapshot = {
+      version: 4,
+      createdAt: new Date().toISOString(),
+      apps: {
+        kanban: {
+          storage: 'localStorage',
+          key: 'webutils.kanban.v2',
+          value: JSON.stringify({
+            tracks: [{ id: 't2', name: 'Updated', cards: [] }],
+          }),
+        },
+        notes: {
+          storage: 'localStorage',
+          key: 'webutils.notes.v1',
+          value: JSON.stringify({ notes: [{ id: 'n1', title: 'New Note' }] }),
+        },
+      },
+    };
+
+    await page.goto(`${BASE}/docs/index.html`);
+    await page.waitForLoadState('domcontentloaded');
+
+    await page.locator('#import-file').setInputFiles({
+      name: 'confirm-snapshot.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(snapshot)),
+    });
+
+    await page.locator('#import-button').click();
+
+    const dialog = page.locator('#confirm-dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.locator('#confirm-accept').click();
+
+    await expect(page.locator('#data-status')).toContainText('Imported data for 2 app(s)');
+
+    const storedKanban = await page.evaluate(() => JSON.parse(localStorage.getItem('webutils.kanban.v2')));
+    expect(storedKanban.tracks[0].name).toBe('Updated');
+
+    const storedNotes = await page.evaluate(() => JSON.parse(localStorage.getItem('webutils.notes.v1')));
+    expect(storedNotes.notes[0].title).toBe('New Note');
+  });
+
+  test('import preview shows only selected app for per-app import', async ({ page }) => {
+    // Create a multi-app snapshot
+    const snapshot = {
+      version: 4,
+      createdAt: new Date().toISOString(),
+      apps: {
+        kanban: {
+          storage: 'localStorage',
+          key: 'webutils.kanban.v2',
+          value: JSON.stringify({ tracks: [] }),
+        },
+        notes: {
+          storage: 'localStorage',
+          key: 'webutils.notes.v1',
+          value: JSON.stringify({ notes: [] }),
+        },
+        'regex-workbench': {
+          storage: 'localStorage',
+          key: 'webutils.regex-workbench.v1',
+          value: JSON.stringify({ pattern: '.*' }),
+        },
+      },
+    };
+
+    // Click the kanban row's Import button; it opens a file chooser on a
+    // hidden input, which Playwright intercepts.
+    const kanbanRow = page.locator('#app-list .app-row').filter({ hasText: 'Kanban' });
+    const fileChooserPromise = page.waitForEvent('filechooser');
+    await kanbanRow.getByRole('button', { name: 'Import' }).click();
+    const fileChooser = await fileChooserPromise;
+    await fileChooser.setFiles({
+      name: 'multi-app-snapshot.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(snapshot)),
+    });
+
+    // The preview dialog should list only kanban, not the other snapshot apps
+    const dialog = page.locator('#confirm-dialog');
+    await expect(dialog).toBeVisible();
+    const dialogText = await dialog.textContent();
+    expect(dialogText).toContain('Kanban');
+    expect(dialogText).not.toContain('Notes Wiki');
+    expect(dialogText).not.toContain('Regex Workbench');
+
+    // Cancel; nothing should have been written
+    await dialog.locator('button[value="cancel"]').click();
+    let storedKanban = await page.evaluate(() => localStorage.getItem('webutils.kanban.v2'));
+    expect(storedKanban).toBeNull();
+
+    // Re-run and confirm: only kanban is restored, other snapshot apps untouched
+    const secondChooserPromise = page.waitForEvent('filechooser');
+    await kanbanRow.getByRole('button', { name: 'Import' }).click();
+    const secondChooser = await secondChooserPromise;
+    await secondChooser.setFiles({
+      name: 'multi-app-snapshot.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(snapshot)),
+    });
+    await expect(dialog).toBeVisible();
+    await dialog.locator('#confirm-accept').click();
+    await expect(page.locator('#data-status')).toContainText('Imported Kanban task board');
+
+    storedKanban = await page.evaluate(() => localStorage.getItem('webutils.kanban.v2'));
+    expect(storedKanban).not.toBeNull();
+    const storedNotes = await page.evaluate(() => localStorage.getItem('webutils.notes.v1'));
+    expect(storedNotes).toBeNull();
+    const storedRegex = await page.evaluate(() => localStorage.getItem('webutils.regex-workbench.v1'));
+    expect(storedRegex).toBeNull();
+  });
+
+  test('existing tests continue to pass: validate ok/error states remain', async ({ page }) => {
+    // This test re-validates that existing validate functionality still works
+    const validSnapshot = {
+      version: 3,
+      createdAt: new Date().toISOString(),
+      apps: {
+        notes: {
+          storage: 'localStorage',
+          key: 'webutils.notes.v1',
+          value: JSON.stringify({ notes: [] }),
+        },
+      },
+    };
+
+    await page.locator('#import-file').setInputFiles({
+      name: 'valid.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(validSnapshot)),
+    });
+
+    await page.locator('#validate-button').click();
+    await expect(page.locator('#validate-result')).toHaveClass(/ok/);
+    const okText = await page.locator('#validate-result').textContent();
+    expect(okText).toContain('Valid snapshot');
+  });
 });

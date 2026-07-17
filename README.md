@@ -163,7 +163,7 @@ snapshot export/import, under the `secret-share` app entry — one export, one i
 The landing page (`docs/index.html`) serves as a hub for all utilities and includes:
 
 - **App navigation**: Links to open each app, plus download buttons to save files locally
-- **Data controls**: Export/import snapshots of saved data across all apps
+- **Data controls**: Export/import snapshots of saved data across all apps, with validation and preview before import
 - **Clear all data**: Destructive action (with confirmation) to wipe all stored data
 - **Storage info**: Shows how much data each app currently stores
 
@@ -252,10 +252,10 @@ Content Studio uses:
 
 Top 5 improvements that increase daily usefulness while preserving the static, local-first model:
 
-1. **Hardened import pipeline: safe render + semantic validation + preview**
-  - Keep structural snapshot checks, add app-specific payload validators, and render validation results with text-safe DOM APIs.
-  - Add import previews that show exactly what will change before writes are applied.
-  - Outcome: safer validate/import flows and fewer schema-related breakages.
+1. **[✓ DONE] Hardened import pipeline: safe render + semantic validation + preview**
+  - Implemented: structural snapshot checks, app-specific payload validators, text-safe DOM API rendering for validation results.
+  - Added: import previews showing exactly what will change before writes are applied (both full and per-app imports).
+  - Result: safer validate/import flows and fewer schema-related breakages.
 
 2. **Transactional restore flow with clear rollback behavior**
   - Add a staged restore pipeline: validate, dry-run checks, then apply writes.
