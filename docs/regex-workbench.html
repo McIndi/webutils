@@ -573,6 +573,71 @@
         color: #fff;
       }
 
+      .command-palette {
+        border: 1px solid var(--stroke);
+        border-radius: 14px;
+        padding: 0;
+        width: min(560px, 92vw);
+        max-height: 76vh;
+        margin: 12vh auto 0;
+        background: var(--panel);
+        color: var(--ink);
+        overflow: hidden;
+      }
+
+      .command-palette::backdrop {
+        background: rgba(34, 33, 31, 0.45);
+      }
+
+      .command-palette input {
+        width: 100%;
+        border: none;
+        border-bottom: 1px solid var(--stroke);
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        font-size: 1rem;
+        padding: 12px 14px;
+        outline: none;
+      }
+
+      .command-palette ul {
+        list-style: none;
+        margin: 0;
+        padding: 6px;
+        max-height: 50vh;
+        overflow-y: auto;
+      }
+
+      .command-palette li {
+        border-radius: 10px;
+      }
+
+      .command-palette button {
+        width: 100%;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        text-align: left;
+        font: inherit;
+        padding: 10px 12px;
+        border-radius: 10px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .command-palette li[aria-selected="true"] button {
+        background: var(--accent-soft);
+      }
+
+      .command-palette .hint {
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
       @media (max-width: 720px) {
         header {
           padding-top: 24px;
@@ -667,6 +732,17 @@
       </section>
 
     </main>
+
+    <dialog id="command-palette" class="command-palette" aria-label="Command palette">
+      <input
+        id="command-palette-input"
+        type="text"
+        placeholder="Type a command..."
+        autocomplete="off"
+        aria-label="Filter commands"
+      />
+      <ul id="command-palette-list" role="listbox"></ul>
+    </dialog>
 
     <dialog id="confirm-dialog">
       <form method="dialog" class="confirm-form">
@@ -1215,6 +1291,198 @@
       savePresetButton.addEventListener("click", handleSavePreset);
       clearSampleButton.addEventListener("click", handleClearSample);
       backupChipExport.addEventListener("click", exportBackupSnapshot);
+
+      const PALETTE_APP_ID = "regex-workbench";
+      const PALETTE_NAV_LINKS = [
+        { id: "index", label: "WebUtils index", href: "index.html" },
+        { id: "kanban", label: "Kanban task board", href: "kanban.html" },
+        { id: "notes", label: "Notes Wiki", href: "notes.html" },
+        { id: "regex-workbench", label: "Regex Workbench", href: "regex-workbench.html" },
+        { id: "static-page-generator", label: "Static Page Generator", href: "static-page-generator.html" },
+        { id: "content-studio", label: "Content Studio", href: "contentstudio.html" },
+        { id: "thegym", label: "TheGym", href: "thegym.html" },
+        { id: "zip-workbench", label: "Zip Workbench", href: "zip-workbench.html" },
+        { id: "repo2prompt", label: "Repo2Prompt", href: "repo2prompt.html" },
+        { id: "secret-share", label: "Secret Share", href: "secret-share.html" },
+      ];
+
+      const paletteDialog = document.getElementById("command-palette");
+      const paletteInput = document.getElementById("command-palette-input");
+      const paletteList = document.getElementById("command-palette-list");
+      let paletteCommands = [];
+      let filteredPaletteCommands = [];
+      let selectedPaletteIndex = 0;
+
+      const isEditableTarget = (target) =>
+        !!target?.closest?.("input, textarea, select, [contenteditable], .CodeMirror");
+      const isHotkeysOffTarget = (target) => !!target?.closest?.("[data-hotkeys-off]");
+
+      const clickElementById = (id) => {
+        const el = document.getElementById(id);
+        if (!el || el.disabled) {
+          return false;
+        }
+        el.click();
+        return true;
+      };
+
+      const buildStandardCommands = () => {
+        const commands = [];
+        PALETTE_NAV_LINKS.forEach((entry) => {
+          if (entry.id === PALETTE_APP_ID) {
+            return;
+          }
+          commands.push({
+            label: `Go to: ${entry.label}`,
+            hint: "Navigate",
+            run: () => {
+              location.href = entry.href;
+            },
+          });
+        });
+
+        const backupButton = document.getElementById("backup-chip-export");
+        const backupChipEl = document.getElementById("backup-chip");
+        if (backupButton && backupChipEl && !backupChipEl.hidden && !backupButton.disabled) {
+          commands.push({
+            label: "Back up now",
+            hint: "Backup",
+            run: () => backupButton.click(),
+          });
+        }
+
+        if (document.getElementById("theme-toggle")) {
+          commands.push({
+            label: "Toggle theme (light/dark)",
+            hint: "Theme",
+            run: () => clickElementById("theme-toggle"),
+          });
+        }
+
+        return commands;
+      };
+
+      const buildPaletteCommands = () => {
+        const standard = buildStandardCommands();
+        const appSpecific = [
+          { label: "Focus pattern input", hint: "Regex Workbench", run: () => document.getElementById("pattern")?.focus() },
+          { label: "Save preset", hint: "Regex Workbench", run: () => clickElementById("save-preset") },
+        ];
+        return [...standard, ...appSpecific];
+      };
+
+      const updatePaletteList = () => {
+        const query = paletteInput.value.trim().toLowerCase();
+        filteredPaletteCommands = paletteCommands.filter((command) =>
+          command.label.toLowerCase().includes(query)
+        );
+        if (selectedPaletteIndex >= filteredPaletteCommands.length) {
+          selectedPaletteIndex = 0;
+        }
+
+        paletteList.innerHTML = "";
+        filteredPaletteCommands.forEach((command, index) => {
+          const item = document.createElement("li");
+          item.setAttribute("role", "option");
+          item.setAttribute("aria-selected", index === selectedPaletteIndex ? "true" : "false");
+
+          const button = document.createElement("button");
+          button.type = "button";
+
+          const label = document.createElement("span");
+          label.textContent = command.label;
+          button.appendChild(label);
+
+          if (command.hint) {
+            const hint = document.createElement("span");
+            hint.className = "hint";
+            hint.textContent = command.hint;
+            button.appendChild(hint);
+          }
+
+          button.addEventListener("click", () => {
+            command.run();
+            paletteDialog.close();
+          });
+
+          item.appendChild(button);
+          paletteList.appendChild(item);
+        });
+      };
+
+      const movePaletteSelection = (nextIndex) => {
+        if (!filteredPaletteCommands.length) {
+          selectedPaletteIndex = 0;
+          return;
+        }
+        selectedPaletteIndex = (nextIndex + filteredPaletteCommands.length) % filteredPaletteCommands.length;
+        updatePaletteList();
+        const selected = paletteList.querySelector('li[aria-selected="true"]');
+        selected?.scrollIntoView({ block: "nearest" });
+      };
+
+      const openPalette = () => {
+        paletteCommands = buildPaletteCommands();
+        selectedPaletteIndex = 0;
+        paletteInput.value = "";
+        updatePaletteList();
+        if (!paletteDialog.open) {
+          paletteDialog.showModal();
+        }
+        paletteInput.focus();
+      };
+
+      paletteInput.addEventListener("input", updatePaletteList);
+      paletteInput.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowDown") {
+          event.preventDefault();
+          movePaletteSelection(selectedPaletteIndex + 1);
+          return;
+        }
+        if (event.key === "ArrowUp") {
+          event.preventDefault();
+          movePaletteSelection(selectedPaletteIndex - 1);
+          return;
+        }
+        if (event.key === "Enter") {
+          event.preventDefault();
+          const command = filteredPaletteCommands[selectedPaletteIndex];
+          if (!command) {
+            return;
+          }
+          command.run();
+          paletteDialog.close();
+        }
+      });
+
+      document.addEventListener("keydown", (event) => {
+        const target = event.target;
+        const hotkeysOff = isHotkeysOffTarget(target);
+        if (
+          (event.ctrlKey || event.metaKey) &&
+          !event.shiftKey &&
+          !event.altKey &&
+          event.key.toLowerCase() === "k"
+        ) {
+          if (hotkeysOff) {
+            return;
+          }
+          event.preventDefault();
+          openPalette();
+          return;
+        }
+
+        if (
+          event.key === "/" &&
+          !event.ctrlKey &&
+          !event.metaKey &&
+          !event.altKey &&
+          !isEditableTarget(target) &&
+          !hotkeysOff
+        ) {
+          // Regex Workbench has no global search field.
+        }
+      });
 
       const APP_THEME_KEY = "webutils.theme.v1";
       const getAppTheme = () => {

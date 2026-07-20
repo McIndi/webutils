@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('node:fs/promises');
-const { gotoApp, clearWebUtilsStorage, seedLocalStorage, acceptGymModal } = require('./helpers/storage');
+const { gotoApp, clearWebUtilsStorage, seedLocalStorage, acceptGymModal, openPalette } = require('./helpers/storage');
 
 test.describe('thegym', () => {
   test.beforeEach(async ({ page }) => {
@@ -229,6 +229,19 @@ test.describe('thegym', () => {
     await expect(selectedBefore).toHaveAttribute('data-line', '1');
     await expect(page.locator('#debug-code')).toHaveClass(/locked/);
     await expect(page.locator('#debug-code .debug-code-line[data-line="2"]')).toBeDisabled();
+  });
+
+  test('Ctrl+K is suppressed in transcription drill input and works after leaving drill', async ({ page }) => {
+    await page.locator('.nav-tab[data-view="workout"]').click();
+    await page.getByRole('button', { name: 'TRANSCRIPTION', exact: true }).click();
+    await expect(page.locator('#trans-input')).toBeVisible();
+    await page.locator('#trans-input').click();
+
+    await page.keyboard.press('Control+k');
+    await expect(page.locator('#command-palette')).toBeHidden();
+
+    await page.locator('.nav-tab[data-view="dashboard"]').click();
+    await openPalette(page);
   });
 
   // ── Persistence ────────────────────────────────────────────────────────────

@@ -78,6 +78,11 @@ async function acceptGymModal(page) {
   await modal.locator('#modal-confirm').click();
 }
 
+async function openPalette(page) {
+  await page.keyboard.press('Control+k');
+  await expect(page.locator('#command-palette')).toBeVisible();
+}
+
 module.exports = {
   KNOWN_APPS,
   gotoApp,
@@ -85,4 +90,5 @@ module.exports = {
   seedLocalStorage,
   acceptConfirmDialog,
   acceptGymModal,
+  openPalette,
 };

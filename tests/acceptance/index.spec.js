@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { gotoApp, clearWebUtilsStorage, seedLocalStorage, acceptConfirmDialog } = require('./helpers/storage');
+const { gotoApp, clearWebUtilsStorage, seedLocalStorage, acceptConfirmDialog, openPalette } = require('./helpers/storage');
 
 const BASE = 'http://127.0.0.1:4173';
 
@@ -97,6 +97,31 @@ test.describe('index', () => {
     await page.goto(`${BASE}/docs/index.html`);
     await page.waitForLoadState('domcontentloaded');
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+  });
+
+  test('Ctrl+K opens command palette and Escape closes it', async ({ page }) => {
+    await openPalette(page);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#command-palette')).toBeHidden();
+  });
+
+  test('palette can filter to theme and execute toggle', async ({ page }) => {
+    const html = page.locator('html');
+    const initial = await html.getAttribute('data-theme');
+
+    await openPalette(page);
+    await page.locator('#command-palette-input').fill('theme');
+    await page.keyboard.press('Enter');
+
+    const after = await html.getAttribute('data-theme');
+    expect(after).not.toBe(initial);
+  });
+
+  test('palette navigation command opens Kanban page', async ({ page }) => {
+    await openPalette(page);
+    await page.locator('#command-palette-input').fill('Go to: Kanban task board');
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/docs\/kanban\.html$/);
   });
 
   // ── Export ─────────────────────────────────────────────────────────────────

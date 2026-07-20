@@ -198,6 +198,12 @@ The landing page (`docs/index.html`) serves as a hub for all utilities and inclu
 - **No accounts**: Everything is stored locally; no login or syncing required
 - **Confirmation dialogs**: Destructive actions (delete, clear, import) always ask for confirmation to prevent accidents
 
+### Keyboard Shortcuts
+
+- `Ctrl/Cmd+K` opens the command palette on every page.
+- `/` focuses search on pages that expose a search field and is ignored inside editable targets.
+- `Escape` closes the palette, and palette commands reuse the existing buttons, links, and focus targets already on the page.
+
 ### Backups
 
 A per-app backup ledger is stored at `localStorage` key `webutils.backupStatus.v1`. Each entry records when that app's data was last exported and a hash of the data at the time.
@@ -281,7 +287,7 @@ Top 5 improvements that increase daily usefulness while preserving the static, l
   - Added: in-app backup chip in every app (full quick-backup for localStorage apps, status+link for IndexedDB apps).
   - Result: better day-to-day data hygiene and portability without leaving app context.
 
-4. **Unified keyboard shortcuts and command controls**
+4. **[✓ DONE] Unified keyboard shortcuts and command controls**
   - Introduce a shared shortcut map and command palette pattern across all apps, with app-specific commands layered on top.
   - Standardize high-value actions (open search, quick export, quick import, theme toggle, navigation) behind consistent keys.
   - Outcome: faster repeat use and lower context-switch overhead for power users.

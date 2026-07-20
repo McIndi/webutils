@@ -63,6 +63,8 @@ This document captures decisions, conventions, and architectural patterns that a
    - Implement `saveState()` and `loadState()` functions
    - Use the confirmation dialog pattern for destructive actions
    - Include the standard backup chip block (copy from `kanban.html` — the `BACKUP_APP_ID`, `BACKUP_APP_LABEL`, `BACKUP_STORAGE_KEY` constants, the `.backup-chip` CSS, the chip HTML markup, and the JS functions `fnv1a` through `exportBackupSnapshot`). Update the three constants to match the new app. Register the storage key inside the chip's `getBackupPrimaryValue` function.
+   - Include the standard command palette block (copy from an updated app such as `index.html` or `kanban.html` — the `PALETTE_APP_ID` constant, the duplicated `PALETTE_NAV_LINKS` list, the palette CSS/markup, and the JS helpers through `buildStandardCommands`). Update `PALETTE_APP_ID`, the page-specific command list, and `PALETTE_SEARCH_INPUT_ID` when the page has a search box.
+   - Keep the palette nav list aligned with `APP_REGISTRY`; adding an app means updating both lists.
 
 2. **Register the app** in `docs/index.html`:
    - Add an entry to the `APP_REGISTRY` array

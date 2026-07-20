@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { gotoApp, clearWebUtilsStorage, seedLocalStorage, acceptConfirmDialog } = require('./helpers/storage');
+const { gotoApp, clearWebUtilsStorage, seedLocalStorage, acceptConfirmDialog, openPalette } = require('./helpers/storage');
 
 test.describe('notes', () => {
   test.beforeEach(async ({ page }) => {
@@ -150,6 +150,24 @@ test.describe('notes', () => {
 
     await page.locator('#search-input').clear();
     await expect(page.locator('.note-item')).toHaveCount(3);
+  });
+
+  test('/ focuses search and typing / inside search inserts slash', async ({ page }) => {
+    await page.locator('body').click();
+    await page.keyboard.press('/');
+    await expect(page.locator('#search-input')).toBeFocused();
+
+    await page.locator('#search-input').fill('');
+    await page.keyboard.type('/');
+    await expect(page.locator('#search-input')).toHaveValue('/');
+  });
+
+  test('Ctrl+K opens palette while CodeMirror editor is focused', async ({ page }) => {
+    await page.locator('#new-note').click();
+    await expect(page.locator('.CodeMirror')).toBeVisible();
+    await page.locator('.CodeMirror').click();
+
+    await openPalette(page);
   });
 
   // ── Sort ───────────────────────────────────────────────────────────────────

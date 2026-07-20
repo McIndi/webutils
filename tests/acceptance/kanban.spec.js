@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('node:fs/promises');
-const { gotoApp, clearWebUtilsStorage, acceptConfirmDialog } = require('./helpers/storage');
+const { gotoApp, clearWebUtilsStorage, acceptConfirmDialog, openPalette } = require('./helpers/storage');
 
 test.describe('kanban', () => {
   test.beforeEach(async ({ page }) => {
@@ -144,6 +144,14 @@ test.describe('kanban', () => {
     await expect(page.locator('#track-select option', { hasText: 'Sprint 2' })).toBeAttached();
   });
 
+  test('palette Add track runs existing add-track flow', async ({ page }) => {
+    await page.locator('#new-track-name').fill('Palette Track');
+    await openPalette(page);
+    await page.locator('#command-palette-input').fill('Add track');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#track-select option', { hasText: 'Palette Track' })).toBeAttached();
+  });
+
   test('switching track shows only that track\'s board', async ({ page }) => {
     // Add second track
     await page.locator('#new-track-name').fill('Track B');
@@ -254,6 +262,28 @@ test.describe('kanban', () => {
     expect(typeof parsed.apps.kanban.value).toBe('string');
 
     await expect(page.locator('#backup-chip-status')).toContainText('Backed up');
+  });
+
+  test('palette Back up now triggers same download path', async ({ page }) => {
+    await expect(page.locator('#backup-chip')).toBeVisible();
+    const downloadPromise = page.waitForEvent('download');
+    await openPalette(page);
+    await page.locator('#command-palette-input').fill('Back up now');
+    await page.keyboard.press('Enter');
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/webutils-kanban-.*\.json/i);
+  });
+
+  test('palette omits Back up now while the backup chip is hidden', async ({ page }) => {
+    // The chip hides itself when the app has no stored data; simulate that
+    // render state and assert the palette consults it at open time.
+    await page.evaluate(() => {
+      document.getElementById('backup-chip').hidden = true;
+    });
+    await openPalette(page);
+    await page.locator('#command-palette-input').fill('Back up now');
+    await expect(page.locator('#command-palette-list li')).toHaveCount(0);
+    await page.keyboard.press('Escape');
   });
 
   test('backup chip snapshot round-trips through index per-app import', async ({ page }) => {

@@ -1,9 +1,23 @@
 const { test, expect } = require('@playwright/test');
-const { gotoApp, clearWebUtilsStorage } = require('./helpers/storage');
+const { KNOWN_APPS, gotoApp, clearWebUtilsStorage } = require('./helpers/storage');
 
 test.describe('personalized acceptance starters', () => {
   test.beforeEach(async ({ page }) => {
     await clearWebUtilsStorage(page);
+  });
+
+  test('every page opens the command palette with Ctrl+K', async ({ page }) => {
+    for (const fileName of KNOWN_APPS) {
+      await gotoApp(page, fileName);
+      await page.keyboard.press('Control+k');
+      await expect(page.locator('#command-palette'), `palette on ${fileName}`).toBeVisible();
+      await expect(
+        page.locator('#command-palette-list li').first(),
+        `palette commands on ${fileName}`
+      ).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(page.locator('#command-palette')).toBeHidden();
+    }
   });
 
   test('index: shows utilities and data controls', async ({ page }) => {
