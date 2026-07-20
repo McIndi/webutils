@@ -256,3 +256,31 @@ test.describe('contentstudio deep links', () => {
     await expect(page.locator('[data-asset-id="asset-1"]')).toHaveClass(/deep-link-flash/);
   });
 });
+
+test.describe('contentstudio mentions', () => {
+  test('inserting a mention into the draft persists after reload', async ({ page }) => {
+    await gotoApp(page, 'contentstudio.html');
+
+    await page.locator('.nav-tab[data-view="draft"]').click();
+    const projectCard = page.locator('[data-project-id]').first();
+    const projectId = await projectCard.getAttribute('data-project-id');
+    const projectName = await projectCard.locator('.card-title').textContent();
+    await page.evaluate(() => {
+      const cm = document.querySelector('.CodeMirror').CodeMirror;
+      cm.setValue('');
+      cm.focus();
+    });
+    await page.keyboard.type('@my');
+    const mentionResult = page.locator('#mention-popup li[role="option"]').first();
+    await expect(mentionResult).toBeVisible();
+    await mentionResult.click();
+
+    const draftBeforeReload = await page.evaluate(() => document.querySelector('.CodeMirror').CodeMirror.getValue());
+    expect(draftBeforeReload).toBe(`[${projectName}](contentstudio.html#wu=project/${projectId})`);
+
+    await gotoApp(page, 'contentstudio.html');
+    await page.locator('.nav-tab[data-view="draft"]').click();
+    const draftAfterReload = await page.evaluate(() => document.querySelector('.CodeMirror').CodeMirror.getValue());
+    expect(draftAfterReload).toBe(`[${projectName}](contentstudio.html#wu=project/${projectId})`);
+  });
+});

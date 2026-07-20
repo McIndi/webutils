@@ -198,6 +198,14 @@ The landing page (`docs/index.html`) serves as a hub for all utilities and inclu
 - **No accounts**: Everything is stored locally; no login or syncing required
 - **Confirmation dialogs**: Destructive actions (delete, clear, import) always ask for confirmation to prevent accidents
 
+### Deep Links & `@` Mentions
+
+- Deep links use the shared fragment grammar `#wu=<type>/<id>`, where `type` identifies the entity class and `id` is URI-encoded on write.
+- Linkable entity types currently cover Kanban cards and tracks, Notes, Regex presets, Content Studio projects/assets/platforms, and TheGym exercises.
+- Deep-link resolution is local and idempotent: each app reads its own fragment on load and `hashchange`, reveals the matching item, and leaves the URL intact.
+- The `@` picker reads local data on demand from same-origin storage, ranks results by label match, and inserts a portable Markdown link.
+- IndexedDB-backed apps and Secret Share are excluded from the mention index, and apps that expose no entities can still consume links without advertising any of their own.
+
 ### Keyboard Shortcuts
 
 - `Ctrl/Cmd+K` opens the command palette on every page.
@@ -293,9 +301,9 @@ Top 5 improvements that increase daily usefulness while preserving the static, l
   - Outcome: faster repeat use and lower context-switch overhead for power users.
 
 5. **Cross-app deep linking with @ autocomplete over local data**
-  - Add deep-link targets for key entities (notes, assets, projects, cards, regex presets, workouts) and pass context between apps.
-  - Introduce an ecosystem-wide `@` mention/autocomplete layer that searches local app data and inserts links or references.
-  - Outcome: less copy/paste friction and stronger workflow continuity across the entire toolkit.
+  - Implemented: stable `#wu=<type>/<id>` deep links for the toolkit's linkable entities, plus per-page resolvers that reveal the target item on load and `hashchange`.
+  - Added: copy-link controls and `@` mention pickers on the relevant editor surfaces, with same-origin local-data search and Markdown link insertion.
+  - Result: less copy/paste friction and stronger workflow continuity across the entire toolkit.
 
 ## License
 

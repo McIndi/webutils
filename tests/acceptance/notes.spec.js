@@ -292,3 +292,121 @@ test.describe('notes deep links', () => {
     await expect(page.locator('[data-note-id="note-aaa"]')).toBeVisible();
   });
 });
+
+test.describe('notes mentions and links', () => {
+  test('copy link button writes the note URL', async ({ page }) => {
+    const now = Date.now();
+    await clearWebUtilsStorage(page);
+    await seedEntities(page, 'webutils.notes.v1', {
+      notes: [
+        {
+          id: 'note-copy',
+          title: 'Copy Me',
+          content: 'body',
+          tags: [],
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+      openIds: ['note-copy'],
+      selectedTags: [],
+      sort: 'updated',
+      sidebarWidth: null,
+    });
+    await gotoApp(page, 'notes.html');
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: {
+          writeText: (text) => {
+            window.__copiedText = text;
+            return Promise.resolve();
+          },
+        },
+      });
+    });
+
+    await expect(page.locator('.open-note-header')).toBeVisible();
+    await page.locator('.open-note .copy-link-button').click();
+
+    const copied = await page.evaluate(() => window.__copiedText);
+    expect(copied).toMatch(/\/docs\/notes\.html#wu=note\/note-copy$/);
+  });
+
+  test('typing @ in the editor inserts a ranked cross-app markdown link', async ({ page }) => {
+    const now = Date.now();
+    await clearWebUtilsStorage(page);
+    await seedEntities(page, 'webutils.regex-workbench.v1', {
+      pattern: '',
+      flags: 'g',
+      sample: '',
+      presets: [
+        { id: 'preset-alpha', name: 'Zeta Alpha', pattern: 'alpha', flags: 'g', sample: '', createdAt: now },
+        { id: 'preset-beta', name: 'Zeta Beta', pattern: 'beta', flags: 'g', sample: '', createdAt: now },
+      ],
+    });
+    await gotoApp(page, 'notes.html');
+
+    await page.locator('#new-note').click();
+    await page.locator('input[id^="edit-title-"]').fill('Mention Test');
+    await page.evaluate(() => document.querySelector('.CodeMirror').CodeMirror.focus());
+    await page.keyboard.type('@zeta');
+
+    await expect(page.locator('#mention-popup li[role="option"]')).toHaveCount(2);
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+
+    const editorValue = await page.evaluate(() => document.querySelector('.CodeMirror').CodeMirror.getValue());
+    expect(editorValue).toBe('[Zeta Beta](regex-workbench.html#wu=preset/preset-beta)');
+  });
+
+  test('Escape closes the mention picker and leaves the typed text intact', async ({ page }) => {
+    const now = Date.now();
+    await clearWebUtilsStorage(page);
+    await seedEntities(page, 'webutils.regex-workbench.v1', {
+      pattern: '',
+      flags: 'g',
+      sample: '',
+      presets: [
+        { id: 'preset-alpha', name: 'Zeta Alpha', pattern: 'alpha', flags: 'g', sample: '', createdAt: now },
+      ],
+    });
+    await gotoApp(page, 'notes.html');
+
+    await page.locator('#new-note').click();
+    await page.locator('input[id^="edit-title-"]').fill('Escape Test');
+    await page.evaluate(() => document.querySelector('.CodeMirror').CodeMirror.focus());
+    await page.keyboard.type('@que');
+    await page.keyboard.press('Escape');
+
+    await expect(page.locator('#mention-popup')).toBeHidden();
+
+    const editorValue = await page.evaluate(() => document.querySelector('.CodeMirror').CodeMirror.getValue());
+    expect(editorValue).toBe('@que');
+  });
+
+  test('rendered markdown keeps javascript hrefs out of the DOM', async ({ page }) => {
+    const now = Date.now();
+    await clearWebUtilsStorage(page);
+    await seedEntities(page, 'webutils.notes.v1', {
+      notes: [
+        {
+          id: 'note-safe',
+          title: 'Sanitized Note',
+          content: '[x](javascript:alert(1))',
+          tags: [],
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+      openIds: [],
+      selectedTags: [],
+      sort: 'updated',
+      sidebarWidth: null,
+    });
+    await gotoApp(page, 'notes.html');
+
+    await page.locator('.note-item', { hasText: 'Sanitized Note' }).click();
+    await expect(page.locator('.note-display a[href^="javascript:"]')).toHaveCount(0);
+  });
+});

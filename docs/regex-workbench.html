@@ -512,6 +512,41 @@
         flex-wrap: wrap;
       }
 
+      .manual-copy-panel {
+        position: fixed;
+        right: 12px;
+        bottom: 12px;
+        z-index: 80;
+        width: min(520px, calc(100vw - 24px));
+        border: 1px solid var(--stroke);
+        border-radius: 14px;
+        background: var(--panel);
+        color: var(--ink);
+        box-shadow: 0 18px 44px rgba(0, 0, 0, 0.14);
+        padding: 10px 12px;
+      }
+
+      .manual-copy-panel[hidden] {
+        display: none;
+      }
+
+      .manual-copy-panel label {
+        display: block;
+        font-size: 0.82rem;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+
+      .manual-copy-panel input {
+        width: 100%;
+        border: 1px solid var(--stroke);
+        border-radius: 10px;
+        background: #fff;
+        color: var(--ink);
+        padding: 8px 10px;
+        font: inherit;
+      }
+
       .deep-link-flash {
         outline: 2px solid var(--accent);
         outline-offset: 2px;
@@ -777,6 +812,11 @@
       <ul id="command-palette-list" role="listbox"></ul>
     </dialog>
 
+    <div id="manual-copy-panel" class="manual-copy-panel" hidden>
+      <label for="manual-copy-input">Copy this link manually</label>
+      <input id="manual-copy-input" type="text" readonly />
+    </div>
+
     <dialog id="confirm-dialog">
       <form method="dialog" class="confirm-form">
         <h3 id="confirm-title">Confirm action</h3>
@@ -817,6 +857,9 @@
       const confirmAccept = document.getElementById("confirm-accept");
       let confirmResolve = null;
       let statusTimer = null;
+      const manualCopyPanel = document.getElementById("manual-copy-panel");
+      const manualCopyInput = document.getElementById("manual-copy-input");
+      let manualCopyTimer = null;
 
       const backupChip = document.getElementById("backup-chip");
       const backupChipStatus = document.getElementById("backup-chip-status");
@@ -872,6 +915,70 @@
           type: match[1],
           id: decodeURIComponent(match[2]),
         };
+      };
+
+      const buildDeepLinkHref = (appHref, type, id) =>
+        new URL(`${appHref}#wu=${type}/${encodeURIComponent(id)}`, location.href).href;
+
+      const showManualCopyPanel = (text) => {
+        if (!manualCopyPanel || !manualCopyInput) {
+          return;
+        }
+        if (manualCopyTimer) {
+          window.clearTimeout(manualCopyTimer);
+        }
+        manualCopyInput.value = text;
+        manualCopyPanel.hidden = false;
+        manualCopyInput.focus();
+        manualCopyInput.select();
+        manualCopyTimer = window.setTimeout(() => {
+          manualCopyPanel.hidden = true;
+        }, 12000);
+      };
+
+      const writeTextToClipboard = async (text) => {
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+          try {
+            await navigator.clipboard.writeText(text);
+            return true;
+          } catch (error) {
+            // Fall through to the copy fallback.
+          }
+        }
+
+        const fallback = document.createElement("textarea");
+        fallback.value = text;
+        fallback.setAttribute("readonly", "readonly");
+        fallback.style.position = "fixed";
+        fallback.style.opacity = "0";
+        fallback.style.pointerEvents = "none";
+        fallback.style.left = "-9999px";
+        document.body.appendChild(fallback);
+        fallback.focus();
+        fallback.select();
+        let copied = false;
+        try {
+          copied = document.execCommand("copy");
+        } catch (error) {
+          copied = false;
+        }
+        fallback.remove();
+        if (copied) {
+          return true;
+        }
+
+        showManualCopyPanel(text);
+        return false;
+      };
+
+      const copyEntityLink = async (appHref, type, id, label) => {
+        const link = buildDeepLinkHref(appHref, type, id);
+        const copied = await writeTextToClipboard(link);
+        if (copied) {
+          setRegexStatus(`Link copied to clipboard: ${label}`);
+        } else {
+          setRegexStatus("Clipboard unavailable. Copy the link from the field below.");
+        }
       };
 
       const setRegexStatus = (text, isError = false) => {
@@ -1278,6 +1385,13 @@
             loadPresetIntoEditor(preset);
           });
 
+          const copyBtn = document.createElement("button");
+          copyBtn.type = "button";
+          copyBtn.className = "button ghost";
+          copyBtn.textContent = "Copy link";
+          copyBtn.setAttribute("aria-label", `Copy link to ${preset.name}`);
+          copyBtn.addEventListener("click", () => copyEntityLink("regex-workbench.html", "preset", preset.id, preset.name));
+
           const deleteBtn = document.createElement("button");
           deleteBtn.type = "button";
           deleteBtn.className = "button danger";
@@ -1296,7 +1410,7 @@
             renderPresets();
           });
 
-          actions.append(applyBtn, deleteBtn);
+          actions.append(copyBtn, applyBtn, deleteBtn);
           row.append(title, meta, actions);
           presetList.appendChild(row);
         });

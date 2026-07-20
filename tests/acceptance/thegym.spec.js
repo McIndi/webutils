@@ -167,7 +167,9 @@ test.describe('thegym', () => {
   test('deleting an exercise via confirm modal decrements the count', async ({ page }) => {
     // Open first exercise in editor using row action
     await page.locator('.nav-tab[data-view="exercises"]').click();
-    await page.locator('#exercise-list .exercise-row .row-actions button').first().click();
+    const firstRow = page.locator('#exercise-list .exercise-row').first();
+    await firstRow.hover();
+    await firstRow.locator('.row-actions button', { hasText: '✎ Edit' }).click();
     await expect(page.locator('#view-editor')).toBeVisible();
 
     await page.locator('#btn-delete').click();
@@ -180,7 +182,9 @@ test.describe('thegym', () => {
 
   test('delete confirmation modal appears before deleting', async ({ page }) => {
     await page.locator('.nav-tab[data-view="exercises"]').click();
-    await page.locator('#exercise-list .exercise-row .row-actions button').first().click();
+    const firstRow = page.locator('#exercise-list .exercise-row').first();
+    await firstRow.hover();
+    await firstRow.locator('.row-actions button', { hasText: '✎ Edit' }).click();
 
     await page.locator('#btn-delete').click();
     await expect(page.locator('#modal')).toBeVisible();
@@ -349,5 +353,30 @@ test.describe('thegym deep links', () => {
     await expect(page.locator('.nav-tab[data-view="exercises"]')).toHaveClass(/active/);
     await expect(flashed).toBeVisible();
     await expect(flashed).toHaveCount(1);
+  });
+});
+
+test.describe('thegym copy links', () => {
+  test('exercise copy link button writes the expected URL', async ({ page }) => {
+    await page.goto('/docs/thegym.html');
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: {
+          writeText: (text) => {
+            window.__copiedText = text;
+            return Promise.resolve();
+          },
+        },
+      });
+    });
+
+    await page.locator('.nav-tab[data-view="exercises"]').click();
+    const row = page.locator('#exercise-list .exercise-row').first();
+    const exerciseId = await row.getAttribute('data-id');
+    await row.locator('button', { hasText: 'Copy link' }).click();
+
+    const copied = await page.evaluate(() => window.__copiedText);
+    expect(copied).toMatch(new RegExp(`/docs/thegym\.html#wu=exercise/${exerciseId}$`));
   });
 });

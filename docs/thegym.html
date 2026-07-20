@@ -622,6 +622,40 @@
     color: var(--muted);
     font-size: 0.82rem;
   }
+  .manual-copy-panel {
+    position: fixed;
+    right: 12px;
+    bottom: 12px;
+    z-index: 80;
+    width: min(520px, calc(100vw - 24px));
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.14);
+    padding: 10px 12px;
+  }
+
+  .manual-copy-panel[hidden] {
+    display: none;
+  }
+
+  .manual-copy-panel label {
+    display: block;
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .manual-copy-panel input {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--text);
+    padding: 8px 10px;
+    font: inherit;
+  }
   .status {
     max-width: 1200px;
     margin: 0 auto;
@@ -978,6 +1012,11 @@
   />
   <ul id="command-palette-list" role="listbox"></ul>
 </dialog>
+
+<div id="manual-copy-panel" class="manual-copy-panel" hidden>
+  <label for="manual-copy-input">Copy this link manually</label>
+  <input id="manual-copy-input" type="text" readonly />
+</div>
 
 <script>
 // ══════════════════════════════════════════
@@ -1408,6 +1447,9 @@ function showView(name) {
 
 const statusEl = document.getElementById('status');
 let statusTimer = null;
+const manualCopyPanel = document.getElementById('manual-copy-panel');
+const manualCopyInput = document.getElementById('manual-copy-input');
+let manualCopyTimer = null;
 
 function setStatus(text) {
   if (!statusEl) return;
@@ -1417,6 +1459,65 @@ function setStatus(text) {
     statusTimer = window.setTimeout(() => {
       statusEl.textContent = '';
     }, 2400);
+  }
+}
+
+function buildDeepLinkHref(appHref, type, id) {
+  return new URL(`${appHref}#wu=${type}/${encodeURIComponent(id)}`, location.href).href;
+}
+
+function showManualCopyPanel(text) {
+  if (!manualCopyPanel || !manualCopyInput) return;
+  if (manualCopyTimer) window.clearTimeout(manualCopyTimer);
+  manualCopyInput.value = text;
+  manualCopyPanel.hidden = false;
+  manualCopyInput.focus();
+  manualCopyInput.select();
+  manualCopyTimer = window.setTimeout(() => {
+    manualCopyPanel.hidden = true;
+  }, 12000);
+}
+
+async function writeTextToClipboard(text) {
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (error) {
+      // Fall through to the copy fallback.
+    }
+  }
+
+  const fallback = document.createElement('textarea');
+  fallback.value = text;
+  fallback.setAttribute('readonly', 'readonly');
+  fallback.style.position = 'fixed';
+  fallback.style.opacity = '0';
+  fallback.style.pointerEvents = 'none';
+  fallback.style.left = '-9999px';
+  document.body.appendChild(fallback);
+  fallback.focus();
+  fallback.select();
+  let copied = false;
+  try {
+    copied = document.execCommand('copy');
+  } catch (error) {
+    copied = false;
+  }
+  fallback.remove();
+  if (copied) return true;
+
+  showManualCopyPanel(text);
+  return false;
+}
+
+async function copyExerciseLink(id, label) {
+  const link = buildDeepLinkHref('thegym.html', 'exercise', id);
+  const copied = await writeTextToClipboard(link);
+  if (copied) {
+    setStatus(`Link copied to clipboard: ${label}`);
+  } else {
+    setStatus('Clipboard unavailable. Copy the link from the field below.');
   }
 }
 
@@ -1517,7 +1618,7 @@ function renderDashboard() {
       <span class="ex-name">${escapeHtml(ex ? ex.name : '(deleted)')}</span>
       <span class="ex-meta">${new Date(s.ts).toLocaleDateString()}</span>
       <span class="ex-pb">${s.score !== undefined ? s.score + '%' : ''} ${s.time ? fmtTime(s.time) : ''}</span>
-      ${ex ? `<span class="row-actions" onclick="event.stopPropagation()"><button onclick="editExercise('${escapeHtml(ex.id)}')">✎ Edit</button></span>` : ''}
+      ${ex ? `<span class="row-actions" onclick="event.stopPropagation()"><button onclick="copyExerciseLink('${escapeHtml(ex.id)}','${escapeHtml(ex.name)}')">Copy link</button><button onclick="editExercise('${escapeHtml(ex.id)}')">✎ Edit</button></span>` : ''}
     </div>`;
   }).join('');
   container.querySelectorAll('[data-action="repeat"]').forEach(row => {
@@ -1560,6 +1661,7 @@ function renderExerciseList() {
       <span class="ex-meta">${isCircuit ? escapeHtml((ex.exerciseIds||[]).length + ' exercises') : escapeHtml((ex.tags || []).join(', '))}</span>
       <span class="ex-pb">${escapeHtml(pbStr)}</span>
       <span class="row-actions" onclick="event.stopPropagation()">
+        <button onclick="copyExerciseLink('${escapeHtml(ex.id)}','${escapeHtml(ex.name)}')" title="Copy link">Copy link</button>
         <button onclick="editExercise('${escapeHtml(ex.id)}')" title="Edit">✎ Edit</button>
       </span>
     </div>`;
@@ -1807,6 +1909,7 @@ function renderWorkoutPicker() {
       <span class="ex-name">${escapeHtml(ex.name)}</span>
       <span class="ex-meta">${isCircuit ? (ex.exerciseIds||[]).length + ' exercises' : escapeHtml((ex.tags||[]).join(', '))}</span>
       <span class="ex-pb">${escapeHtml(pbStr)}</span>
+      <span class="row-actions" onclick="event.stopPropagation()"><button onclick="copyExerciseLink('${escapeHtml(ex.id)}','${escapeHtml(ex.name)}')" title="Copy link">Copy link</button></span>
     </div>`;
   };
 

@@ -916,6 +916,87 @@
         font-size: 0.82rem;
       }
 
+      .mention-popup {
+        position: fixed;
+        z-index: 75;
+        list-style: none;
+        margin: 0;
+        padding: 6px;
+        min-width: 320px;
+        max-width: min(560px, calc(100vw - 24px));
+        max-height: 260px;
+        overflow: auto;
+        border: 1px solid var(--stroke);
+        border-radius: 14px;
+        background: var(--board);
+        color: var(--ink);
+        box-shadow: 0 18px 44px rgba(0, 0, 0, 0.14);
+      }
+
+      .mention-popup[hidden] {
+        display: none;
+      }
+
+      .mention-popup li {
+        border-radius: 10px;
+        padding: 10px 12px;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .mention-popup li[aria-selected="true"] {
+        background: var(--accent-soft);
+      }
+
+      .mention-popup li[aria-disabled="true"] {
+        color: var(--muted);
+      }
+
+      .mention-label {
+        font-weight: 600;
+      }
+
+      .mention-sublabel {
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+      .manual-copy-panel {
+        position: fixed;
+        right: 12px;
+        bottom: 12px;
+        z-index: 80;
+        width: min(520px, calc(100vw - 24px));
+        border: 1px solid var(--stroke);
+        border-radius: 14px;
+        background: var(--board);
+        color: var(--ink);
+        box-shadow: 0 18px 44px rgba(0, 0, 0, 0.14);
+        padding: 10px 12px;
+      }
+
+      .manual-copy-panel[hidden] {
+        display: none;
+      }
+
+      .manual-copy-panel label {
+        display: block;
+        font-size: 0.82rem;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+
+      .manual-copy-panel input {
+        width: 100%;
+        border: 1px solid var(--stroke);
+        border-radius: 10px;
+        background: #fff;
+        color: var(--ink);
+        padding: 8px 10px;
+        font: inherit;
+      }
+
       @media (max-width: 720px) {
         .track-toolbar {
           grid-template-columns: 1fr;
@@ -1091,6 +1172,13 @@
       <ul id="command-palette-list" role="listbox"></ul>
     </dialog>
 
+    <ul id="mention-popup" class="mention-popup" role="listbox" hidden></ul>
+
+    <div id="manual-copy-panel" class="manual-copy-panel" hidden>
+      <label for="manual-copy-input">Copy this link manually</label>
+      <input id="manual-copy-input" type="text" readonly />
+    </div>
+
     <script>
       const STORAGE_KEY = "webutils.kanban.v2";
       const LEGACY_STORAGE_KEY = "webutils.kanban.v1";
@@ -1122,6 +1210,9 @@
       const deleteTrackButton = document.getElementById("delete-track");
       const noteDialog = document.getElementById("note-editor");
       const noteEditorText = document.getElementById("note-editor-text");
+      const manualCopyPanel = document.getElementById("manual-copy-panel");
+      const manualCopyInput = document.getElementById("manual-copy-input");
+      const mentionPopup = document.getElementById("mention-popup");
       const confirmDialog = document.getElementById("confirm-dialog");
       const confirmTitle = document.getElementById("confirm-title");
       const confirmMessage = document.getElementById("confirm-message");
@@ -1132,6 +1223,113 @@
       let confirmResolve = null;
       let dragMeta = null;
       let statusTimer = null;
+      let manualCopyTimer = null;
+      let mentionState = null;
+      let mentionProgrammaticUpdate = false;
+
+      const ENTITY_TYPES = {
+        card: { app: "kanban", href: "kanban.html", storageKey: "webutils.kanban.v2", label: "Card" },
+        track: { app: "kanban", href: "kanban.html", storageKey: "webutils.kanban.v2", label: "Track" },
+        note: { app: "notes", href: "notes.html", storageKey: "webutils.notes.v1", label: "Note" },
+        preset: {
+          app: "regex-workbench",
+          href: "regex-workbench.html",
+          storageKey: "webutils.regex-workbench.v1",
+          label: "Regex preset",
+        },
+        project: {
+          app: "contentstudio",
+          href: "contentstudio.html",
+          storageKey: "webutils.contentstudio.v1",
+          label: "Project",
+        },
+        asset: {
+          app: "contentstudio",
+          href: "contentstudio.html",
+          storageKey: "webutils.contentstudio.v1",
+          label: "Asset",
+        },
+        platform: {
+          app: "contentstudio",
+          href: "contentstudio.html",
+          storageKey: "webutils.contentstudio.v1",
+          label: "Platform",
+        },
+        exercise: { app: "thegym", href: "thegym.html", storageKey: "webutils.thegym.v1", label: "Exercise" },
+      };
+      const MENTION_APP_ORDER = ["kanban", "notes", "regex-workbench", "contentstudio", "thegym"];
+
+      const safeParseJson = (value, fallback) => {
+        try {
+          return value ? JSON.parse(value) : fallback;
+        } catch (error) {
+          return fallback;
+        }
+      };
+
+      const buildDeepLinkHref = (appHref, type, id) =>
+        new URL(`${appHref}#wu=${type}/${encodeURIComponent(id)}`, location.href).href;
+
+      const showManualCopyPanel = (text) => {
+        if (!manualCopyPanel || !manualCopyInput) {
+          return;
+        }
+        if (manualCopyTimer) {
+          window.clearTimeout(manualCopyTimer);
+        }
+        manualCopyInput.value = text;
+        manualCopyPanel.hidden = false;
+        manualCopyInput.focus();
+        manualCopyInput.select();
+        manualCopyTimer = window.setTimeout(() => {
+          manualCopyPanel.hidden = true;
+        }, 12000);
+      };
+
+      const writeTextToClipboard = async (text) => {
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+          try {
+            await navigator.clipboard.writeText(text);
+            return true;
+          } catch (error) {
+            // Fall through to the copy fallback.
+          }
+        }
+
+        const fallback = document.createElement("textarea");
+        fallback.value = text;
+        fallback.setAttribute("readonly", "readonly");
+        fallback.style.position = "fixed";
+        fallback.style.opacity = "0";
+        fallback.style.pointerEvents = "none";
+        fallback.style.left = "-9999px";
+        document.body.appendChild(fallback);
+        fallback.focus();
+        fallback.select();
+        let copied = false;
+        try {
+          copied = document.execCommand("copy");
+        } catch (error) {
+          copied = false;
+        }
+        fallback.remove();
+        if (copied) {
+          return true;
+        }
+
+        showManualCopyPanel(text);
+        return false;
+      };
+
+      const copyEntityLink = async (appHref, type, id, label) => {
+        const link = buildDeepLinkHref(appHref, type, id);
+        const copied = await writeTextToClipboard(link);
+        if (copied) {
+          setStatus(`Link copied to clipboard: ${label}`);
+        } else {
+          setStatus("Clipboard unavailable. Copy the link from the field below.");
+        }
+      };
 
       const laneLabels = {
         backlog: "Backlog",
@@ -1234,6 +1432,363 @@
           id: decodeURIComponent(match[2]),
         };
       };
+
+      const collectMentionEntities = () => {
+        const entities = [];
+        state.tracks.forEach((track) => {
+          if (!track || !track.id || !track.name) {
+            return;
+          }
+          entities.push({
+            type: "track",
+            id: track.id,
+            label: track.name,
+            sublabel: "Track",
+            app: "kanban",
+            href: "kanban.html",
+          });
+          (Array.isArray(track.cards) ? track.cards : []).forEach((card) => {
+            if (!card || !card.id || !card.title) {
+              return;
+            }
+            entities.push({
+              type: "card",
+              id: card.id,
+              label: card.title,
+              sublabel: track.name,
+              app: "kanban",
+              href: "kanban.html",
+            });
+          });
+        });
+
+        const readers = {
+          notes: () => {
+            const raw = safeParseJson(localStorage.getItem(ENTITY_TYPES.note.storageKey), null);
+            const notes = Array.isArray(raw?.notes) ? raw.notes : [];
+            return notes
+              .filter((note) => note && note.id && note.title)
+              .map((note) => ({
+                type: "note",
+                id: note.id,
+                label: note.title,
+                sublabel: "Note",
+                app: "notes",
+                href: "notes.html",
+              }));
+          },
+          "regex-workbench": () => {
+            const raw = safeParseJson(localStorage.getItem(ENTITY_TYPES.preset.storageKey), null);
+            const presets = Array.isArray(raw?.presets) ? raw.presets : [];
+            return presets
+              .filter((preset) => preset && preset.id && preset.name)
+              .map((preset) => ({
+                type: "preset",
+                id: preset.id,
+                label: preset.name,
+                sublabel: "Regex preset",
+                app: "regex-workbench",
+                href: "regex-workbench.html",
+              }));
+          },
+          contentstudio: () => {
+            const raw = safeParseJson(localStorage.getItem(ENTITY_TYPES.project.storageKey), null);
+            const projects = Array.isArray(raw?.projects) ? raw.projects : [];
+            const assets = Array.isArray(raw?.assets) ? raw.assets : [];
+            const platforms = Array.isArray(raw?.platforms) ? raw.platforms : [];
+            const projectById = new Map(
+              projects.filter((project) => project && project.id).map((project) => [project.id, project])
+            );
+            const collected = [];
+
+            projects.forEach((project) => {
+              if (!project || !project.id || !project.name) {
+                return;
+              }
+              collected.push({
+                type: "project",
+                id: project.id,
+                label: project.name,
+                sublabel: "Project",
+                app: "contentstudio",
+                href: "contentstudio.html",
+              });
+            });
+
+            assets.forEach((asset) => {
+              if (!asset || !asset.id) {
+                return;
+              }
+              const label =
+                (typeof asset.name === "string" && asset.name.trim()) ||
+                (typeof asset.label === "string" && asset.label.trim()) ||
+                (typeof asset.content === "string" ? asset.content.trim().slice(0, 40) : "");
+              if (!label) {
+                return;
+              }
+              collected.push({
+                type: "asset",
+                id: asset.id,
+                label,
+                sublabel: projectById.get(asset.projectId)?.name || "Asset",
+                app: "contentstudio",
+                href: "contentstudio.html",
+              });
+            });
+
+            platforms.forEach((platform) => {
+              if (!platform || !platform.id || !platform.name) {
+                return;
+              }
+              collected.push({
+                type: "platform",
+                id: platform.id,
+                label: platform.name,
+                sublabel: "Platform",
+                app: "contentstudio",
+                href: "contentstudio.html",
+              });
+            });
+
+            return collected;
+          },
+          thegym: () => {
+            const raw = safeParseJson(localStorage.getItem(ENTITY_TYPES.exercise.storageKey), null);
+            const exercises = Array.isArray(raw?.exercises) ? raw.exercises : [];
+            return exercises
+              .filter((exercise) => exercise && exercise.id && exercise.name)
+              .map((exercise) => ({
+                type: "exercise",
+                id: exercise.id,
+                label: exercise.name,
+                sublabel: exercise.type || "Exercise",
+                app: "thegym",
+                href: "thegym.html",
+              }));
+          },
+        };
+
+        MENTION_APP_ORDER.forEach((app) => {
+          if (app === "kanban") {
+            return;
+          }
+          const items = readers[app]?.() || [];
+          items.forEach((item) => {
+            if (item.id && item.label) {
+              entities.push(item);
+            }
+          });
+        });
+
+        return entities;
+      };
+
+      const rankMentionEntity = (entity, queryLower) => {
+        if (!queryLower) {
+          return 0;
+        }
+        const label = entity.label.toLowerCase();
+        const sublabel = (entity.sublabel || "").toLowerCase();
+        if (label.startsWith(queryLower)) {
+          return 0;
+        }
+        if (label.includes(queryLower)) {
+          return 1;
+        }
+        if (sublabel.includes(queryLower)) {
+          return 2;
+        }
+        return null;
+      };
+
+      const buildMentionResults = (query) => {
+        const queryLower = query.trim().toLowerCase();
+        return collectMentionEntities()
+          .map((entity) => ({ entity, rank: rankMentionEntity(entity, queryLower) }))
+          .filter((entry) => entry.rank !== null)
+          .sort((first, second) => {
+            if (first.rank !== second.rank) {
+              return first.rank - second.rank;
+            }
+            const firstOrder = MENTION_APP_ORDER.indexOf(first.entity.app);
+            const secondOrder = MENTION_APP_ORDER.indexOf(second.entity.app);
+            if (firstOrder !== secondOrder) {
+              return firstOrder - secondOrder;
+            }
+            return first.entity.label.localeCompare(second.entity.label);
+          })
+          .slice(0, 12)
+          .map((entry) => entry.entity);
+      };
+
+      const closeMentionPopup = () => {
+        mentionState = null;
+        if (!mentionPopup) {
+          return;
+        }
+        mentionPopup.hidden = true;
+        mentionPopup.innerHTML = "";
+      };
+
+      const positionMentionPopup = (anchorRect) => {
+        if (!mentionPopup) {
+          return;
+        }
+        const popupRect = mentionPopup.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        let left = Math.max(12, anchorRect.left);
+        let top = Math.max(12, anchorRect.bottom + 8);
+
+        if (left + popupRect.width > viewportWidth - 12) {
+          left = Math.max(12, viewportWidth - popupRect.width - 12);
+        }
+        if (top + popupRect.height > viewportHeight - 12) {
+          top = Math.max(12, anchorRect.top - popupRect.height - 8);
+        }
+
+        mentionPopup.style.left = `${Math.round(left)}px`;
+        mentionPopup.style.top = `${Math.round(top)}px`;
+      };
+
+      const renderMentionPopup = ({ target, query, anchorRect, from }) => {
+        if (!mentionPopup) {
+          return;
+        }
+        const results = buildMentionResults(query);
+        mentionState = { kind: "ta", target, query, results, selectedIndex: 0, from, anchorRect };
+
+        mentionPopup.innerHTML = "";
+        if (!results.length) {
+          const item = document.createElement("li");
+          item.setAttribute("role", "option");
+          item.setAttribute("aria-disabled", "true");
+          item.textContent = "No matching items in your local data";
+          mentionPopup.appendChild(item);
+          mentionPopup.hidden = false;
+          positionMentionPopup(anchorRect);
+          return;
+        }
+
+        results.forEach((entity, index) => {
+          const item = document.createElement("li");
+          item.setAttribute("role", "option");
+          item.setAttribute("aria-selected", index === 0 ? "true" : "false");
+          item.dataset.index = String(index);
+
+          const label = document.createElement("span");
+          label.className = "mention-label";
+          label.textContent = entity.label;
+
+          const sublabel = document.createElement("span");
+          sublabel.className = "mention-sublabel";
+          sublabel.textContent = entity.sublabel;
+
+          item.appendChild(label);
+          item.appendChild(sublabel);
+          mentionPopup.appendChild(item);
+        });
+
+        mentionPopup.hidden = false;
+        positionMentionPopup(anchorRect);
+      };
+
+      const updateMentionSelection = (nextIndex) => {
+        if (!mentionState || !mentionState.results.length) {
+          return;
+        }
+        mentionState.selectedIndex = (nextIndex + mentionState.results.length) % mentionState.results.length;
+        mentionPopup.querySelectorAll('li[role="option"]').forEach((item, index) => {
+          item.setAttribute("aria-selected", index === mentionState.selectedIndex ? "true" : "false");
+        });
+        const selected = mentionPopup.querySelector('li[aria-selected="true"]');
+        selected?.scrollIntoView({ block: "nearest" });
+      };
+
+      const insertMentionResult = () => {
+        if (!mentionState || !mentionState.results.length) {
+          return false;
+        }
+        const selected = mentionState.results[mentionState.selectedIndex];
+        if (!selected) {
+          return false;
+        }
+        const text = `[${selected.label.replace(/\\/g, "\\\\").replace(/\[/g, "\\[").replace(/\]/g, "\\]").replace(/\(/g, "\\(").replace(/\)/g, "\\)").replace(/\r?\n+/g, " ")}](${selected.href}#wu=${selected.type}/${encodeURIComponent(selected.id)})`;
+        const textarea = mentionState.target;
+        mentionProgrammaticUpdate = true;
+        textarea.setRangeText(text, mentionState.from, textarea.selectionStart, "end");
+        textarea.dispatchEvent(new Event("input", { bubbles: true }));
+        textarea.focus();
+        window.setTimeout(() => {
+          mentionProgrammaticUpdate = false;
+        }, 0);
+        closeMentionPopup();
+        return true;
+      };
+
+      const syncMentionFromTextarea = (textarea) => {
+        if (mentionProgrammaticUpdate) {
+          return;
+        }
+        const prefix = textarea.value.slice(0, textarea.selectionStart);
+        const match = /(?:^|\s)@([^\s@]{0,32})$/.exec(prefix);
+        if (!match) {
+          closeMentionPopup();
+          return;
+        }
+        const query = match[1] || "";
+        const from = textarea.selectionStart - query.length - 1;
+        renderMentionPopup({ target: textarea, query, anchorRect: textarea.getBoundingClientRect(), from });
+      };
+
+      const attachMentionTextarea = (textarea) => {
+        if (!textarea) {
+          return;
+        }
+        textarea.addEventListener("input", () => syncMentionFromTextarea(textarea));
+        textarea.addEventListener("keydown", (event) => {
+          if (!mentionState || mentionState.kind !== "ta" || mentionState.target !== textarea) {
+            return;
+          }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            closeMentionPopup();
+            return;
+          }
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            updateMentionSelection(mentionState.selectedIndex + 1);
+            return;
+          }
+          if (event.key === "ArrowUp") {
+            event.preventDefault();
+            updateMentionSelection(mentionState.selectedIndex - 1);
+            return;
+          }
+          if ((event.key === "Enter" || event.key === "Tab") && mentionState.results.length) {
+            event.preventDefault();
+            insertMentionResult();
+          }
+        });
+        textarea.addEventListener("blur", () => closeMentionPopup());
+      };
+
+      if (mentionPopup) {
+        mentionPopup.addEventListener("mousedown", (event) => {
+          event.preventDefault();
+        });
+        mentionPopup.addEventListener("click", (event) => {
+          const item = event.target.closest('li[role="option"]');
+          if (!item || item.getAttribute("aria-disabled") === "true") {
+            return;
+          }
+          const index = Number(item.dataset.index);
+          if (Number.isFinite(index) && mentionState) {
+            mentionState.selectedIndex = index;
+            insertMentionResult();
+          }
+        });
+      }
 
       const flashElement = (element) => {
         if (!element) {
@@ -1630,6 +2185,12 @@
         editBtn.textContent = "Edit notes";
         editBtn.addEventListener("click", () => openNoteEditor(trackId, id));
 
+        const copyButton = document.createElement("button");
+        copyButton.type = "button";
+        copyButton.textContent = "Copy link";
+        copyButton.setAttribute("aria-label", `Copy link to ${title}`);
+        copyButton.addEventListener("click", () => copyEntityLink("kanban.html", "card", id, title));
+
         if (lane === "done") {
           const completeBtn = document.createElement("button");
           completeBtn.type = "button";
@@ -1668,7 +2229,7 @@
         time.textContent = new Date(createdAt).toLocaleDateString();
 
         meta.append(tag, time);
-        buttonGroup.append(editBtn, removeBtn);
+        buttonGroup.append(editBtn, copyButton, removeBtn);
         actions.append(meta, priorityControl, moveControl, buttonGroup);
         body.append(noteEl, actions);
         card.append(header, body);
@@ -1729,6 +2290,8 @@
           </div>
         `;
 
+        attachMentionTextarea(taskForm.querySelector(`#notes-${track.id}`));
+
         taskForm.addEventListener("submit", (event) => {
           event.preventDefault();
           const formData = new FormData(taskForm);
@@ -1774,7 +2337,14 @@
         exportTrackButton.textContent = "Export track";
         exportTrackButton.addEventListener("click", () => exportSingleTrack(track.id));
 
-        headerActions.append(exportTrackButton, activePill);
+        const copyTrackButton = document.createElement("button");
+        copyTrackButton.type = "button";
+        copyTrackButton.className = "track-export";
+        copyTrackButton.textContent = "Copy link";
+        copyTrackButton.setAttribute("aria-label", `Copy link to ${track.name}`);
+        copyTrackButton.addEventListener("click", () => copyEntityLink("kanban.html", "track", track.id, track.name));
+
+        headerActions.append(exportTrackButton, copyTrackButton, activePill);
         header.append(title, headerActions);
 
         const laneGrid = document.createElement("div");
@@ -2838,7 +3408,11 @@
 
       const buildPaletteCommands = () => {
         const standard = buildStandardCommands();
+        const activeTrack = getTrackById(state.activeTrackId);
         const appSpecific = [
+          ...(activeTrack
+            ? [{ label: "Copy link to current track", hint: "Kanban", run: () => copyEntityLink("kanban.html", "track", activeTrack.id, activeTrack.name) }]
+            : []),
           {
             label: "Add track",
             hint: "Kanban",

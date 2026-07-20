@@ -520,6 +520,103 @@
         font-weight: 600;
       }
 
+      .open-note-header-actions {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+
+      .copy-link-button {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        padding: 6px 10px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      .mention-popup {
+        position: fixed;
+        z-index: 70;
+        list-style: none;
+        margin: 0;
+        padding: 6px;
+        min-width: 320px;
+        max-width: min(560px, calc(100vw - 24px));
+        max-height: 260px;
+        overflow: auto;
+        border: 1px solid var(--stroke);
+        border-radius: 14px;
+        background: var(--panel);
+        color: var(--ink);
+        box-shadow: 0 18px 44px rgba(0, 0, 0, 0.14);
+      }
+
+      .mention-popup[hidden] {
+        display: none;
+      }
+
+      .mention-popup li {
+        border-radius: 10px;
+        padding: 10px 12px;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .mention-popup li[aria-selected="true"] {
+        background: var(--accent-soft);
+      }
+
+      .mention-popup li[aria-disabled="true"] {
+        color: var(--muted);
+      }
+
+      .mention-label {
+        font-weight: 600;
+      }
+
+      .mention-sublabel {
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+      .manual-copy-panel {
+        position: fixed;
+        right: 12px;
+        bottom: 12px;
+        z-index: 80;
+        width: min(520px, calc(100vw - 24px));
+        border: 1px solid var(--stroke);
+        border-radius: 14px;
+        background: var(--panel);
+        color: var(--ink);
+        box-shadow: 0 18px 44px rgba(0, 0, 0, 0.14);
+        padding: 10px 12px;
+      }
+
+      .manual-copy-panel[hidden] {
+        display: none;
+      }
+
+      .manual-copy-panel label {
+        display: block;
+        font-size: 0.82rem;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+
+      .manual-copy-panel input {
+        width: 100%;
+        border: 1px solid var(--stroke);
+        border-radius: 10px;
+        background: #fff;
+        color: var(--ink);
+        padding: 8px 10px;
+        font: inherit;
+      }
+
       .note-view {
         display: grid;
         gap: 12px;
@@ -916,6 +1013,13 @@
       <ul id="command-palette-list" role="listbox"></ul>
     </dialog>
 
+    <ul id="mention-popup" class="mention-popup" role="listbox" hidden></ul>
+
+    <div id="manual-copy-panel" class="manual-copy-panel" hidden>
+      <label for="manual-copy-input">Copy this link manually</label>
+      <input id="manual-copy-input" type="text" readonly />
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/markdown/markdown.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
@@ -954,6 +1058,9 @@
       const panelResizer = document.getElementById("panel-resizer");
       const openNotes = document.getElementById("open-notes");
       const emptyState = document.getElementById("empty-state");
+      const mentionPopup = document.getElementById("mention-popup");
+      const manualCopyPanel = document.getElementById("manual-copy-panel");
+      const manualCopyInput = document.getElementById("manual-copy-input");
 
       const confirmDialog = document.getElementById("confirm-dialog");
       const confirmTitle = document.getElementById("confirm-title");
@@ -962,7 +1069,483 @@
 
       let confirmResolve = null;
       let statusTimer = null;
+      let manualCopyTimer = null;
+      let mentionState = null;
+      let mentionProgrammaticUpdate = false;
       const editorMap = new Map();
+
+      const ENTITY_TYPES = {
+        card: { app: "kanban", href: "kanban.html", storageKey: "webutils.kanban.v2", label: "Card" },
+        track: { app: "kanban", href: "kanban.html", storageKey: "webutils.kanban.v2", label: "Track" },
+        note: { app: "notes", href: "notes.html", storageKey: "webutils.notes.v1", label: "Note" },
+        preset: {
+          app: "regex-workbench",
+          href: "regex-workbench.html",
+          storageKey: "webutils.regex-workbench.v1",
+          label: "Regex preset",
+        },
+        project: {
+          app: "contentstudio",
+          href: "contentstudio.html",
+          storageKey: "webutils.contentstudio.v1",
+          label: "Project",
+        },
+        asset: {
+          app: "contentstudio",
+          href: "contentstudio.html",
+          storageKey: "webutils.contentstudio.v1",
+          label: "Asset",
+        },
+        platform: {
+          app: "contentstudio",
+          href: "contentstudio.html",
+          storageKey: "webutils.contentstudio.v1",
+          label: "Platform",
+        },
+        exercise: { app: "thegym", href: "thegym.html", storageKey: "webutils.thegym.v1", label: "Exercise" },
+      };
+      const MENTION_APP_ORDER = ["kanban", "notes", "regex-workbench", "contentstudio", "thegym"];
+
+      const safeParseJson = (value, fallback) => {
+        try {
+          return value ? JSON.parse(value) : fallback;
+        } catch (error) {
+          return fallback;
+        }
+      };
+
+      const escapeMarkdownLinkLabel = (value) =>
+        String(value ?? "")
+          .replace(/\r?\n+/g, " ")
+          .replace(/\\/g, "\\\\")
+          .replace(/\[/g, "\\[")
+          .replace(/\]/g, "\\]")
+          .replace(/\(/g, "\\(")
+          .replace(/\)/g, "\\)");
+
+      const buildDeepLinkHref = (appHref, type, id) =>
+        new URL(`${appHref}#wu=${type}/${encodeURIComponent(id)}`, location.href).href;
+
+      const showManualCopyPanel = (text) => {
+        if (!manualCopyPanel || !manualCopyInput) {
+          return;
+        }
+        if (manualCopyTimer) {
+          window.clearTimeout(manualCopyTimer);
+        }
+        manualCopyInput.value = text;
+        manualCopyPanel.hidden = false;
+        manualCopyInput.focus();
+        manualCopyInput.select();
+        manualCopyTimer = window.setTimeout(() => {
+          manualCopyPanel.hidden = true;
+        }, 12000);
+      };
+
+      const hideManualCopyPanel = () => {
+        if (!manualCopyPanel) {
+          return;
+        }
+        manualCopyPanel.hidden = true;
+      };
+
+      const writeTextToClipboard = async (text) => {
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+          try {
+            await navigator.clipboard.writeText(text);
+            return true;
+          } catch (error) {
+            // Fall through to the copy fallback.
+          }
+        }
+
+        const fallback = document.createElement("textarea");
+        fallback.value = text;
+        fallback.setAttribute("readonly", "readonly");
+        fallback.style.position = "fixed";
+        fallback.style.opacity = "0";
+        fallback.style.pointerEvents = "none";
+        fallback.style.left = "-9999px";
+        document.body.appendChild(fallback);
+        fallback.focus();
+        fallback.select();
+        let copied = false;
+        try {
+          copied = document.execCommand("copy");
+        } catch (error) {
+          copied = false;
+        }
+        fallback.remove();
+        if (copied) {
+          return true;
+        }
+
+        showManualCopyPanel(text);
+        return false;
+      };
+
+      const copyEntityLink = async (appHref, type, id, label) => {
+        const link = buildDeepLinkHref(appHref, type, id);
+        const copied = await writeTextToClipboard(link);
+        if (copied) {
+          setStatus(`Link copied to clipboard: ${label}`);
+        } else {
+          setStatus("Clipboard unavailable. Copy the link from the field below.");
+        }
+      };
+
+      const getCurrentOpenNote = () => {
+        const id = state.openIds[0];
+        return id ? findNoteById(id) : null;
+      };
+
+      const collectMentionEntities = () => {
+        const entities = [];
+
+        const readCurrentNotes = () =>
+          (Array.isArray(state.notes) ? state.notes : []).map((note) => ({
+            type: "note",
+            id: note.id,
+            label: note.title,
+            sublabel: "Note",
+            app: "notes",
+            href: "notes.html",
+          }));
+
+        const readers = {
+          kanban: () => {
+            const raw = safeParseJson(localStorage.getItem(ENTITY_TYPES.card.storageKey), null);
+            const tracks = Array.isArray(raw?.tracks) ? raw.tracks : [];
+            const collected = [];
+            tracks.forEach((track) => {
+              if (!track || !track.id || !track.name) {
+                return;
+              }
+              collected.push({
+                type: "track",
+                id: track.id,
+                label: track.name,
+                sublabel: "Track",
+                app: "kanban",
+                href: "kanban.html",
+              });
+              const cards = Array.isArray(track.cards) ? track.cards : [];
+              cards.forEach((card) => {
+                if (!card || !card.id || !card.title) {
+                  return;
+                }
+                collected.push({
+                  type: "card",
+                  id: card.id,
+                  label: card.title,
+                  sublabel: track.name,
+                  app: "kanban",
+                  href: "kanban.html",
+                });
+              });
+            });
+            return collected;
+          },
+          notes: readCurrentNotes,
+          "regex-workbench": () => {
+            const raw = safeParseJson(localStorage.getItem(ENTITY_TYPES.preset.storageKey), null);
+            const presets = Array.isArray(raw?.presets) ? raw.presets : [];
+            return presets
+              .filter((preset) => preset && preset.id && preset.name)
+              .map((preset) => ({
+                type: "preset",
+                id: preset.id,
+                label: preset.name,
+                sublabel: "Regex preset",
+                app: "regex-workbench",
+                href: "regex-workbench.html",
+              }));
+          },
+          contentstudio: () => {
+            const raw = safeParseJson(localStorage.getItem(ENTITY_TYPES.project.storageKey), null);
+            const projects = Array.isArray(raw?.projects) ? raw.projects : [];
+            const assets = Array.isArray(raw?.assets) ? raw.assets : [];
+            const platforms = Array.isArray(raw?.platforms) ? raw.platforms : [];
+            const projectById = new Map(
+              projects.filter((project) => project && project.id).map((project) => [project.id, project])
+            );
+            const collected = [];
+
+            projects.forEach((project) => {
+              if (!project || !project.id || !project.name) {
+                return;
+              }
+              collected.push({
+                type: "project",
+                id: project.id,
+                label: project.name,
+                sublabel: "Project",
+                app: "contentstudio",
+                href: "contentstudio.html",
+              });
+            });
+
+            assets.forEach((asset) => {
+              if (!asset || !asset.id) {
+                return;
+              }
+              const label = (typeof asset.name === "string" && asset.name.trim()) ||
+                (typeof asset.label === "string" && asset.label.trim()) ||
+                (typeof asset.content === "string" ? asset.content.trim().slice(0, 40) : "");
+              if (!label) {
+                return;
+              }
+              collected.push({
+                type: "asset",
+                id: asset.id,
+                label,
+                sublabel: projectById.get(asset.projectId)?.name || "Asset",
+                app: "contentstudio",
+                href: "contentstudio.html",
+              });
+            });
+
+            platforms.forEach((platform) => {
+              if (!platform || !platform.id || !platform.name) {
+                return;
+              }
+              collected.push({
+                type: "platform",
+                id: platform.id,
+                label: platform.name,
+                sublabel: "Platform",
+                app: "contentstudio",
+                href: "contentstudio.html",
+              });
+            });
+
+            return collected;
+          },
+          thegym: () => {
+            const raw = safeParseJson(localStorage.getItem(ENTITY_TYPES.exercise.storageKey), null);
+            const exercises = Array.isArray(raw?.exercises) ? raw.exercises : [];
+            return exercises
+              .filter((exercise) => exercise && exercise.id && exercise.name)
+              .map((exercise) => ({
+                type: "exercise",
+                id: exercise.id,
+                label: exercise.name,
+                sublabel: exercise.type || "Exercise",
+                app: "thegym",
+                href: "thegym.html",
+              }));
+          },
+        };
+
+        MENTION_APP_ORDER.forEach((app) => {
+          const items = readers[app]?.() || [];
+          items.forEach((item) => {
+            if (!item.id || !item.label) {
+              return;
+            }
+            entities.push(item);
+          });
+        });
+
+        return entities;
+      };
+
+      const rankMentionEntity = (entity, queryLower) => {
+        if (!queryLower) {
+          return 0;
+        }
+
+        const label = entity.label.toLowerCase();
+        const sublabel = (entity.sublabel || "").toLowerCase();
+        if (label.startsWith(queryLower)) {
+          return 0;
+        }
+        if (label.includes(queryLower)) {
+          return 1;
+        }
+        if (sublabel.includes(queryLower)) {
+          return 2;
+        }
+        return null;
+      };
+
+      const buildMentionResults = (query) => {
+        const queryLower = query.trim().toLowerCase();
+        return collectMentionEntities()
+          .map((entity) => ({ entity, rank: rankMentionEntity(entity, queryLower) }))
+          .filter((entry) => entry.rank !== null)
+          .sort((first, second) => {
+            if (first.rank !== second.rank) {
+              return first.rank - second.rank;
+            }
+            const firstOrder = MENTION_APP_ORDER.indexOf(first.entity.app);
+            const secondOrder = MENTION_APP_ORDER.indexOf(second.entity.app);
+            if (firstOrder !== secondOrder) {
+              return firstOrder - secondOrder;
+            }
+            return first.entity.label.localeCompare(second.entity.label);
+          })
+          .slice(0, 12)
+          .map((entry) => entry.entity);
+      };
+
+      const closeMentionPopup = () => {
+        mentionState = null;
+        if (mentionPopup) {
+          mentionPopup.hidden = true;
+          mentionPopup.innerHTML = "";
+        }
+      };
+
+      const positionMentionPopup = (anchorRect) => {
+        if (!mentionPopup) {
+          return;
+        }
+        const popupRect = mentionPopup.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        let left = Math.max(12, anchorRect.left);
+        let top = Math.max(12, anchorRect.bottom + 8);
+
+        if (left + popupRect.width > viewportWidth - 12) {
+          left = Math.max(12, viewportWidth - popupRect.width - 12);
+        }
+        if (top + popupRect.height > viewportHeight - 12) {
+          top = Math.max(12, anchorRect.top - popupRect.height - 8);
+        }
+
+        mentionPopup.style.left = `${Math.round(left)}px`;
+        mentionPopup.style.top = `${Math.round(top)}px`;
+      };
+
+      const renderMentionPopup = (editor, query, anchorRect) => {
+        if (!mentionPopup) {
+          return;
+        }
+        const results = buildMentionResults(query);
+        mentionState = {
+          editor,
+          query,
+          results,
+          selectedIndex: 0,
+          from: null,
+          to: null,
+          anchorRect,
+        };
+
+        mentionPopup.innerHTML = "";
+        if (!results.length) {
+          const item = document.createElement("li");
+          item.setAttribute("role", "option");
+          item.setAttribute("aria-disabled", "true");
+          item.textContent = "No matching items in your local data";
+          mentionPopup.appendChild(item);
+          mentionPopup.hidden = false;
+          positionMentionPopup(anchorRect);
+          return;
+        }
+
+        results.forEach((entity, index) => {
+          const item = document.createElement("li");
+          item.setAttribute("role", "option");
+          item.setAttribute("aria-selected", index === 0 ? "true" : "false");
+          item.dataset.index = String(index);
+
+          const label = document.createElement("span");
+          label.className = "mention-label";
+          label.textContent = entity.label;
+
+          const sublabel = document.createElement("span");
+          sublabel.className = "mention-sublabel";
+          sublabel.textContent = entity.sublabel;
+
+          item.appendChild(label);
+          item.appendChild(sublabel);
+          mentionPopup.appendChild(item);
+        });
+
+        mentionPopup.hidden = false;
+        positionMentionPopup(anchorRect);
+      };
+
+      const updateMentionSelection = (nextIndex) => {
+        if (!mentionState || !mentionState.results.length) {
+          return;
+        }
+        mentionState.selectedIndex = (nextIndex + mentionState.results.length) % mentionState.results.length;
+        mentionPopup.querySelectorAll('li[role="option"]').forEach((item, index) => {
+          item.setAttribute("aria-selected", index === mentionState.selectedIndex ? "true" : "false");
+        });
+        const selected = mentionPopup.querySelector('li[aria-selected="true"]');
+        selected?.scrollIntoView({ block: "nearest" });
+      };
+
+      const insertMentionResult = () => {
+        if (!mentionState || !mentionState.results.length) {
+          return false;
+        }
+        const selected = mentionState.results[mentionState.selectedIndex];
+        if (!selected) {
+          return false;
+        }
+        const editor = mentionState.editor;
+        const cursor = editor.getCursor();
+        const from = {
+          line: cursor.line,
+          ch: cursor.ch - mentionState.query.length - 1,
+        };
+        const to = cursor;
+        const text = `[${escapeMarkdownLinkLabel(selected.label)}](${selected.href}#wu=${selected.type}/${encodeURIComponent(selected.id)})`;
+        mentionProgrammaticUpdate = true;
+        editor.replaceRange(text, from, to);
+        window.setTimeout(() => {
+          mentionProgrammaticUpdate = false;
+        }, 0);
+        closeMentionPopup();
+        editor.focus();
+        return true;
+      };
+
+      const syncMentionPopup = (editor) => {
+        if (mentionProgrammaticUpdate || !mentionPopup) {
+          return;
+        }
+
+        const cursor = editor.getCursor();
+        const beforeCursor = editor.getRange({ line: cursor.line, ch: 0 }, cursor);
+        const match = /(?:^|\s)@([^\s@]{0,32})$/.exec(beforeCursor);
+        if (!match) {
+          closeMentionPopup();
+          return;
+        }
+
+        const query = match[1] || "";
+        const anchor = editor.cursorCoords(true, "page");
+        renderMentionPopup(editor, query, anchor);
+      };
+
+      const openMentionForEditor = (editor) => {
+        syncMentionPopup(editor);
+      };
+
+      const currentMentionEditor = () => mentionState?.editor || null;
+
+      if (mentionPopup) {
+        mentionPopup.addEventListener("mousedown", (event) => {
+          event.preventDefault();
+        });
+        mentionPopup.addEventListener("click", (event) => {
+          const item = event.target.closest('li[role="option"]');
+          if (!item || item.getAttribute("aria-disabled") === "true") {
+            return;
+          }
+          const index = Number(item.dataset.index);
+          if (Number.isFinite(index) && mentionState) {
+            mentionState.selectedIndex = index;
+            insertMentionResult();
+          }
+        });
+      }
 
       const requestConfirmation = ({ title, message, confirmText }) => {
         if (!confirmDialog || typeof confirmDialog.showModal !== "function") {
@@ -1730,6 +2313,36 @@
           view.draftContent = editor.getValue();
           view.dirty = true;
         });
+        editor.on("inputRead", () => openMentionForEditor(editor));
+        editor.on("cursorActivity", () => syncMentionPopup(editor));
+        editor.on("blur", () => closeMentionPopup());
+        editor.on("keydown", (cm, event) => {
+          if (!mentionState || mentionState.editor !== editor) {
+            return;
+          }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            closeMentionPopup();
+            return;
+          }
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            updateMentionSelection(mentionState.selectedIndex + 1);
+            return;
+          }
+          if (event.key === "ArrowUp") {
+            event.preventDefault();
+            updateMentionSelection(mentionState.selectedIndex - 1);
+            return;
+          }
+          if (event.key === "Enter" || event.key === "Tab") {
+            if (!mentionState.results.length) {
+              return;
+            }
+            event.preventDefault();
+            insertMentionResult();
+          }
+        });
         editorMap.set(noteId, editor);
       };
 
@@ -1784,8 +2397,19 @@
           closeButton.textContent = "Close";
           closeButton.addEventListener("click", () => closeNote(note.id));
 
+          const copyButton = document.createElement("button");
+          copyButton.type = "button";
+          copyButton.className = "copy-link-button";
+          copyButton.setAttribute("aria-label", `Copy link to ${note.title}`);
+          copyButton.textContent = "Copy link";
+          copyButton.addEventListener("click", () => copyEntityLink("notes.html", "note", note.id, note.title));
+
           header.appendChild(titleWrap);
-          header.appendChild(closeButton);
+          const headerActions = document.createElement("div");
+          headerActions.className = "open-note-header-actions";
+          headerActions.appendChild(copyButton);
+          headerActions.appendChild(closeButton);
+          header.appendChild(headerActions);
           card.appendChild(header);
 
           if (view.mode === "display") {
@@ -2342,6 +2966,7 @@
 
       const buildPaletteCommands = () => {
         const standard = buildStandardCommands();
+        const currentNote = getCurrentOpenNote();
         const appSpecific = [
           {
             label: "New note",
@@ -2354,6 +2979,13 @@
             run: () => clickElementById("export-notes"),
           },
         ];
+        if (currentNote) {
+          appSpecific.unshift({
+            label: "Copy link to current note",
+            hint: "Notes",
+            run: () => copyEntityLink("notes.html", "note", currentNote.id, currentNote.title),
+          });
+        }
         return [...standard, ...appSpecific];
       };
 

@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { gotoApp, clearWebUtilsStorage, seedLocalStorage, acceptConfirmDialog } = require('./helpers/storage');
+const { gotoApp, clearWebUtilsStorage, seedLocalStorage, seedEntities, acceptConfirmDialog } = require('./helpers/storage');
 
 test.describe('static-page-generator', () => {
   test.beforeEach(async ({ page }) => {
@@ -153,6 +153,32 @@ test.describe('static-page-generator', () => {
       return document.querySelector('.CodeMirror').CodeMirror.getValue();
     });
     expect(content).toContain('Persisted Heading');
+  });
+
+  test('typing @ inserts a markdown deep link from local data', async ({ page }) => {
+    const now = Date.now();
+    await clearWebUtilsStorage(page);
+    await seedEntities(page, 'webutils.regex-workbench.v1', {
+      pattern: '',
+      flags: 'g',
+      sample: '',
+      presets: [
+        { id: 'preset-alpha', name: 'Alpha Preset', pattern: 'alpha', flags: 'g', sample: '', createdAt: now },
+      ],
+    });
+    await gotoApp(page, 'static-page-generator.html');
+
+    await page.evaluate(() => {
+      const cm = document.querySelector('.CodeMirror').CodeMirror;
+      cm.setValue('');
+      cm.focus();
+    });
+    await page.keyboard.type('@');
+    await expect(page.locator('#mention-popup li[role="option"]')).toHaveCount(1);
+    await page.locator('#mention-popup li[role="option"]').click();
+
+    const content = await page.evaluate(() => document.querySelector('.CodeMirror').CodeMirror.getValue());
+    expect(content).toBe('[Alpha Preset](regex-workbench.html#wu=preset/preset-alpha)');
   });
 
   test('theme selection persists after reload', async ({ page }) => {
