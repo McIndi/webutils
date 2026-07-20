@@ -186,4 +186,14 @@ test.describe('regex-workbench', () => {
 
     await expect(page.locator('#backup-chip-status')).toContainText('Backed up');
   });
+
+  test('palette "Focus pattern input" command focuses the pattern field', async ({ page }) => {
+    await page.keyboard.press('Control+k');
+    await expect(page.locator('#command-palette')).toBeVisible();
+    await page.locator('#command-palette-input').fill('Focus pattern');
+    await page.keyboard.press('Enter');
+    // The focus command must survive the modal close: palette gone, #pattern focused.
+    await expect(page.locator('#command-palette')).toBeHidden();
+    await expect(page.locator('#pattern')).toBeFocused();
+  });
 });

@@ -15,6 +15,25 @@ test.describe('personalized acceptance starters', () => {
         page.locator('#command-palette-list li').first(),
         `palette commands on ${fileName}`
       ).toBeVisible();
+
+      // ArrowDown must produce a visibly-highlighted selection (not just an
+      // aria change) — guards against a page missing the selected-row CSS var.
+      await page.keyboard.press('ArrowDown');
+      const selectionVisible = await page.evaluate(() => {
+        const list = document.getElementById('command-palette-list');
+        const sel = list.querySelector('li[aria-selected="true"] button');
+        const unsel = list.querySelector('li[aria-selected="false"] button');
+        if (!sel || !unsel) return true; // <2 commands: nothing to distinguish
+        return getComputedStyle(sel).backgroundColor !== getComputedStyle(unsel).backgroundColor;
+      });
+      expect(selectionVisible, `selection highlight visible on ${fileName}`).toBe(true);
+
+      await page.keyboard.press('Escape');
+      await expect(page.locator('#command-palette')).toBeHidden();
+
+      // Mobile path: the shortcut-note button must open the same palette.
+      await page.locator('[data-open-command-palette]').click();
+      await expect(page.locator('#command-palette'), `palette button on ${fileName}`).toBeVisible();
       await page.keyboard.press('Escape');
       await expect(page.locator('#command-palette')).toBeHidden();
     }

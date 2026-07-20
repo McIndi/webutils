@@ -630,6 +630,16 @@
         Write Markdown, pick a template, and export a polished HTML page. Your draft is saved
         locally as you work, and the export is a complete standalone document.
       </p>
+
+      <div style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 14px;border:1px solid var(--stroke);border-radius:16px;background:var(--panel);box-shadow:0 10px 24px -20px var(--shadow);">
+        <p style="margin:0;color:var(--muted);line-height:1.5;">
+          Keyboard shortcuts: <kbd>Ctrl</kbd> + <kbd>K</kbd>, <kbd>/</kbd>, and <kbd>Esc</kbd>.
+          On mobile, tap the command button.
+        </p>
+        <button type="button" data-open-command-palette style="border:1px solid var(--stroke);background:var(--accent);color:#fff;border-radius:999px;padding:0.65rem 1rem;font:inherit;font-weight:700;cursor:pointer;white-space:nowrap;">
+          Open command palette
+        </button>
+      </div>
     </header>
 
     <div class="toolbar">
@@ -1815,8 +1825,8 @@
           }
 
           button.addEventListener("click", () => {
-            command.run();
             paletteDialog.close();
+            command.run();
           });
 
           item.appendChild(button);
@@ -1846,6 +1856,10 @@
         paletteInput.focus();
       };
 
+      document.querySelectorAll("[data-open-command-palette]").forEach((button) => {
+        button.addEventListener("click", openPalette);
+      });
+
       paletteInput.addEventListener("input", updatePaletteList);
       paletteInput.addEventListener("keydown", (event) => {
         if (event.key === "ArrowDown") {
@@ -1864,8 +1878,8 @@
           if (!command) {
             return;
           }
-          command.run();
           paletteDialog.close();
+          command.run();
         }
       });
 
