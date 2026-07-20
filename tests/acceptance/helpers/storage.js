@@ -60,6 +60,17 @@ async function seedLocalStorage(page, key, value) {
 }
 
 /**
+ * Seed an app-specific state payload that contains linkable entities.
+ */
+async function seedEntities(page, appKey, state) {
+  await seedLocalStorage(page, appKey, state);
+}
+
+function deepLink(type, id) {
+  return `#wu=${type}/${encodeURIComponent(id)}`;
+}
+
+/**
  * Accept the standard WebUtils confirm dialog (shared across apps that use it).
  * Clicks the #confirm-accept button inside #confirm-dialog.
  */
@@ -88,6 +99,8 @@ module.exports = {
   gotoApp,
   clearWebUtilsStorage,
   seedLocalStorage,
+  seedEntities,
+  deepLink,
   acceptConfirmDialog,
   acceptGymModal,
   openPalette,

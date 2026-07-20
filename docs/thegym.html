@@ -622,6 +622,29 @@
     color: var(--muted);
     font-size: 0.82rem;
   }
+  .status {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px 10px;
+    min-height: 1.2em;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .deep-link-flash {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    animation: deep-link-flash 1.6s ease-out forwards;
+  }
+  @keyframes deep-link-flash {
+    0% { outline-color: var(--accent); }
+    100% { outline-color: transparent; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .deep-link-flash {
+      animation: none;
+      outline-color: var(--accent);
+    }
+  }
   .flex { display: flex; }
   .gap8 { gap: 8px; }
   .mt8 { margin-top: 8px; }
@@ -658,6 +681,8 @@
   <div class="nav-tab" data-view="editor" onclick="showView('editor')">Editor</div>
   <div class="nav-tab" data-view="data" onclick="showView('data')">Data</div>
 </nav>
+
+<div class="status" id="status"></div>
 
 <div class="main">
 
@@ -1379,6 +1404,67 @@ function showView(name) {
   }
   if (name === 'data') { renderStorageInfo(); renderBackupChip(); }
   if (name === 'editor' && !document.getElementById('edit-id').value) clearEditor();
+}
+
+const statusEl = document.getElementById('status');
+let statusTimer = null;
+
+function setStatus(text) {
+  if (!statusEl) return;
+  statusEl.textContent = text;
+  if (statusTimer) window.clearTimeout(statusTimer);
+  if (text) {
+    statusTimer = window.setTimeout(() => {
+      statusEl.textContent = '';
+    }, 2400);
+  }
+}
+
+function readDeepLink() {
+  const hash = location.hash.startsWith('#') ? location.hash.slice(1) : '';
+  const match = /^wu=([a-z-]+)\/(.+)$/.exec(hash);
+  if (!match) return null;
+  return { type: match[1], id: decodeURIComponent(match[2]) };
+}
+
+function flashElement(element) {
+  if (!element) return;
+  element.classList.remove('deep-link-flash');
+  void element.offsetWidth;
+  element.classList.add('deep-link-flash');
+  window.setTimeout(() => {
+    element.classList.remove('deep-link-flash');
+  }, 1650);
+}
+
+function revealExerciseRow(exerciseId) {
+  const row = document.querySelector(
+    `#view-exercises .exercise-row[data-id="${CSS.escape(exerciseId)}"]`
+  );
+  if (!row) return false;
+  row.scrollIntoView({ block: 'center' });
+  flashElement(row);
+  return true;
+}
+
+function resolveDeepLink() {
+  const deepLink = readDeepLink();
+  if (!deepLink) return;
+  if (deepLink.type !== 'exercise') {
+    setStatus('Linked item not found. It may have been deleted or renamed.');
+    return;
+  }
+  const exercise = DB.getExercises().find(ex => ex.id === deepLink.id);
+  if (!exercise) {
+    setStatus('Linked item not found. It may have been deleted or renamed.');
+    return;
+  }
+  showView('exercises');
+  window.requestAnimationFrame(() => {
+    if (!revealExerciseRow(exercise.id)) {
+      setStatus('Linked item not found. It may have been deleted or renamed.');
+    }
+  });
 }
 
 function escapeHtml(value) {
@@ -2564,6 +2650,11 @@ initTheme();
 setupTranscriptionInputGuards();
 renderDashboard();
 renderBackupChip();
+resolveDeepLink();
+
+window.addEventListener('hashchange', () => {
+  resolveDeepLink();
+});
 </script>
 </body>
 </html>

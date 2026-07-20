@@ -270,6 +270,29 @@
         min-height: 1.2em;
       }
 
+      .deep-link-flash {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+        animation: deep-link-flash 1.6s ease-out forwards;
+      }
+
+      @keyframes deep-link-flash {
+        0% {
+          outline-color: var(--accent);
+        }
+
+        100% {
+          outline-color: transparent;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .deep-link-flash {
+          animation: none;
+          outline-color: var(--accent);
+        }
+      }
+
       main {
         width: 100%;
         flex: 1;
@@ -975,6 +998,62 @@
         }
       };
 
+      const readDeepLink = () => {
+        const hash = location.hash.startsWith("#") ? location.hash.slice(1) : "";
+        const match = /^wu=([a-z-]+)\/(.+)$/.exec(hash);
+        if (!match) {
+          return null;
+        }
+        return {
+          type: match[1],
+          id: decodeURIComponent(match[2]),
+        };
+      };
+
+      const flashElement = (element) => {
+        if (!element) {
+          return;
+        }
+        element.classList.remove("deep-link-flash");
+        void element.offsetWidth;
+        element.classList.add("deep-link-flash");
+        window.setTimeout(() => {
+          element.classList.remove("deep-link-flash");
+        }, 1650);
+      };
+
+      const revealDeepLinkedNote = (noteId) => {
+        const card = openNotes.querySelector(`[data-note-id="${CSS.escape(noteId)}"]`);
+        if (!card) {
+          return false;
+        }
+        card.scrollIntoView({ block: "center" });
+        flashElement(card);
+        return true;
+      };
+
+      const resolveDeepLink = () => {
+        const deepLink = readDeepLink();
+        if (!deepLink) {
+          return;
+        }
+        if (deepLink.type !== "note") {
+          setStatus("Linked item not found. It may have been deleted or renamed.");
+          return;
+        }
+        const note = findNoteById(deepLink.id);
+        if (!note) {
+          setStatus("Linked item not found. It may have been deleted or renamed.");
+          return;
+        }
+        openNote(note.id);
+        window.requestAnimationFrame(() => {
+          if (!revealDeepLinkedNote(note.id)) {
+            setStatus("Linked item not found. It may have been deleted or renamed.");
+          }
+        });
+      };
+
       const formatDate = (value) => {
         if (!value) {
           return "";
@@ -1163,7 +1242,6 @@
         createdAt: note.createdAt || fallbackTime,
         updatedAt: note.updatedAt || fallbackTime,
       });
-
       const loadState = () => {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) {
@@ -1185,6 +1263,10 @@
           console.error("Failed to load notes", error);
         }
       };
+
+      window.addEventListener("hashchange", () => {
+        resolveDeepLink();
+      });
 
       const slugify = (value) =>
         value
@@ -2057,6 +2139,7 @@
           }
         });
         render();
+        resolveDeepLink();
         renderBackupChip();
       };
 

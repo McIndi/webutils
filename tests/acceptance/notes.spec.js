@@ -1,5 +1,13 @@
 const { test, expect } = require('@playwright/test');
-const { gotoApp, clearWebUtilsStorage, seedLocalStorage, acceptConfirmDialog, openPalette } = require('./helpers/storage');
+const {
+  gotoApp,
+  clearWebUtilsStorage,
+  seedLocalStorage,
+  seedEntities,
+  deepLink,
+  acceptConfirmDialog,
+  openPalette,
+} = require('./helpers/storage');
 
 test.describe('notes', () => {
   test.beforeEach(async ({ page }) => {
@@ -241,5 +249,46 @@ test.describe('notes', () => {
     await downloadPromise;
 
     await expect(page.locator('#backup-chip-status')).toContainText('Backed up');
+  });
+});
+
+test.describe('notes deep links', () => {
+  test('opens a linked note on initial load and also resolves on hashchange', async ({ page }) => {
+    const now = Date.now();
+    await clearWebUtilsStorage(page);
+    await seedEntities(page, 'webutils.notes.v1', {
+      notes: [
+        {
+          id: 'note-aaa',
+          title: 'Alpha Note',
+          content: 'alpha',
+          tags: [],
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: 'note-bbb',
+          title: 'Beta Note',
+          content: 'beta',
+          tags: [],
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+      openIds: ['note-aaa'],
+      selectedTags: [],
+      sort: 'updated',
+      sidebarWidth: null,
+    });
+
+    await page.goto(`/docs/notes.html${deepLink('note', 'note-bbb')}`);
+    await expect(page.locator('[data-note-id="note-bbb"]')).toBeVisible();
+
+    const nextHash = deepLink('note', 'note-aaa');
+    await page.evaluate((hash) => {
+      location.hash = hash;
+    }, nextHash);
+
+    await expect(page.locator('[data-note-id="note-aaa"]')).toBeVisible();
   });
 });

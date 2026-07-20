@@ -1,6 +1,13 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('node:fs/promises');
-const { gotoApp, clearWebUtilsStorage, acceptConfirmDialog, openPalette } = require('./helpers/storage');
+const {
+  gotoApp,
+  clearWebUtilsStorage,
+  seedEntities,
+  deepLink,
+  acceptConfirmDialog,
+  openPalette,
+} = require('./helpers/storage');
 
 test.describe('kanban', () => {
   test.beforeEach(async ({ page }) => {
@@ -315,5 +322,66 @@ test.describe('kanban', () => {
 
     await gotoApp(page, 'kanban.html');
     await expect(page.locator('.card-title', { hasText: 'Round trip card' })).toBeVisible();
+  });
+});
+
+test.describe('kanban deep links', () => {
+  test('opens a linked card in a non-active track and reveals it', async ({ page }) => {
+    const now = Date.now();
+    await clearWebUtilsStorage(page);
+    await seedEntities(page, 'webutils.kanban.v2', {
+      activeTrackId: 'track-a',
+      visibleTrackIds: ['track-a'],
+      unifiedLane: 'doing',
+      tracks: [
+        {
+          id: 'track-a',
+          name: 'Track A',
+          cards: [
+            {
+              id: 'card-a',
+              title: 'Card A',
+              notes: '',
+              lane: 'backlog',
+              priority: 'medium',
+              laneOrder: 0,
+              createdAt: now,
+            },
+          ],
+        },
+        {
+          id: 'track-b',
+          name: 'Track B',
+          cards: [
+            {
+              id: 'card-b',
+              title: 'Card B',
+              notes: '',
+              lane: 'doing',
+              priority: 'high',
+              laneOrder: 0,
+              createdAt: now,
+            },
+          ],
+        },
+      ],
+      bragFile: [],
+    });
+
+    await page.goto(`/docs/kanban.html${deepLink('card', 'card-b')}`);
+
+    await expect(page.locator('#track-select')).toHaveValue('track-b');
+    await expect(page.locator('.card[data-id="card-b"]')).toBeVisible();
+    await expect(page.locator('.card[data-id="card-b"]')).toHaveClass(/deep-link-flash/);
+  });
+
+  test('shows not-found status for a missing deep-linked card', async ({ page }) => {
+    await clearWebUtilsStorage(page);
+
+    await page.goto(`/docs/kanban.html${deepLink('card', 'does-not-exist')}`);
+
+    await expect(page.locator('#status')).toContainText('Linked item not found. It may have been deleted or renamed.');
+    await expect(page.locator('#track-select option:checked')).toContainText('My Project');
+    await expect(page.locator('.card-title', { hasText: 'Add your first task' })).toBeVisible();
   });
 });

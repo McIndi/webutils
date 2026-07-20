@@ -1,6 +1,13 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('node:fs/promises');
-const { gotoApp, clearWebUtilsStorage, seedLocalStorage, acceptConfirmDialog } = require('./helpers/storage');
+const {
+  gotoApp,
+  clearWebUtilsStorage,
+  seedLocalStorage,
+  seedEntities,
+  deepLink,
+  acceptConfirmDialog,
+} = require('./helpers/storage');
 
 test.describe('regex-workbench', () => {
   test.beforeEach(async ({ page }) => {
@@ -195,5 +202,32 @@ test.describe('regex-workbench', () => {
     // The focus command must survive the modal close: palette gone, #pattern focused.
     await expect(page.locator('#command-palette')).toBeHidden();
     await expect(page.locator('#pattern')).toBeFocused();
+  });
+});
+
+test.describe('regex-workbench deep links', () => {
+  test('loads a linked preset into pattern and flags', async ({ page }) => {
+    await clearWebUtilsStorage(page);
+    await seedEntities(page, 'webutils.regex-workbench.v1', {
+      pattern: '',
+      flags: 'g',
+      sample: 'Example sample text',
+      presets: [
+        {
+          id: 'preset-1',
+          name: 'Case and multiline',
+          pattern: '^foo',
+          flags: 'im',
+          updatedAt: Date.now(),
+        },
+      ],
+    });
+
+    await page.goto(`/docs/regex-workbench.html${deepLink('preset', 'preset-1')}`);
+
+    await expect(page.locator('#pattern')).toHaveValue('^foo');
+    await expect(page.locator('#flag-controls input[value="i"]')).toBeChecked();
+    await expect(page.locator('#flag-controls input[value="m"]')).toBeChecked();
+    await expect(page.locator('#flag-controls input[value="g"]')).not.toBeChecked();
   });
 });

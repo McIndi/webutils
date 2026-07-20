@@ -512,6 +512,29 @@
         flex-wrap: wrap;
       }
 
+      .deep-link-flash {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+        animation: deep-link-flash 1.6s ease-out forwards;
+      }
+
+      @keyframes deep-link-flash {
+        0% {
+          outline-color: var(--accent);
+        }
+
+        100% {
+          outline-color: transparent;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .deep-link-flash {
+          animation: none;
+          outline-color: var(--accent);
+        }
+      }
+
       dialog {
         border: none;
         border-radius: 16px;
@@ -793,6 +816,7 @@
       const confirmMessage = document.getElementById("confirm-message");
       const confirmAccept = document.getElementById("confirm-accept");
       let confirmResolve = null;
+      let statusTimer = null;
 
       const backupChip = document.getElementById("backup-chip");
       const backupChipStatus = document.getElementById("backup-chip-status");
@@ -837,6 +861,78 @@
         confirmResolve(confirmed);
         confirmResolve = null;
       });
+
+      const readDeepLink = () => {
+        const hash = location.hash.startsWith("#") ? location.hash.slice(1) : "";
+        const match = /^wu=([a-z-]+)\/(.+)$/.exec(hash);
+        if (!match) {
+          return null;
+        }
+        return {
+          type: match[1],
+          id: decodeURIComponent(match[2]),
+        };
+      };
+
+      const setRegexStatus = (text, isError = false) => {
+        regexStatus.textContent = text;
+        regexStatus.classList.toggle("error", isError);
+        if (statusTimer) {
+          window.clearTimeout(statusTimer);
+        }
+        if (text) {
+          statusTimer = window.setTimeout(() => {
+            regexStatus.textContent = "";
+            regexStatus.classList.remove("error");
+          }, 2400);
+        }
+      };
+
+      const flashElement = (element) => {
+        if (!element) {
+          return;
+        }
+        element.classList.remove("deep-link-flash");
+        void element.offsetWidth;
+        element.classList.add("deep-link-flash");
+        window.setTimeout(() => {
+          element.classList.remove("deep-link-flash");
+        }, 1650);
+      };
+
+      const loadPresetIntoEditor = (preset) => {
+        state.pattern = preset.pattern;
+        state.flags = preset.flags || "";
+        patternInput.value = state.pattern;
+        syncFlagsToUI();
+        renderPreview();
+        saveState();
+      };
+
+      const resolveDeepLink = () => {
+        const deepLink = readDeepLink();
+        if (!deepLink) {
+          return;
+        }
+        if (deepLink.type !== "preset") {
+          setRegexStatus("Linked item not found. It may have been deleted or renamed.", true);
+          return;
+        }
+        const preset = state.presets.find((item) => item.id === deepLink.id);
+        if (!preset) {
+          setRegexStatus("Linked item not found. It may have been deleted or renamed.", true);
+          return;
+        }
+        loadPresetIntoEditor(preset);
+        window.requestAnimationFrame(() => {
+          const row = presetList.querySelector(`[data-id="${CSS.escape(preset.id)}"]`);
+          if (row) {
+            row.scrollIntoView({ block: "center" });
+            flashElement(row);
+          }
+          patternInput.focus();
+        });
+      };
 
       const fnv1a = (str) => {
         let h = 0x811c9dc5;
@@ -1162,6 +1258,7 @@
         state.presets.forEach((preset) => {
           const row = document.createElement("div");
           row.className = "preset-row";
+          row.dataset.id = preset.id;
 
           const title = document.createElement("h3");
           title.textContent = preset.name;
@@ -1178,12 +1275,7 @@
           applyBtn.className = "button primary";
           applyBtn.textContent = "Load";
           applyBtn.addEventListener("click", () => {
-            state.pattern = preset.pattern;
-            state.flags = preset.flags || "";
-            patternInput.value = state.pattern;
-            syncFlagsToUI();
-            renderPreview();
-            saveState();
+            loadPresetIntoEditor(preset);
           });
 
           const deleteBtn = document.createElement("button");
@@ -1548,6 +1640,11 @@
       syncInputsFromState();
       renderPresets();
       renderPreview();
+      resolveDeepLink();
+
+      window.addEventListener("hashchange", () => {
+        resolveDeepLink();
+      });
     </script>
   </body>
 </html>

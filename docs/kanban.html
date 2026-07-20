@@ -491,6 +491,29 @@
         bottom: -3px;
       }
 
+      .deep-link-flash {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+        animation: deep-link-flash 1.6s ease-out forwards;
+      }
+
+      @keyframes deep-link-flash {
+        0% {
+          outline-color: var(--accent);
+        }
+
+        100% {
+          outline-color: transparent;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .deep-link-flash {
+          animation: none;
+          outline-color: var(--accent);
+        }
+      }
+
       .page-toolbar {
         align-items: flex-start;
         padding: 28px 24px 8px;
@@ -554,6 +577,15 @@
         background: var(--accent);
         border-color: var(--accent);
         color: #fff;
+      }
+
+      .status {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 24px 10px;
+        min-height: 1.2em;
+        color: var(--muted);
+        font-size: 0.9rem;
       }
 
       .track-toolbar {
@@ -969,6 +1001,7 @@
       <button type="button" id="clear-done">Clear done</button>
       <button type="button" id="reset-board">Reset board</button>
     </div>
+    <div class="status" id="status"></div>
     <input id="import-file" type="file" accept="application/json" hidden />
 
     <div class="track-toolbar">
@@ -1074,6 +1107,7 @@
       const importFileInput = document.getElementById("import-file");
       const clearDoneButton = document.getElementById("clear-done");
       const resetButton = document.getElementById("reset-board");
+      const statusEl = document.getElementById("status");
       const trackSelect = document.getElementById("track-select");
       const trackChecklist = document.getElementById("track-checklist");
       const unifiedLaneSelect = document.getElementById("unified-lane");
@@ -1097,6 +1131,7 @@
       let editingTrackId = null;
       let confirmResolve = null;
       let dragMeta = null;
+      let statusTimer = null;
 
       const laneLabels = {
         backlog: "Backlog",
@@ -1115,6 +1150,21 @@
         high: 3,
         medium: 2,
         low: 1,
+      };
+
+      const setStatus = (text) => {
+        if (!statusEl) {
+          return;
+        }
+        statusEl.textContent = text;
+        if (statusTimer) {
+          window.clearTimeout(statusTimer);
+        }
+        if (text) {
+          statusTimer = window.setTimeout(() => {
+            statusEl.textContent = "";
+          }, 2400);
+        }
       };
 
       const state = {
@@ -1171,6 +1221,103 @@
         }
 
         return first.createdAt - second.createdAt;
+      };
+
+      const readDeepLink = () => {
+        const hash = location.hash.startsWith("#") ? location.hash.slice(1) : "";
+        const match = /^wu=([a-z-]+)\/(.+)$/.exec(hash);
+        if (!match) {
+          return null;
+        }
+        return {
+          type: match[1],
+          id: decodeURIComponent(match[2]),
+        };
+      };
+
+      const flashElement = (element) => {
+        if (!element) {
+          return;
+        }
+        element.classList.remove("deep-link-flash");
+        void element.offsetWidth;
+        element.classList.add("deep-link-flash");
+        window.setTimeout(() => {
+          element.classList.remove("deep-link-flash");
+        }, 1650);
+      };
+
+      const revealTrack = (trackId) => {
+        const panel = trackViews.querySelector(`[data-track-id="${CSS.escape(trackId)}"]`);
+        if (!panel) {
+          return false;
+        }
+        panel.scrollIntoView({ block: "center" });
+        flashElement(panel);
+        return true;
+      };
+
+      const revealCard = (cardId) => {
+        const card = trackViews.querySelector(`[data-id="${CSS.escape(cardId)}"]`);
+        if (!card) {
+          return false;
+        }
+        card.scrollIntoView({ block: "center" });
+        flashElement(card);
+        return true;
+      };
+
+      const resolveDeepLink = () => {
+        const deepLink = readDeepLink();
+        if (!deepLink) {
+          return;
+        }
+
+        if (deepLink.type === "track") {
+          const track = getTrackById(deepLink.id);
+          if (!track) {
+            setStatus("Linked item not found. It may have been deleted or renamed.");
+            return;
+          }
+          if (state.activeTrackId !== track.id || !state.visibleTrackIds.includes(track.id)) {
+            // Deep-link activation is view state only and is intentionally not persisted.
+            state.activeTrackId = track.id;
+            if (!state.visibleTrackIds.includes(track.id)) {
+              state.visibleTrackIds = [track.id, ...state.visibleTrackIds.filter((item) => item !== track.id)];
+            }
+            render();
+          }
+          window.requestAnimationFrame(() => {
+            if (!revealTrack(track.id)) {
+              setStatus("Linked item not found. It may have been deleted or renamed.");
+            }
+          });
+          return;
+        }
+
+        if (deepLink.type === "card") {
+          const owningTrack = state.tracks.find((track) => track.cards.some((card) => card.id === deepLink.id));
+          if (!owningTrack) {
+            setStatus("Linked item not found. It may have been deleted or renamed.");
+            return;
+          }
+          if (state.activeTrackId !== owningTrack.id || !state.visibleTrackIds.includes(owningTrack.id)) {
+            // Deep-link activation is view state only and is intentionally not persisted.
+            state.activeTrackId = owningTrack.id;
+            if (!state.visibleTrackIds.includes(owningTrack.id)) {
+              state.visibleTrackIds = [owningTrack.id, ...state.visibleTrackIds.filter((item) => item !== owningTrack.id)];
+            }
+            render();
+          }
+          window.requestAnimationFrame(() => {
+            if (!revealCard(deepLink.id)) {
+              setStatus("Linked item not found. It may have been deleted or renamed.");
+            }
+          });
+          return;
+        }
+
+        setStatus("Linked item not found. It may have been deleted or renamed.");
       };
 
       const getLaneCardsByPriority = (track, lane, priority, excludingId = null) =>
@@ -2833,7 +2980,12 @@
 
       load();
       render();
+      resolveDeepLink();
       renderBackupChip();
+
+      window.addEventListener("hashchange", () => {
+        resolveDeepLink();
+      });
     </script>
   </body>
 </html>

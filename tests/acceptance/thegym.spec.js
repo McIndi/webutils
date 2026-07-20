@@ -1,6 +1,14 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('node:fs/promises');
-const { gotoApp, clearWebUtilsStorage, seedLocalStorage, acceptGymModal, openPalette } = require('./helpers/storage');
+const {
+  gotoApp,
+  clearWebUtilsStorage,
+  seedLocalStorage,
+  seedEntities,
+  deepLink,
+  acceptGymModal,
+  openPalette,
+} = require('./helpers/storage');
 
 test.describe('thegym', () => {
   test.beforeEach(async ({ page }) => {
@@ -303,5 +311,43 @@ test.describe('thegym', () => {
     expect(parsed.apps.thegym.key).toBe('webutils.thegym.v1');
 
     await expect(page.locator('#backup-chip-status')).toContainText('Backed up');
+  });
+});
+
+test.describe('thegym deep links', () => {
+  test('reveals the linked exercise row in the exercises view when duplicate data-id elements exist', async ({ page }) => {
+    const now = Date.now();
+    await clearWebUtilsStorage(page);
+    await seedEntities(page, 'webutils.thegym.v1', {
+      version: 1,
+      exercises: [
+        {
+          id: 'ex-1',
+          name: 'Linked Exercise',
+          type: 'transcription',
+          tags: [],
+          created: now,
+        },
+      ],
+      sessions: [
+        {
+          id: 'sess-1',
+          exerciseId: 'ex-1',
+          type: 'transcription',
+          ts: now,
+          reps: 1,
+          score: 100,
+          time: 5,
+        },
+      ],
+      pbs: {},
+    });
+
+    await page.goto(`/docs/thegym.html${deepLink('exercise', 'ex-1')}`);
+
+    const flashed = page.locator('#view-exercises .exercise-row.deep-link-flash[data-id="ex-1"]');
+    await expect(page.locator('.nav-tab[data-view="exercises"]')).toHaveClass(/active/);
+    await expect(flashed).toBeVisible();
+    await expect(flashed).toHaveCount(1);
   });
 });

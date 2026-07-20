@@ -1,5 +1,12 @@
 const { test, expect } = require('@playwright/test');
-const { gotoApp, clearWebUtilsStorage, seedLocalStorage, acceptConfirmDialog } = require('./helpers/storage');
+const {
+  gotoApp,
+  clearWebUtilsStorage,
+  seedLocalStorage,
+  seedEntities,
+  deepLink,
+  acceptConfirmDialog,
+} = require('./helpers/storage');
 
 test.describe('contentstudio', () => {
   test.beforeEach(async ({ page }) => {
@@ -192,5 +199,60 @@ test.describe('contentstudio', () => {
 
     await expect(page.locator('#count-projects')).toHaveText('1');
     await expect(page.locator('#count-platforms')).toHaveText('3');
+  });
+});
+
+test.describe('contentstudio deep links', () => {
+  test('switches to assets view and reveals the linked asset', async ({ page }) => {
+    const now = Date.now();
+    await clearWebUtilsStorage(page);
+    await seedEntities(page, 'webutils.contentstudio.v1', {
+      projects: [
+        {
+          id: 'proj-1',
+          name: 'Project One',
+          status: 'active',
+          oneliner: 'Demo project',
+          url: '',
+          tags: [],
+          createdAt: now,
+        },
+      ],
+      assets: [
+        {
+          id: 'asset-1',
+          projectId: 'proj-1',
+          type: 'one-liner',
+          label: 'Asset One',
+          content: 'Asset content',
+          notes: '',
+          createdAt: now,
+        },
+      ],
+      platforms: [
+        {
+          id: 'plat-1',
+          name: 'Website',
+          url: '',
+          charLimit: 0,
+          tone: '',
+          norms: '',
+          checklist: [],
+          createdAt: now,
+        },
+      ],
+      log: [],
+      draft: {
+        text: '',
+        projectId: '',
+        platformId: '',
+      },
+    });
+
+    await page.goto(`/docs/contentstudio.html${deepLink('asset', 'asset-1')}`);
+
+    await expect(page.locator('#view-assets')).toHaveClass(/active/);
+    await expect(page.locator('[data-asset-id="asset-1"]')).toBeVisible();
+    await expect(page.locator('[data-asset-id="asset-1"]')).toHaveClass(/deep-link-flash/);
   });
 });
