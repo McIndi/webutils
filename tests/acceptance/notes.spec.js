@@ -353,6 +353,7 @@ test.describe('notes mentions and links', () => {
     await page.keyboard.type('@zeta');
 
     await expect(page.locator('#mention-popup li[role="option"]')).toHaveCount(2);
+    await expect(page.locator('#mention-popup .mention-source').first()).toHaveText('Regex Workbench');
     await page.keyboard.press('ArrowDown');
     await page.keyboard.press('Enter');
 

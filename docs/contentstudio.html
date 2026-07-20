@@ -954,6 +954,22 @@
         font-size: 0.82rem;
       }
 
+      .mention-separator {
+        color: var(--muted);
+      }
+
+      .mention-source {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid var(--stroke);
+        border-radius: 999px;
+        padding: 1px 7px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: var(--ink);
+        margin-left: 3px;
+      }
+
       .publish-checklist-head {
         padding: 10px 14px;
         border-bottom: 1px solid var(--stroke);
@@ -1693,6 +1709,13 @@
         exercise: { app: "thegym", href: "thegym.html", storageKey: "webutils.thegym.v1", label: "Exercise" },
       };
       const MENTION_APP_ORDER = ["kanban", "notes", "regex-workbench", "contentstudio", "thegym"];
+      const MENTION_APP_LABELS = {
+        kanban: "Kanban",
+        notes: "Notes",
+        "regex-workbench": "Regex Workbench",
+        contentstudio: "Content Studio",
+        thegym: "TheGym",
+      };
 
       const safeParseJson = (value, fallback) => {
         try {
@@ -1952,6 +1975,16 @@
           const sublabel = document.createElement("span");
           sublabel.className = "mention-sublabel";
           sublabel.textContent = entity.sublabel;
+
+          const separator = document.createElement("span");
+          separator.className = "mention-separator";
+          separator.textContent = " • ";
+
+          const source = document.createElement("span");
+          source.className = "mention-source";
+          source.textContent = MENTION_APP_LABELS[entity.app] || entity.app;
+
+          sublabel.append(separator, source);
 
           item.appendChild(label);
           item.appendChild(sublabel);
