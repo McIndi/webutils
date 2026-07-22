@@ -1,0 +1,16 @@
+{
+  "name": "Static Page Generator",
+  "short_name": "Page Gen",
+  "start_url": "./static-page-generator.html",
+  "display": "standalone",
+  "theme_color": "#0d6b6f",
+  "background_color": "#f6f1ea",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

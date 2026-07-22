@@ -1,0 +1,16 @@
+{
+  "name": "Zip Workbench",
+  "short_name": "Zip Workbench",
+  "start_url": "./zip-workbench.html",
+  "display": "standalone",
+  "theme_color": "#c6562a",
+  "background_color": "#f3f1ed",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

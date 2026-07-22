@@ -1,0 +1,16 @@
+{
+  "name": "TheGym",
+  "short_name": "TheGym",
+  "start_url": "./thegym.html",
+  "display": "standalone",
+  "theme_color": "#e8b84b",
+  "background_color": "#0d0d0d",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

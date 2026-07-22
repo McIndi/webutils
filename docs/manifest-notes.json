@@ -1,0 +1,16 @@
+{
+  "name": "Notes Wiki",
+  "short_name": "Notes",
+  "start_url": "./notes.html",
+  "display": "standalone",
+  "theme_color": "#1f6f5c",
+  "background_color": "#f5f1ea",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

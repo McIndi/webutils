@@ -3,6 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0d6b6f" />
+    <link rel="manifest" href="manifest-static-page-generator.json" />
     <title>Static Page Generator | McIndi WebUtils</title>
     <script>
       (() => {
@@ -277,6 +279,19 @@
         display: grid;
         gap: 16px;
         min-height: 0;
+      }
+
+      footer {
+        padding: 12px 28px 24px;
+        color: var(--muted);
+        font-size: 0.85rem;
+        text-align: center;
+      }
+
+      footer a {
+        color: inherit;
+        text-decoration: none;
+        font-weight: 600;
       }
 
       .workspace {
@@ -766,6 +781,15 @@
         </div>
       </section>
     </main>
+
+    <footer>
+      Built by <a href="https://www.mcindi.com" target="_blank" rel="noopener">McIndi Solutions LLC</a>.
+      <a href="https://github.com/mcindi/webutils/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
+      ·
+      <a href="https://github.com/mcindi/webutils" target="_blank" rel="noopener">GitHub</a>
+      ·
+      <a href="https://github.com/mcindi/webutils/issues" target="_blank" rel="noopener">Report an issue</a>
+    </footer>
 
     <dialog id="command-palette" class="command-palette" aria-label="Command palette">
       <input

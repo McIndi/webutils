@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">WebUtils Icon</title>
+  <desc id="desc">Rounded square with an M mark for McIndi WebUtils.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f3f1ed" />
+      <stop offset="1" stop-color="#fbf7f2" />
+    </linearGradient>
+  </defs>
+  <rect x="32" y="32" width="448" height="448" rx="112" fill="url(#bg)" stroke="#c6562a" stroke-width="28" />
+  <path d="M128 376V136h72l56 98 56-98h72v240h-60V236l-50 84h-36l-50-84v140z" fill="#c6562a" />
+</svg>

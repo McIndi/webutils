@@ -3,6 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#c6562a" />
+    <link rel="manifest" href="manifest-index.json" />
     <title>McIndi WebUtils | McIndi Solutions</title>
     <script>
       (() => {
@@ -213,6 +215,29 @@
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
         gap: 18px;
+      }
+
+      .proof-card {
+        background: linear-gradient(160deg, rgba(198, 86, 42, 0.1), rgba(74, 143, 181, 0.08) 55%, var(--card));
+      }
+
+      .proof-list {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding-left: 20px;
+      }
+
+      .proof-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .proof-links a {
+        text-decoration: none;
+        font-weight: 700;
+        color: var(--ink);
       }
 
       .card {
@@ -717,6 +742,24 @@
     </header>
 
     <main id="about">
+      <section class="card proof-card" id="proof-point">
+        <h3>Proof Point: Secret Share</h3>
+        <p class="muted">
+          Secret Share demonstrates the sovereign model end to end: no server to trust, no hidden backend,
+          and a single auditable file where view-source is the source.
+        </p>
+        <ul class="proof-list">
+          <li>No backend processing, accounts, or message relay service.</li>
+          <li>Secrets are encrypted and signed entirely in-browser before sharing.</li>
+          <li>No external scripts, CDNs, or web fonts on the page.</li>
+        </ul>
+        <div class="proof-links">
+          <a href="secret-share.html">Open Secret Share</a>
+          <a href="https://github.com/mcindi/webutils/blob/main/docs/secret-share.html" target="_blank" rel="noopener">View source</a>
+          <a href="secret-share.html" download="secret-share.html">Download</a>
+        </div>
+      </section>
+
       <section class="card nav-card" id="app-nav">
         <h3>Utilities</h3>
         <p class="muted">Jump into an app and see how much data it currently stores.</p>
@@ -785,6 +828,11 @@
     <footer>
       Made for quick, quiet productivity. Built by
       <a href="https://www.mcindi.com" target="_blank" rel="noopener">McIndi Solutions LLC</a>.
+      <a href="https://github.com/mcindi/webutils/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
+      ·
+      <a href="https://github.com/mcindi/webutils" target="_blank" rel="noopener">GitHub</a>
+      ·
+      <a href="https://github.com/mcindi/webutils/issues" target="_blank" rel="noopener">Report an issue</a>
     </footer>
     <script>
       const APP_REGISTRY = [
@@ -793,7 +841,7 @@
           label: "Kanban task board",
           key: "webutils.kanban.v2",
           href: "kanban.html",
-          description: "Plan work by track, move cards across lanes, and archive done items.",
+          description: "Plan work across tracks, move cards between lanes, and archive completed tasks.",
         },
         {
           id: "zip-workbench",
@@ -806,7 +854,7 @@
             recordKey: "webutils.zip-workbench.v3",
           },
           href: "zip-workbench.html",
-          description: "Browse, edit, and re-download ZIP contents.",
+          description: "Open a ZIP, edit files in-browser, and download the updated archive.",
         },
         {
           id: "repo2prompt",
@@ -819,7 +867,7 @@
             recordKey: "webutils.repo2prompt.v2",
           },
           href: "repo2prompt.html",
-          description: "Fetch a repo ZIP and assemble a prompt-ready payload.",
+          description: "Load a repository ZIP, select files, and build a single prompt-ready output.",
         },
         {
           id: "regex-workbench",
@@ -833,28 +881,28 @@
           label: "Notes Wiki",
           key: "webutils.notes.v1",
           href: "notes.html",
-          description: "Write Markdown notes with CamelCase links.",
+          description: "Capture Markdown notes with wiki-style CamelCase links and local search.",
         },
         {
           id: "static-page-generator",
           label: "Static Page Generator",
           key: "webutils.static-page-generator.v1",
           href: "static-page-generator.html",
-          description: "Write Markdown and export a themed standalone HTML page.",
+          description: "Write Markdown and export a complete themed HTML page with no build step.",
         },
         {
           id: "content-studio",
           label: "Content Studio",
           key: "webutils.contentstudio.v1",
           href: "contentstudio.html",
-          description: "Manage project messaging, draft markdown posts, and track publication history.",
+          description: "Track projects, draft channel-ready posts, and log what was published where.",
         },
         {
           id: "thegym",
           label: "TheGym",
           key: "webutils.thegym.v1",
           href: "thegym.html",
-          description: "Train with transcription, debug, and flashcard coding exercises.",
+          description: "Run timed coding drills with transcription, debugging, flashcards, and circuits.",
         },
         {
           id: "secret-share",
@@ -862,7 +910,7 @@
           key: "webutils.secret-share.v1",
           extraKeys: [{ id: "contacts", key: "webutils.secret-share.contacts.v1" }],
           href: "secret-share.html",
-          description: "Generate a keypair and exchange one-way encrypted secrets via shareable links.",
+          description: "Generate keys locally and exchange end-to-end encrypted, signed secrets via links.",
         },
       ];
 

@@ -6,6 +6,7 @@ McIndi WebUtils is a collection of pocket utilities designed for quick, focused 
 
 - **Single-file apps**: Each utility is a standalone HTML file with embedded CSS and JavaScript.
 - **Offline-first**: Works completely offline; no data leaves your device.
+- **Installable**: Every page includes its own web manifest and can be installed as a standalone web app when served from a static host.
 - **Browser-native storage**: Data persists in browser storage (localStorage and IndexedDB) and can be exported/imported as JSON snapshots.
 - **Lightweight**: Minimal dependencies; designed to load and run quickly.
 - **Mobile-friendly**: Responsive layouts that work on phones, tablets, and desktop.
@@ -114,7 +115,7 @@ Practice coding skills with structured, local-first drills:
 
 ### Secret Share
 Exchange one-way encrypted, signed secrets without a server:
-- Generate a keypair (RSA-OAEP for encryption, ECDSA P-256 for signing); private keys are passphrase-encrypted
+- Generate a keypair (RSA-OAEP for encryption with selectable size: 2048/3072/4096, default 3072, plus ECDSA P-256 for signing); private keys are passphrase-encrypted
   before they touch storage
 - Copy a link embedding both public keys (in the URL fragment) to share with a teammate
 - **Sending requires your own keypair too**, generated the same way as the receiver's — every outgoing secret is
@@ -197,6 +198,7 @@ The landing page (`docs/index.html`) serves as a hub for all utilities and inclu
 - **Snapshots**: You can export all your data as a JSON file and restore it anytime
 - **No accounts**: Everything is stored locally; no login or syncing required
 - **Confirmation dialogs**: Destructive actions (delete, clear, import) always ask for confirmation to prevent accidents
+- **Installability note**: manifests reference a shared `docs/icon.svg`. A downloaded standalone HTML file still works, but if hosted without that icon file nearby, install shortcuts may fall back to a browser default icon.
 
 ### Deep Links & `@` Mentions
 

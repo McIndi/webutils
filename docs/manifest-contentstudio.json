@@ -1,0 +1,16 @@
+{
+  "name": "Content Studio",
+  "short_name": "Content",
+  "start_url": "./contentstudio.html",
+  "display": "standalone",
+  "theme_color": "#d47c3a",
+  "background_color": "#13110f",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

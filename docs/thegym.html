@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#e8b84b" />
+<link rel="manifest" href="manifest-thegym.json" />
 <title>TheGym — Stay Sharp</title>
 <style>
   :root {
@@ -664,6 +666,19 @@
     color: var(--muted);
     font-size: 0.9rem;
   }
+  footer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 12px 20px 20px;
+    color: var(--muted);
+    font-size: 0.85rem;
+    text-align: center;
+  }
+  footer a {
+    color: inherit;
+    text-decoration: none;
+    font-weight: 600;
+  }
   .deep-link-flash {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
@@ -1017,6 +1032,15 @@
   <label for="manual-copy-input">Copy this link manually</label>
   <input id="manual-copy-input" type="text" readonly />
 </div>
+
+<footer>
+  Built by <a href="https://www.mcindi.com" target="_blank" rel="noopener">McIndi Solutions LLC</a>.
+  <a href="https://github.com/mcindi/webutils/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
+  ·
+  <a href="https://github.com/mcindi/webutils" target="_blank" rel="noopener">GitHub</a>
+  ·
+  <a href="https://github.com/mcindi/webutils/issues" target="_blank" rel="noopener">Report an issue</a>
+</footer>
 
 <script>
 // ══════════════════════════════════════════

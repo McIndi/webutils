@@ -58,14 +58,17 @@ This document captures decisions, conventions, and architectural patterns that a
 
 1. **Create the HTML file** in `docs/my-app.html`:
    - Include a `<header>` with `<h1>` and `<p>` description
+   - Add `<meta name="theme-color" ...>` and `<link rel="manifest" href="manifest-my-app.json">` in `<head>`
    - Add a `.toolbar` div with a "Back to index" link
    - Use `webutils.my-app.v1` as the storage key
    - Implement `saveState()` and `loadState()` functions
    - Use the confirmation dialog pattern for destructive actions
+   - Add the standard footer links block with `MIT License · GitHub · Report an issue`
    - Include the standard backup chip block (copy from `kanban.html` — the `BACKUP_APP_ID`, `BACKUP_APP_LABEL`, `BACKUP_STORAGE_KEY` constants, the `.backup-chip` CSS, the chip HTML markup, and the JS functions `fnv1a` through `exportBackupSnapshot`). Update the three constants to match the new app. Register the storage key inside the chip's `getBackupPrimaryValue` function.
    - Include the standard command palette block (copy from an updated app such as `index.html` or `kanban.html` — the `PALETTE_APP_ID` constant, the duplicated `PALETTE_NAV_LINKS` list, the palette CSS/markup, and the JS helpers through `buildStandardCommands`). Update `PALETTE_APP_ID`, the page-specific command list, and `PALETTE_SEARCH_INPUT_ID` when the page has a search box.
    - If the app exposes linkable entities, copy the page-local `ENTITY_TYPES` map and add the deep-link resolver + reveal helper alongside it. Keep that mapping duplicated per page, and update every copy when entity types or targets change.
    - Keep the palette nav list aligned with `APP_REGISTRY`; adding an app means updating both lists.
+   - Add a matching manifest file at `docs/manifest-my-app.json` with `start_url` set to `./my-app.html`, `display: "standalone"`, and the shared `docs/icon.svg` icon reference.
 
 2. **Register the app** in `docs/index.html`:
    - Add an entry to the `APP_REGISTRY` array
