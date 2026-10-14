@@ -1,0 +1,16 @@
+{
+  "name": "Markdown Documents",
+  "short_name": "Documents",
+  "start_url": "./markdown-documents.html",
+  "display": "standalone",
+  "theme_color": "#0d6b6f",
+  "background_color": "#f6f1ea",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

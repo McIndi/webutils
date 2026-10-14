@@ -891,6 +891,13 @@
           description: "Write Markdown and export a complete themed HTML page with no build step.",
         },
         {
+          id: "markdown-documents",
+          label: "Markdown Documents",
+          key: "webutils.markdown-documents.v1",
+          href: "markdown-documents.html",
+          description: "Turn Markdown into plain Word and PDF documents with modest styling.",
+        },
+        {
           id: "content-studio",
           label: "Content Studio",
           key: "webutils.contentstudio.v1",
@@ -990,6 +997,16 @@
           issues.push(...check.issues);
           warnings.push(...check.warnings);
           return { issues, warnings };
+        },
+        "markdown-documents": (parsed, appLabel) => {
+          if (!isObj(parsed)) return { issues: [`${appLabel}: stored value must be an object.`], warnings: [] };
+          const check = checkFields(parsed, {
+            markdown: { type: "string", required: true },
+            fileName: { type: "string", required: true },
+            paperSize: { type: "string", required: true },
+          }, `${appLabel}: `);
+          if (!["LETTER", "A4"].includes(parsed.paperSize)) check.issues.push(`${appLabel}: paperSize must be LETTER or A4.`);
+          return check;
         },
         "content-studio": (parsed, appLabel) => {
           const issues = [];
@@ -2656,6 +2673,7 @@
         { id: "notes", label: "Notes Wiki", href: "notes.html" },
         { id: "regex-workbench", label: "Regex Workbench", href: "regex-workbench.html" },
         { id: "static-page-generator", label: "Static Page Generator", href: "static-page-generator.html" },
+        { id: "markdown-documents", label: "Markdown Documents", href: "markdown-documents.html" },
         { id: "content-studio", label: "Content Studio", href: "contentstudio.html" },
         { id: "thegym", label: "TheGym", href: "thegym.html" },
         { id: "zip-workbench", label: "Zip Workbench", href: "zip-workbench.html" },

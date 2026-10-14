@@ -32,6 +32,10 @@ npm run test:acceptance:report
 
 - `smoke.spec.js`: load checks for each app in `docs/`.
 - `apps.spec.js`: first-pass personalized acceptance checks per app.
+- `markdown-documents.spec.js`: document exports, draft storage, backups, responsive layout, and CDN failure recovery.
+
+Markdown Documents tests cache the pinned CDN scripts in `node_modules/.cache/webutils-dependencies`.
+A clean checkout needs internet access to fetch this cache. One test also checks live CDN downloads without response overrides.
 
 ## Test Hygiene
 

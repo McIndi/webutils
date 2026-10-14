@@ -1,11 +1,11 @@
 # WebUtils
 
-McIndi WebUtils is a collection of pocket utilities designed for quick, focused work. Each tool ships as a single, self-contained HTML file with zero external dependencies (except for optional CDN libraries like CodeMirror for syntax highlighting). No build step, no installation—just download and open in your browser. Built and maintained by McIndi Solutions LLC.
+McIndi WebUtils is a collection of pocket utilities for quick, focused work. Each tool ships as one HTML file with embedded CSS and JavaScript. Some tools load CDN libraries for preview or export features. No build step or installation is required. Built and maintained by McIndi Solutions LLC.
 
 ## Features
 
 - **Single-file apps**: Each utility is a standalone HTML file with embedded CSS and JavaScript.
-- **Offline-first**: Works completely offline; no data leaves your device.
+- **Offline-first**: Core utilities work offline. Features that load CDN libraries require internet access to load them.
 - **Installable**: Every page includes its own web manifest and can be installed as a standalone web app when served from a static host.
 - **Browser-native storage**: Data persists in browser storage (localStorage and IndexedDB) and can be exported/imported as JSON snapshots.
 - **Lightweight**: Minimal dependencies; designed to load and run quickly.
@@ -88,6 +88,24 @@ Create standalone HTML pages from Markdown:
 
 **File**: `docs/static-page-generator.html`  
 **Storage key**: `webutils.static-page-generator.v1`
+
+### Markdown Documents
+Turn Markdown into plain Word and PDF documents:
+- Paste Markdown or open a local `.md`, `.markdown`, or `.txt` file
+- Preview headings, paragraphs, emphasis, links, lists, quotes, code, and tables
+- Download a real DOCX or a PDF with selectable text
+- Choose Letter or A4 paper with 1 inch margins and restrained styling
+- Save drafts locally and include them in index backups
+- Images export as text labels; raw HTML appears as text
+
+**File**: `docs/markdown-documents.html`
+
+**Storage key**: `webutils.markdown-documents.v1`
+
+Preview and export libraries load from a CDN. Internet access is required to load them; browser caching does not guarantee offline access.
+Conversion runs locally. The app does not upload Markdown or fetch document images.
+The preview shows formatting. Page breaks and fonts can differ between Word and PDF.
+DOCX and PDF downloads do not count as draft backups. Use **Back up** to save a restorable JSON snapshot.
 
 ### Content Studio
 Manage project messaging and publication workflows in one local workspace:
@@ -276,6 +294,16 @@ Content Studio uses:
 - **CodeMirror 5** (editor)
 - **marked** (Markdown rendering)
 - **DOMPurify** (HTML sanitization)
+
+Markdown Documents uses pinned CDN releases with SHA-384 integrity checks:
+- **marked 18.1.1** (Markdown parsing; loads for preview)
+- **docx 9.11.0** (Word export; loads on demand)
+- **pdfmake 0.3.11** and its bundled Roboto fonts (PDF export; load on demand)
+
+The DOCX browser bundle loads from UNPKG. The other dependencies load from jsDelivr.
+
+These were the latest stable npm releases on October 14, 2026. These packages do not publish LTS dist-tags.
+If a CDN request fails, the editor remains usable. Retry the preview or export after restoring the connection.
 
 ## Gap Roadmap (No Backend)
 

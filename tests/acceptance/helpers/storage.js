@@ -8,6 +8,7 @@ const KNOWN_APPS = [
   'regex-workbench.html',
   'notes.html',
   'static-page-generator.html',
+  'markdown-documents.html',
   'contentstudio.html',
   'thegym.html',
   'secret-share.html',

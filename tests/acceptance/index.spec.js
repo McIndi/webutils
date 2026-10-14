@@ -49,8 +49,8 @@ test.describe('index', () => {
   });
 
   test('all registered apps appear as rows', async ({ page }) => {
-    // APP_REGISTRY has 9 entries
-    await expect(page.locator('#app-list .app-row')).toHaveCount(9);
+    // APP_REGISTRY has 10 entries
+    await expect(page.locator('#app-list .app-row')).toHaveCount(10);
   });
 
   test('each app row has a link to the app', async ({ page }) => {
@@ -310,9 +310,9 @@ test.describe('index', () => {
     await dialog.locator('button[value="cancel"]').click();
     await acceptConfirmDialog(page);
 
+    await expect(kanban.locator('.app-meta')).toContainText('No data saved');
     const ledger = await page.evaluate(() => JSON.parse(localStorage.getItem('webutils.backupStatus.v1') || '{}'));
     expect(ledger.kanban).toBeFalsy();
-    await expect(kanban.locator('.app-meta')).toContainText('No data saved');
   });
 
   // ── Security & Validation: Hardened Import (Task 1-4) ──────────────────────

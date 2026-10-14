@@ -1,0 +1,954 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0d6b6f" />
+    <link rel="manifest" href="manifest-markdown-documents.json" />
+    <title>Markdown Documents | McIndi WebUtils</title>
+    <script>
+      try { document.documentElement.dataset.theme = localStorage.getItem("webutils.theme.v1") === "dark" ? "dark" : "light"; } catch {}
+    </script>
+    <style>
+      :root { --bg: #f6f1ea; --ink: #111418; --muted: #5e666f; --panel: #fffaf4; --stroke: #e2d8cf; --accent: #0d6b6f; --accent-soft: rgba(13,107,111,.16); --warn: #b9382e; }
+      :root[data-theme="dark"] { --bg: #13110f; --ink: #f0ece5; --muted: #b8b0a5; --panel: #1c1916; --stroke: #494136; --accent: #d47c3a; --accent-soft: rgba(212,124,58,.2); --warn: #e09b88; }
+      * { box-sizing: border-box; }
+      [hidden] { display: none !important; }
+      body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 "Segoe UI", sans-serif; }
+      header { padding: 26px 28px 18px; }
+      .brand-bar { display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+      .brand-link { color: var(--ink); text-decoration: none; text-transform: uppercase; letter-spacing: .1em; font-size: .75rem; font-weight: 600; }
+      .brand-mark { color: var(--accent); margin-right: 8px; }
+      .brand-subtitle, header p, .hint, .note { color: var(--muted); }
+      header h1 { font: 38px Georgia, serif; margin: 18px 0 8px; }
+      header p { max-width: 800px; margin: 0 0 12px; }
+      a { color: var(--accent); }
+      button, .button, .toolbar > a { font: inherit; font-weight: 600; color: var(--ink); background: var(--panel); border: 1px solid var(--stroke); padding: 8px 14px; border-radius: 9px; cursor: pointer; text-decoration: none; }
+      button.primary { color: white; background: var(--accent); border-color: var(--accent); }
+      button.danger { color: var(--warn); }
+      button:disabled { opacity: .6; cursor: wait; }
+      :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+      .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 0 28px 12px; }
+      #status { margin: 0; min-height: 36px; padding: 0 28px 12px; color: var(--muted); }
+      #status[data-error="true"] { color: var(--warn); }
+      main { padding: 0 28px 24px; }
+      .workspace { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 20px; align-items: start; }
+      .panel { min-width: 0; background: var(--panel); border: 1px solid var(--stroke); border-radius: 14px; padding: 20px; }
+      h2 { font-size: 1.1rem; margin: 0 0 16px; }
+      .settings { display: grid; grid-template-columns: minmax(0,1fr) 130px; gap: 12px; margin-bottom: 16px; }
+      label { display: block; font-weight: 600; margin-bottom: 6px; }
+      input, select, textarea { width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--stroke); border-radius: 8px; padding: 10px; }
+      textarea { display: block; min-height: 570px; resize: vertical; font: 14px/1.65 Consolas, monospace; tab-size: 4; }
+      .note { font-size: .85rem; margin: 12px 0 0; }
+      .preview-shell { overflow-x: auto; background: #e8e6e2; border-radius: 8px; padding: 16px; max-height: 790px; }
+      #document-preview { background: white; color: #171717; margin: 0 auto; padding: 48px; max-width: 816px; min-height: 650px; font: 14.67px/1.4 Arial, sans-serif; overflow-wrap: anywhere; }
+      #document-preview > :first-child { margin-top: 0; }
+      #document-preview p { margin: 0 0 10.67px; white-space: pre-wrap; }
+      #document-preview h1, #document-preview h2, #document-preview h3, #document-preview h4, #document-preview h5, #document-preview h6 { font-family: Arial, sans-serif; line-height: 1.2; margin: 21px 0 10px; }
+      #document-preview h1 { font-size: 26.67px; } #document-preview h2 { font-size: 21.33px; } #document-preview h3 { font-size: 17.33px; }
+      #document-preview h4, #document-preview h5, #document-preview h6 { font-size: 14.67px; }
+      #document-preview a { color: #171717; text-decoration: underline; }
+      #document-preview ul, #document-preview ol { padding-left: 28px; margin: 0 0 10.67px; }
+      #document-preview li > p { margin-bottom: 4px; }
+      #document-preview blockquote { margin: 0 0 10px 16px; border-left: 2px solid #ccc; padding-left: 12px; }
+      #document-preview pre { background: #f3f3f3; padding: 10px; white-space: pre-wrap; font: 12px/1.4 "Courier New", monospace; }
+      #document-preview code { background: #f3f3f3; font-family: "Courier New", monospace; }
+      #document-preview table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 13px; table-layout: fixed; }
+      #document-preview th, #document-preview td { border: 1px solid #ccc; padding: 6px; vertical-align: top; }
+      #document-preview th { background: #f3f3f3; }
+      #document-preview hr { border: 0; border-top: 1px solid #ccc; margin: 16px 0; }
+      #document-preview .empty { color: #666; }
+      #format-notes { color: var(--muted); font-size: .85rem; }
+      footer { padding: 16px 28px 28px; color: var(--muted); font-size: .85rem; }
+      /* Shared WebUtils backup, confirmation, and command palette styles. */
+            .backup-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid var(--stroke);
+        border-radius: 10px;
+        padding: 8px 10px;
+        background: var(--panel);
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .backup-chip button,
+      .backup-chip a {
+        border: 1px solid var(--stroke);
+        border-radius: 8px;
+        padding: 4px 8px;
+        text-decoration: none;
+        color: var(--ink);
+        background: transparent;
+        font: inherit;
+        font-size: 0.82rem;
+        cursor: pointer;
+      }
+
+      .backup-chip a {
+        display: inline-flex;
+        align-items: center;
+      }
+
+      .confirm-form {
+        padding: 18px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .confirm-form h3 {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+
+      .confirm-form p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .confirm-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      .confirm-actions button {
+        border: 1px solid var(--stroke);
+        background: #fff;
+        padding: 8px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      .confirm-actions .primary {
+        background: var(--warn);
+        border-color: var(--warn);
+        color: #fff;
+      }
+
+      .command-palette {
+        border: 1px solid var(--stroke);
+        border-radius: 14px;
+        padding: 0;
+        width: min(560px, 92vw);
+        max-height: 76vh;
+        margin: 12vh auto 0;
+        background: var(--panel);
+        color: var(--ink);
+        overflow: hidden;
+      }
+
+      .command-palette::backdrop {
+        background: rgba(34, 33, 31, 0.45);
+      }
+
+      .command-palette input {
+        width: 100%;
+        border: none;
+        border-bottom: 1px solid var(--stroke);
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        font-size: 1rem;
+        padding: 12px 14px;
+        outline: none;
+      }
+
+      .command-palette ul {
+        list-style: none;
+        margin: 0;
+        padding: 6px;
+        max-height: 50vh;
+        overflow-y: auto;
+      }
+
+      .command-palette li {
+        border-radius: 10px;
+      }
+
+      .command-palette button {
+        width: 100%;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        text-align: left;
+        font: inherit;
+        padding: 10px 12px;
+        border-radius: 10px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .command-palette li[aria-selected="true"] button {
+        background: var(--accent-soft);
+      }
+
+      .command-palette .hint {
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+
+      dialog { background: var(--panel); color: var(--ink); border: 1px solid var(--stroke); border-radius: 14px; max-width: min(560px,92vw); }
+      dialog::backdrop { background: rgba(0,0,0,.4); }
+      @media (max-width: 720px) { header, main, footer { padding-left: 16px; padding-right: 16px; } .toolbar, #status { padding-left: 16px; padding-right: 16px; } .workspace { grid-template-columns: minmax(0,1fr); } .panel { padding: 16px; } #document-preview { padding: 24px; } textarea { min-height: 360px; } .settings { grid-template-columns: minmax(0,1fr); } }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand-bar"><a class="brand-link" href="https://www.mcindi.com" target="_blank" rel="noopener"><span class="brand-mark">M</span>McIndi Solutions</a><span class="brand-subtitle">WebUtils • Markdown Documents</span></div>
+      <h1>Markdown Documents</h1>
+      <p>Turn Markdown into plain Word and PDF documents. Your draft stays in this browser.</p>
+      <button type="button" data-open-command-palette>Open command palette</button> <span class="hint">Ctrl/Cmd + K</span>
+    </header>
+    <div class="toolbar">
+      <a href="index.html">Back to index</a>
+      <button class="primary" id="download-docx" type="button">Download DOCX</button>
+      <button class="primary" id="download-pdf" type="button">Download PDF</button>
+      <button id="open-markdown" type="button">Open Markdown</button>
+      <input id="markdown-file" type="file" accept=".md,.markdown,.txt,text/plain,text/markdown" hidden />
+      <button class="danger" id="clear-draft" type="button">Clear draft</button>
+      <div class="backup-chip" id="backup-chip" hidden><span id="backup-chip-status"></span><button type="button" id="backup-chip-export">Back up</button><a href="index.html">Restore...</a></div>
+    </div>
+    <p id="status" role="status" aria-live="polite"></p>
+    <main>
+      <div class="workspace">
+        <section class="panel" aria-labelledby="content-heading">
+          <h2 id="content-heading">Content</h2>
+          <div class="settings">
+            <div><label for="file-name">Download filename</label><input id="file-name" type="text" placeholder="document" /></div>
+            <div><label for="paper-size">Paper size</label><select id="paper-size"><option value="LETTER">Letter</option><option value="A4">A4</option></select></div>
+          </div>
+          <label for="markdown-input">Markdown</label>
+          <textarea id="markdown-input" spellcheck="false" aria-describedby="dependency-note"></textarea>
+          <p class="note" id="dependency-note">Preview and exports need internet access to load libraries. Document conversion runs on your device.</p>
+          <button id="retry-preview" type="button" hidden>Retry preview</button>
+        </section>
+        <section class="panel" aria-labelledby="preview-heading">
+          <h2 id="preview-heading">Document preview</h2>
+          <div class="preview-shell"><article id="document-preview" aria-label="Document preview"></article></div>
+          <p class="note">11 pt body text, modest headings, and 1 inch margins. Page breaks can differ between Word and PDF.</p>
+          <p class="note">Images export as text labels. Raw HTML appears as text.</p>
+          <p id="format-notes" role="status"></p>
+        </section>
+      </div>
+    </main>
+    <footer>Built by <a href="https://www.mcindi.com" target="_blank" rel="noopener">McIndi Solutions LLC</a>. <a href="https://github.com/mcindi/webutils/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a> · <a href="https://github.com/mcindi/webutils" target="_blank" rel="noopener">GitHub</a> · <a href="https://github.com/mcindi/webutils/issues" target="_blank" rel="noopener">Report an issue</a></footer>
+    <dialog id="command-palette" class="command-palette" aria-label="Command palette"><input id="command-palette-input" placeholder="Type a command..." autocomplete="off" aria-label="Filter commands" /><ul id="command-palette-list" role="listbox"></ul></dialog>
+    <dialog id="confirm-dialog"><form method="dialog" class="confirm-form"><h3 id="confirm-title">Confirm action</h3><p id="confirm-message"></p><div class="confirm-actions"><button value="cancel" type="submit">Cancel</button><button value="confirm" type="submit" id="confirm-accept" class="primary">Confirm</button></div></form></dialog>
+    <script>
+      const STORAGE_KEY = "webutils.markdown-documents.v1";
+      const BACKUP_APP_ID = "markdown-documents";
+      const BACKUP_APP_LABEL = "Markdown Documents";
+      const BACKUP_STORAGE_KEY = STORAGE_KEY;
+      const BACKUP_STATUS_KEY = "webutils.backupStatus.v1";
+      const LAST_EXPORT_KEY = "webutils.lastExport.v1";
+      // Latest stable npm releases checked 2026-10-14. No LTS dist-tags are published.
+      // Keep URLs and SHA-384 hashes together when updating dependencies.
+      const DEPENDENCIES = {
+        marked: { url: "https://cdn.jsdelivr.net/npm/marked@18.1.1/lib/marked.umd.js", integrity: "sha384-rATToyt6602Jnq8c7w8HZwmyOUgPL7mzxX01FBWoV48ns/EgkakGozpES+PnaYOI", ready: () => !!window.marked?.lexer },
+        // UNPKG serves this .cjs browser bundle as JavaScript. jsDelivr serves
+        // it as application/node with nosniff, which browsers cannot execute.
+        docx: { url: "https://unpkg.com/docx@9.11.0/dist/index.umd.cjs", integrity: "sha384-fNn9QGKt0Z/DsbVYna03pACZOJxWQpV7Ceay3mTlSNR12/FZXDcbNSOeOePQ8PPu", ready: () => !!window.docx?.Packer },
+        pdfmake: { url: "https://cdn.jsdelivr.net/npm/pdfmake@0.3.11/build/pdfmake.min.js", integrity: "sha384-vsaIaEjAOZA6uoCQ2pryCKIc8YGpQ/0HK5krdezL4PYvnmLzrizBMDJCZulvIomS", ready: () => !!window.pdfMake?.createPdf },
+        fonts: { url: "https://cdn.jsdelivr.net/npm/pdfmake@0.3.11/build/vfs_fonts.js", integrity: "sha384-pkBUW1wxcm6m7ZjKDxADnNHqnz+Sx9sAL1ndsLNv/GZnWZgodPYsju1yxeyQnn0c", ready: () => fontsLoaded },
+      };
+      const SAMPLE = "# Working notes\n\nA plain document with **bold text**, *italics*, and [links](https://www.mcindi.com).\n\n## Next steps\n\n1. Write in Markdown.\n2. Choose Letter or A4.\n3. Download a Word document or PDF.\n\n> Your content stays on this device.\n\n| Format | Purpose |\n| --- | --- |\n| DOCX | Edit and share |\n| PDF | Read and print |\n\n```\nA small code example\n  with indentation\n```";
+      const state = { markdown: SAMPLE, fileName: "document", paperSize: "LETTER" };
+      const markdownInput = document.getElementById("markdown-input");
+      const fileNameInput = document.getElementById("file-name");
+      const paperSizeInput = document.getElementById("paper-size");
+      const preview = document.getElementById("document-preview");
+      const statusEl = document.getElementById("status");
+      const formatNotes = document.getElementById("format-notes");
+      const retryButton = document.getElementById("retry-preview");
+      const confirmDialog = document.getElementById("confirm-dialog");
+      const confirmTitle = document.getElementById("confirm-title");
+      const confirmMessage = document.getElementById("confirm-message");
+      const confirmAccept = document.getElementById("confirm-accept");
+      const backupChip = document.getElementById("backup-chip");
+      const backupChipStatus = document.getElementById("backup-chip-status");
+      let confirmResolve = null;
+      let fontsLoaded = false;
+      let exporting = false;
+      let renderTimer;
+      const dependencyLoads = new Map();
+      const setStatus = (message, error = false) => { statusEl.textContent = message; statusEl.dataset.error = String(error); };
+
+      const loadDependency = (name) => {
+        const dependency = DEPENDENCIES[name];
+        if (dependency.ready()) return Promise.resolve();
+        if (dependencyLoads.has(name)) return dependencyLoads.get(name);
+        const promise = new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = dependency.url;
+          script.integrity = dependency.integrity;
+          script.crossOrigin = "anonymous";
+          script.referrerPolicy = "no-referrer";
+          const fail = () => {
+            clearTimeout(timeout);
+            script.remove();
+            reject(new Error(`Could not load ${name === "fonts" ? "PDF fonts" : name}. Check your internet connection and try again.`));
+          };
+          const timeout = setTimeout(fail, 20000);
+          script.onerror = fail;
+          script.onload = () => {
+            clearTimeout(timeout);
+            if (name === "fonts") fontsLoaded = true;
+            if (dependency.ready()) resolve(); else fail();
+          };
+          document.head.appendChild(script);
+        });
+        dependencyLoads.set(name, promise);
+        promise.catch(() => dependencyLoads.delete(name));
+        return promise;
+      };
+
+      const saveState = () => {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); renderBackupChip(); }
+        catch { setStatus("This browser could not save the draft. Keep this page open and copy your Markdown before closing it.", true); }
+      };
+      const loadState = () => {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+          if (saved && typeof saved === "object" && !Array.isArray(saved)) {
+            if (typeof saved.markdown === "string") state.markdown = saved.markdown;
+            if (typeof saved.fileName === "string") state.fileName = saved.fileName;
+            if (["LETTER", "A4"].includes(saved.paperSize)) state.paperSize = saved.paperSize;
+          }
+        } catch { setStatus("The saved draft could not be read. You can restore a backup from the index.", true); }
+      };
+      const syncInputs = () => { markdownInput.value = state.markdown; fileNameInput.value = state.fileName; paperSizeInput.value = state.paperSize; };
+
+      const requestConfirmation = ({ title, message, confirmText }) => {
+        if (!confirmDialog || typeof confirmDialog.showModal !== "function") {
+          return Promise.resolve(window.confirm(message || title));
+        }
+        confirmTitle.textContent = title;
+        confirmMessage.textContent = message;
+        confirmAccept.textContent = confirmText || "Confirm";
+        confirmDialog.returnValue = "";
+        return new Promise((resolve) => {
+          confirmResolve = resolve;
+          confirmDialog.showModal();
+        });
+      };
+
+      confirmDialog.addEventListener("close", () => {
+        if (!confirmResolve) {
+          return;
+        }
+        const confirmed = confirmDialog.returnValue === "confirm";
+        confirmResolve(confirmed);
+        confirmResolve = null;
+      });
+
+
+      const fnv1a = (str) => {
+        let h = 0x811c9dc5;
+        for (let i = 0; i < str.length; i += 1) {
+          h ^= str.charCodeAt(i);
+          h = Math.imul(h, 0x01000193);
+        }
+        return (h >>> 0).toString(16);
+      };
+
+      const formatRelativeTime = (iso) => {
+        const timestamp = Date.parse(iso);
+        if (!Number.isFinite(timestamp)) {
+          return "unknown time";
+        }
+        const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+        if (seconds < 60) {
+          return "just now";
+        }
+        if (seconds < 3600) {
+          return `${Math.floor(seconds / 60)} min ago`;
+        }
+        if (seconds < 86400) {
+          return `${Math.floor(seconds / 3600)} h ago`;
+        }
+        return `${Math.floor(seconds / 86400)} d ago`;
+      };
+
+      const readBackupStatus = () => {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(BACKUP_STATUS_KEY) || "{}");
+          return parsed && typeof parsed === "object" ? parsed : {};
+        } catch {
+          return {};
+        }
+      };
+
+      const writeBackupStatus = (status) => {
+        try {
+          localStorage.setItem(BACKUP_STATUS_KEY, JSON.stringify(status));
+        } catch {}
+      };
+
+      const getBackupPrimaryValue = () => {
+        try { return localStorage.getItem(STORAGE_KEY); } catch { return null; }
+      };
+
+      const getBackupFreshness = () => {
+        const value = getBackupPrimaryValue();
+        if (value === null) {
+          return { state: "no-data", exportedAt: null, hash: null };
+        }
+        const hash = fnv1a(value);
+        const status = readBackupStatus();
+        const entry = status[BACKUP_APP_ID];
+        if (!entry || typeof entry !== "object" || typeof entry.exportedAt !== "string") {
+          return { state: "never", exportedAt: null, hash };
+        }
+        if (entry.hash !== hash) {
+          return { state: "stale", exportedAt: entry.exportedAt, hash };
+        }
+        return { state: "fresh", exportedAt: entry.exportedAt, hash };
+      };
+
+      const renderBackupChip = () => {
+        if (!backupChip || !backupChipStatus) {
+          return;
+        }
+        const freshness = getBackupFreshness();
+        if (freshness.state === "no-data") {
+          backupChip.hidden = true;
+          return;
+        }
+        backupChip.hidden = false;
+        if (freshness.state === "never") {
+          backupChipStatus.textContent = "Never backed up";
+        } else if (freshness.state === "stale") {
+          backupChipStatus.textContent = "Changes not backed up";
+        } else {
+          backupChipStatus.textContent = `Backed up ${formatRelativeTime(freshness.exportedAt)}`;
+        }
+      };
+
+      const recordBackupFromCurrentData = () => {
+        const freshness = getBackupFreshness();
+        if (freshness.state === "no-data" || !freshness.hash) {
+          return;
+        }
+        const status = readBackupStatus();
+        status[BACKUP_APP_ID] = {
+          exportedAt: new Date().toISOString(),
+          hash: freshness.hash,
+        };
+        writeBackupStatus(status);
+        try {
+          localStorage.setItem(LAST_EXPORT_KEY, new Date().toISOString());
+        } catch {}
+      };
+
+      const exportBackupSnapshot = () => {
+        const value = getBackupPrimaryValue();
+        if (value === null) {
+          return;
+        }
+        const snapshot = {
+          version: 4,
+          generator: "webutils",
+          createdAt: new Date().toISOString(),
+          apps: {
+            [BACKUP_APP_ID]: {
+              appId: BACKUP_APP_ID,
+              storage: "localStorage",
+              key: STORAGE_KEY,
+              value,
+            },
+          },
+        };
+        const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        link.href = url;
+        link.download = `webutils-${BACKUP_APP_ID}-${timestamp}.json`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+
+        recordBackupFromCurrentData();
+        renderBackupChip();
+      };
+
+
+
+      // Convert Markdown tokens to a small, shared document model. Never insert
+      // Markdown HTML into the app DOM or load images from document content.
+      const decodeEntities = (text) => String(text || "").replace(/&(?:#\d+|#x[\da-f]+|[a-z][\da-z]+);/gi, (entity) => {
+        const textarea = document.createElement("textarea");
+        textarea.innerHTML = entity;
+        return textarea.value;
+      });
+      const safeLink = (href) => {
+        try { const url = new URL(href, location.href); return ["http:", "https:", "mailto:"].includes(url.protocol) ? url.href : null; } catch { return null; }
+      };
+      const parseDocument = (markdown) => {
+        const warnings = new Set();
+        const inline = (tokens, attributes = {}) => tokens.flatMap((token) => {
+          switch (token.type) {
+            case "strong": return inline(token.tokens || [], { ...attributes, bold: true });
+            case "em": return inline(token.tokens || [], { ...attributes, italics: true });
+            case "del": return inline(token.tokens || [], { ...attributes, strike: true });
+            case "link": {
+              const link = safeLink(token.href);
+              if (!link) warnings.add("Unsafe links appear as plain text.");
+              return inline(token.tokens || [{ type: "text", text: token.text }], { ...attributes, link });
+            }
+            case "image": warnings.add("Images export as text labels."); return [{ ...attributes, text: `[Image: ${decodeEntities(token.text || "image")}]` }];
+            case "html": warnings.add("Raw HTML appears as text."); return [{ ...attributes, text: token.raw || token.text || "" }];
+            case "br": return [{ ...attributes, text: "\n" }];
+            case "codespan": return [{ ...attributes, text: token.text, code: true }];
+            case "checkbox": return [];
+            default: return token.tokens ? inline(token.tokens, attributes) : [{ ...attributes, text: decodeEntities(token.text ?? token.raw) }];
+          }
+        });
+        const blocks = (tokens) => tokens.flatMap((token) => {
+          switch (token.type) {
+            case "space": case "def": case "checkbox": return [];
+            case "heading": return [{ type: "heading", level: token.depth, runs: inline(token.tokens) }];
+            case "paragraph": case "text": return [{ type: "paragraph", runs: inline(token.tokens || [{ type: "text", text: token.text }]) }];
+            case "code": return [{ type: "code", text: token.text }];
+            case "hr": return [{ type: "rule" }];
+            case "blockquote": return [{ type: "quote", blocks: blocks(token.tokens) }];
+            case "list": return [{ type: "list", ordered: token.ordered, start: Number(token.start) || 1, items: token.items.map((item) => {
+              const children = blocks(item.tokens);
+              if (!children.length || children[0].type !== "paragraph") children.unshift({ type: "paragraph", runs: [{ text: "" }] });
+              if (item.task) children[0].runs.unshift({ text: item.checked ? "[x] " : "[ ] " });
+              return children;
+            }) }];
+            case "table": return [{ type: "table", align: token.align, rows: [token.header, ...token.rows].map((row) => row.map((cell) => inline(cell.tokens))) }];
+            case "html": warnings.add("Raw HTML appears as text."); return [{ type: "code", text: token.text || token.raw }];
+            default: warnings.add("Unsupported Markdown appears as text."); return [{ type: "paragraph", runs: [{ text: token.raw || token.text || "" }] }];
+          }
+        });
+        return { blocks: blocks(window.marked.lexer(markdown, { gfm: true })), warnings: [...warnings] };
+      };
+
+      const appendRuns = (parent, runs) => {
+        for (const run of runs) {
+          let node = document.createTextNode(run.text);
+          for (const [key, tag] of [["code", "code"], ["bold", "strong"], ["italics", "em"], ["strike", "s"]]) {
+            if (run[key]) { const wrapper = document.createElement(tag); wrapper.appendChild(node); node = wrapper; }
+          }
+          if (run.link) { const anchor = document.createElement("a"); anchor.href = run.link; anchor.target = "_blank"; anchor.rel = "noopener noreferrer"; anchor.appendChild(node); node = anchor; }
+          parent.appendChild(node);
+        }
+      };
+      const appendBlocks = (parent, blocks) => {
+        for (const block of blocks) {
+          let element;
+          if (block.type === "heading" || block.type === "paragraph") {
+            element = document.createElement(block.type === "heading" ? `h${block.level}` : "p"); appendRuns(element, block.runs);
+          } else if (block.type === "code") { element = document.createElement("pre"); element.textContent = block.text; }
+          else if (block.type === "rule") element = document.createElement("hr");
+          else if (block.type === "quote") { element = document.createElement("blockquote"); appendBlocks(element, block.blocks); }
+          else if (block.type === "list") {
+            element = document.createElement(block.ordered ? "ol" : "ul");
+            if (block.ordered) element.start = block.start;
+            block.items.forEach((item) => { const li = document.createElement("li"); appendBlocks(li, item); element.appendChild(li); });
+          } else if (block.type === "table") {
+            element = document.createElement("table");
+            block.rows.forEach((row, rowIndex) => {
+              const tr = document.createElement("tr");
+              row.forEach((runs, cellIndex) => { const cell = document.createElement(rowIndex === 0 ? "th" : "td"); cell.style.textAlign = block.align[cellIndex] || "left"; appendRuns(cell, runs); tr.appendChild(cell); });
+              element.appendChild(tr);
+            });
+          }
+          if (element) parent.appendChild(element);
+        }
+      };
+      const updatePreview = () => {
+        preview.replaceChildren();
+        preview.style.maxWidth = state.paperSize === "A4" ? "794px" : "816px";
+        formatNotes.textContent = "";
+        if (!state.markdown.trim()) { const p = document.createElement("p"); p.className = "empty"; p.textContent = "Write or open Markdown to preview your document."; preview.appendChild(p); return; }
+        if (!window.marked?.lexer) { const pre = document.createElement("pre"); pre.textContent = state.markdown; preview.appendChild(pre); return; }
+        try { const documentModel = parseDocument(state.markdown); appendBlocks(preview, documentModel.blocks); formatNotes.textContent = documentModel.warnings.join(" "); }
+        catch { preview.textContent = state.markdown; setStatus("This Markdown could not be previewed. Your draft is still available in the editor.", true); }
+      };
+      const preparePreview = async () => {
+        retryButton.hidden = true;
+        try { await loadDependency("marked"); updatePreview(); }
+        catch (error) { setStatus(error.message, true); retryButton.hidden = false; }
+      };
+
+      const headingSizes = [20, 16, 13, 11, 11, 11];
+      const pdfRuns = (runs) => runs.map((run) => ({ text: run.text, bold: run.bold, italics: run.italics, decoration: run.strike && run.link ? ["lineThrough", "underline"] : run.strike ? "lineThrough" : run.link ? "underline" : undefined, link: run.link || undefined, background: run.code ? "#F3F3F3" : undefined, preserveLeadingSpaces: true }));
+      const pdfBlocks = (blocks) => blocks.map((block) => {
+        switch (block.type) {
+          case "heading": return { text: pdfRuns(block.runs), fontSize: headingSizes[block.level - 1], bold: true, margin: [0, 14, 0, 7], headlineLevel: block.level };
+          case "paragraph": return { text: pdfRuns(block.runs), margin: [0, 0, 0, 8] };
+          case "code": return { text: block.text || " ", fontSize: 9, background: "#F3F3F3", preserveLeadingSpaces: true, margin: [0, 4, 0, 10] };
+          case "quote": return { stack: pdfBlocks(block.blocks), margin: [16, 0, 0, 8] };
+          case "rule": return { canvas: [{ type: "line", x1: 0, y1: 0, x2: 120, y2: 0, lineWidth: .5, lineColor: "#CCCCCC" }], margin: [0, 8, 0, 12] };
+          case "list": return { [block.ordered ? "ol" : "ul"]: block.items.map((item) => ({ stack: pdfBlocks(item) })), ...(block.ordered ? { start: block.start } : {}), margin: [0, 0, 0, 8] };
+          case "table": return {
+            table: { headerRows: 1, widths: block.rows[0].map(() => "*"), body: block.rows.map((row, rowIndex) => row.map((runs, cellIndex) => ({ text: pdfRuns(runs), fontSize: 10, bold: rowIndex === 0, fillColor: rowIndex === 0 ? "#F3F3F3" : undefined, alignment: block.align[cellIndex] || "left", margin: [3, 3, 3, 3] }))) },
+            layout: { hLineWidth: () => .5, vLineWidth: () => .5, hLineColor: () => "#CCCCCC", vLineColor: () => "#CCCCCC" }, margin: [0, 4, 0, 12],
+          };
+        }
+      });
+      const buildPdf = (documentModel, draft) => window.pdfMake.createPdf({
+        pageSize: draft.paperSize, pageMargins: [72, 72, 72, 72],
+        info: { title: draft.fileName || "Document", creator: "WebUtils Markdown Documents" },
+        defaultStyle: { font: "Roboto", fontSize: 11, lineHeight: 1.15, color: "#171717" },
+        content: pdfBlocks(documentModel.blocks),
+        // pdfmake 0.3 supplies node/container objects instead of the 0.2 arrays.
+        pageBreakBefore: (node, container) => !!node.headlineLevel && container.getFollowingNodesOnPage().length === 0,
+      }).getBlob();
+
+      const buildDocx = (documentModel, draft) => {
+        const d = window.docx;
+        const numbering = [];
+        let listId = 0;
+        const runs = (values) => values.flatMap((run) => {
+          const children = run.text.split("\n").map((text, index) => new d.TextRun({ text, break: index ? 1 : 0, bold: run.bold, italics: run.italics, strike: run.strike, ...(run.code ? { font: "Courier New", size: 20, shading: { fill: "F3F3F3" } } : {}), ...(run.link ? { underline: {}, color: "171717" } : {}) }));
+          return run.link ? [new d.ExternalHyperlink({ link: run.link, children })] : children;
+        });
+        const paragraph = (values, options = {}) => new d.Paragraph({ spacing: { after: 160, line: 276 }, children: runs(values), ...options });
+        const blocks = (values, depth = 0, inset = 0) => values.flatMap((block) => {
+          switch (block.type) {
+            case "heading": return [paragraph(block.runs, { heading: d.HeadingLevel[`HEADING_${block.level}`], keepNext: true, spacing: { before: 280, after: 140 } })];
+            case "paragraph": return [paragraph(block.runs, inset ? { indent: { left: inset } } : {})];
+            case "code": return [new d.Paragraph({ children: block.text.split("\n").flatMap((line, index) => [new d.TextRun({ text: line, break: index ? 1 : 0, font: "Courier New", size: 18 })]), shading: { fill: "F3F3F3" }, spacing: { before: 80, after: 200 }, indent: { left: inset } })];
+            case "rule": return [new d.Paragraph({ border: { bottom: { style: d.BorderStyle.SINGLE, size: 4, color: "CCCCCC" } }, spacing: { after: 160 } })];
+            case "quote": return blocks(block.blocks, depth, inset + 320);
+            case "list": {
+              const reference = `markdown-list-${listId++}`;
+              numbering.push({ reference, levels: Array.from({ length: 9 }, (_, level) => ({ level, format: block.ordered ? d.LevelFormat.DECIMAL : d.LevelFormat.BULLET, text: block.ordered ? `%${level + 1}.` : "•", start: block.start, alignment: d.AlignmentType.LEFT, style: { paragraph: { indent: { left: (level + 1) * 360 + inset, hanging: 240 } } } })) });
+              return block.items.flatMap((item) => {
+                const first = paragraph(item[0].runs, { numbering: { reference, level: Math.min(depth, 8) } });
+                const rest = item.slice(1).flatMap((child) => child.type === "list" ? blocks([child], depth + 1, inset) : blocks([child], depth, inset + (depth + 1) * 360));
+                return [first, ...rest];
+              });
+            }
+            case "table": return [new d.Table({ width: { size: 100, type: d.WidthType.PERCENTAGE }, layout: d.TableLayoutType.FIXED,
+              borders: Object.fromEntries(["top", "bottom", "left", "right", "insideHorizontal", "insideVertical"].map((side) => [side, { style: d.BorderStyle.SINGLE, size: 4, color: "CCCCCC" }])),
+              rows: block.rows.map((row, rowIndex) => new d.TableRow({ tableHeader: rowIndex === 0, children: row.map((values, cellIndex) => new d.TableCell({ width: { size: 100 / row.length, type: d.WidthType.PERCENTAGE }, margins: { top: 90, bottom: 90, left: 90, right: 90 }, ...(rowIndex === 0 ? { shading: { fill: "F3F3F3" } } : {}), children: [paragraph(values.map((run) => ({ ...run, bold: rowIndex === 0 || run.bold })), { alignment: block.align[cellIndex] || "left", spacing: { after: 0 } })] })) })),
+            }), new d.Paragraph({ spacing: { after: 120 } })];
+          }
+        });
+        const children = blocks(documentModel.blocks);
+        const document = new d.Document({
+          title: draft.fileName || "Document", creator: "WebUtils Markdown Documents",
+          styles: { default: { document: { run: { font: "Arial", size: 22, color: "171717" }, paragraph: { spacing: { after: 160, line: 276 } } } }, paragraphStyles: headingSizes.map((size, index) => ({ id: `Heading${index + 1}`, name: `Heading ${index + 1}`, basedOn: "Normal", next: "Normal", quickFormat: true, run: { font: "Arial", size: size * 2, bold: true, color: "171717" }, paragraph: { keepNext: true, spacing: { before: 280, after: 140 } } })) },
+          numbering: { config: numbering },
+          sections: [{ properties: { page: { size: draft.paperSize === "A4" ? { width: 11906, height: 16838 } : { width: 12240, height: 15840 }, margin: { top: 1440, bottom: 1440, left: 1440, right: 1440 } } }, children }],
+        });
+        return d.Packer.toBlob(document);
+      };
+      const downloadBlob = (blob, filename) => {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a"); anchor.href = url; anchor.download = filename; document.body.appendChild(anchor); anchor.click(); anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      };
+      const exportDocument = async (format) => {
+        if (exporting) return;
+        const draft = { ...state };
+        if (!draft.markdown.trim()) { setStatus("Write or open Markdown before exporting.", true); markdownInput.focus(); return; }
+        exporting = true;
+        document.querySelectorAll("#download-docx, #download-pdf").forEach((button) => { button.disabled = true; });
+        setStatus(`Preparing ${format.toUpperCase()}...`);
+        try {
+          await loadDependency("marked");
+          const documentModel = parseDocument(draft.markdown);
+          if (format === "docx") await loadDependency("docx");
+          else { await loadDependency("pdfmake"); await loadDependency("fonts"); }
+          const blob = await (format === "docx" ? buildDocx(documentModel, draft) : buildPdf(documentModel, draft));
+          const filename = (draft.fileName.trim().replace(/\.(docx|pdf|md|markdown)$/i, "").replace(/[<>:"/\\|?*\x00-\x1f]/g, "-") || "document") + "." + format;
+          downloadBlob(blob, filename);
+          // A document export is not a restorable draft backup. Only the JSON
+          // backup path updates the shared backup ledger.
+          setStatus(`Downloaded ${filename}.${documentModel.warnings.length ? " " + documentModel.warnings.join(" ") : ""}`);
+        } catch (error) { setStatus(error.message || "Export failed. Your draft is still available. Try again.", true); }
+        finally { exporting = false; document.querySelectorAll("#download-docx, #download-pdf").forEach((button) => { button.disabled = false; }); }
+      };
+
+      markdownInput.addEventListener("input", () => { state.markdown = markdownInput.value; saveState(); clearTimeout(renderTimer); renderTimer = setTimeout(updatePreview, 150); });
+      fileNameInput.addEventListener("input", () => { state.fileName = fileNameInput.value; saveState(); });
+      paperSizeInput.addEventListener("change", () => { state.paperSize = paperSizeInput.value; saveState(); updatePreview(); });
+      document.getElementById("download-docx").addEventListener("click", () => exportDocument("docx"));
+      document.getElementById("download-pdf").addEventListener("click", () => exportDocument("pdf"));
+      document.getElementById("backup-chip-export").addEventListener("click", exportBackupSnapshot);
+      retryButton.addEventListener("click", () => { setStatus("Loading preview..."); preparePreview().then(() => { if (retryButton.hidden) setStatus("Preview ready."); }); });
+      document.getElementById("clear-draft").addEventListener("click", async () => {
+        if (!await requestConfirmation({ title: "Clear draft?", message: "This replaces your saved Markdown with an empty draft. Back up first to keep a copy.", confirmText: "Clear" })) return;
+        state.markdown = ""; saveState(); syncInputs(); updatePreview(); setStatus("Draft cleared.");
+      });
+      const markdownFile = document.getElementById("markdown-file");
+      document.getElementById("open-markdown").addEventListener("click", () => markdownFile.click());
+      markdownFile.addEventListener("change", async () => {
+        const file = markdownFile.files[0];
+        markdownFile.value = "";
+        if (!file) return;
+        try {
+          const text = await file.text();
+          if (state.markdown.trim() && !await requestConfirmation({ title: "Replace draft?", message: "Opening this file replaces your current saved Markdown. Back up first to keep a copy.", confirmText: "Replace" })) return;
+          state.markdown = text.replace(/^\uFEFF/, ""); state.fileName = file.name.replace(/\.(md|markdown|txt)$/i, ""); saveState(); syncInputs(); updatePreview(); setStatus(`Opened ${file.name}.`);
+        } catch { setStatus("This file could not be read. Your draft has not changed.", true); }
+      });
+      window.addEventListener("storage", (event) => {
+        if (event.key === BACKUP_STATUS_KEY) renderBackupChip();
+        if (event.key === STORAGE_KEY || event.key === null) { Object.assign(state, { markdown: "", fileName: "document", paperSize: "LETTER" }); loadState(); syncInputs(); updatePreview(); renderBackupChip(); }
+      });
+      const APP_THEME_KEY = "webutils.theme.v1";
+      const getAppTheme = () => {
+        try {
+          const stored = localStorage.getItem(APP_THEME_KEY);
+          return stored === "dark" || stored === "light" ? stored : "light";
+        } catch {
+          return "light";
+        }
+      };
+
+      const setAppTheme = (theme) => {
+        document.documentElement.setAttribute("data-theme", theme);
+        try {
+          localStorage.setItem(APP_THEME_KEY, theme);
+        } catch {}
+      };
+
+      const initThemeToggle = () => {
+        const host = document.querySelector(".brand-bar") || document.querySelector("header");
+        if (!host || document.getElementById("theme-toggle")) {
+          return;
+        }
+        const button = document.createElement("button");
+        button.id = "theme-toggle";
+        button.type = "button";
+        button.className = "theme-toggle";
+
+        const sync = () => {
+          const theme = getAppTheme();
+          button.textContent = theme === "dark" ? "Light Theme" : "Dark Theme";
+          button.title = "Toggle color theme";
+        };
+
+        button.addEventListener("click", () => {
+          const next = getAppTheme() === "dark" ? "light" : "dark";
+          setAppTheme(next);
+          sync();
+        });
+
+        host.appendChild(button);
+        setAppTheme(getAppTheme());
+        sync();
+      };
+
+      initThemeToggle();
+
+
+      loadState(); syncInputs(); updatePreview(); renderBackupChip(); preparePreview();
+      const PALETTE_APP_ID = "markdown-documents";
+      const PALETTE_NAV_LINKS = [
+        { id: "index", label: "WebUtils index", href: "index.html" },
+        { id: "kanban", label: "Kanban task board", href: "kanban.html" },
+        { id: "notes", label: "Notes Wiki", href: "notes.html" },
+        { id: "regex-workbench", label: "Regex Workbench", href: "regex-workbench.html" },
+        { id: "static-page-generator", label: "Static Page Generator", href: "static-page-generator.html" },
+        { id: "markdown-documents", label: "Markdown Documents", href: "markdown-documents.html" },
+        { id: "content-studio", label: "Content Studio", href: "contentstudio.html" },
+        { id: "thegym", label: "TheGym", href: "thegym.html" },
+        { id: "zip-workbench", label: "Zip Workbench", href: "zip-workbench.html" },
+        { id: "repo2prompt", label: "Repo2Prompt", href: "repo2prompt.html" },
+        { id: "secret-share", label: "Secret Share", href: "secret-share.html" },
+      ];
+
+      const paletteDialog = document.getElementById("command-palette");
+      const paletteInput = document.getElementById("command-palette-input");
+      const paletteList = document.getElementById("command-palette-list");
+      let paletteCommands = [];
+      let filteredPaletteCommands = [];
+      let selectedPaletteIndex = 0;
+
+      const isEditableTarget = (target) =>
+        !!target?.closest?.("input, textarea, select, [contenteditable], .CodeMirror");
+      const isHotkeysOffTarget = (target) => !!target?.closest?.("[data-hotkeys-off]");
+
+      const clickElementById = (id) => {
+        const el = document.getElementById(id);
+        if (!el || el.disabled) {
+          return false;
+        }
+        el.click();
+        return true;
+      };
+
+      const buildStandardCommands = () => {
+        const commands = [];
+        PALETTE_NAV_LINKS.forEach((entry) => {
+          if (entry.id === PALETTE_APP_ID) {
+            return;
+          }
+          commands.push({
+            label: `Go to: ${entry.label}`,
+            hint: "Navigate",
+            run: () => {
+              location.href = entry.href;
+            },
+          });
+        });
+
+        const backupButton = document.getElementById("backup-chip-export");
+        const backupChipEl = document.getElementById("backup-chip");
+        if (backupButton && backupChipEl && !backupChipEl.hidden && !backupButton.disabled) {
+          commands.push({
+            label: "Back up now",
+            hint: "Backup",
+            run: () => backupButton.click(),
+          });
+        }
+
+        if (document.getElementById("theme-toggle")) {
+          commands.push({
+            label: "Toggle theme (light/dark)",
+            hint: "Theme",
+            run: () => clickElementById("theme-toggle"),
+          });
+        }
+
+        return commands;
+      };
+
+      const buildPaletteCommands = () => {
+        const standard = buildStandardCommands();
+        const appSpecific = [
+          { label: "Download DOCX", hint: "Markdown Documents", run: () => clickElementById("download-docx") },
+          { label: "Download PDF", hint: "Markdown Documents", run: () => clickElementById("download-pdf") },
+          { label: "Open Markdown file", hint: "Markdown Documents", run: () => clickElementById("open-markdown") },
+          { label: "Focus Markdown editor", hint: "Markdown Documents", run: () => document.getElementById("markdown-input")?.focus() },
+        ];
+        return [...standard, ...appSpecific];
+      };
+
+      const updatePaletteList = () => {
+        const query = paletteInput.value.trim().toLowerCase();
+        filteredPaletteCommands = paletteCommands.filter((command) =>
+          command.label.toLowerCase().includes(query)
+        );
+        if (selectedPaletteIndex >= filteredPaletteCommands.length) {
+          selectedPaletteIndex = 0;
+        }
+
+        paletteList.innerHTML = "";
+        filteredPaletteCommands.forEach((command, index) => {
+          const item = document.createElement("li");
+          item.setAttribute("role", "option");
+          item.setAttribute("aria-selected", index === selectedPaletteIndex ? "true" : "false");
+
+          const button = document.createElement("button");
+          button.type = "button";
+
+          const label = document.createElement("span");
+          label.textContent = command.label;
+          button.appendChild(label);
+
+          if (command.hint) {
+            const hint = document.createElement("span");
+            hint.className = "hint";
+            hint.textContent = command.hint;
+            button.appendChild(hint);
+          }
+
+          button.addEventListener("click", () => {
+            paletteDialog.close();
+            command.run();
+          });
+
+          item.appendChild(button);
+          paletteList.appendChild(item);
+        });
+      };
+
+      const movePaletteSelection = (nextIndex) => {
+        if (!filteredPaletteCommands.length) {
+          selectedPaletteIndex = 0;
+          return;
+        }
+        selectedPaletteIndex = (nextIndex + filteredPaletteCommands.length) % filteredPaletteCommands.length;
+        updatePaletteList();
+        const selected = paletteList.querySelector('li[aria-selected="true"]');
+        selected?.scrollIntoView({ block: "nearest" });
+      };
+
+      const openPalette = () => {
+        paletteCommands = buildPaletteCommands();
+        selectedPaletteIndex = 0;
+        paletteInput.value = "";
+        updatePaletteList();
+        if (!paletteDialog.open) {
+          paletteDialog.showModal();
+        }
+        paletteInput.focus();
+      };
+
+      document.querySelectorAll("[data-open-command-palette]").forEach((button) => {
+        button.addEventListener("click", openPalette);
+      });
+
+      paletteInput.addEventListener("input", updatePaletteList);
+      paletteInput.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowDown") {
+          event.preventDefault();
+          movePaletteSelection(selectedPaletteIndex + 1);
+          return;
+        }
+        if (event.key === "ArrowUp") {
+          event.preventDefault();
+          movePaletteSelection(selectedPaletteIndex - 1);
+          return;
+        }
+        if (event.key === "Enter") {
+          event.preventDefault();
+          const command = filteredPaletteCommands[selectedPaletteIndex];
+          if (!command) {
+            return;
+          }
+          paletteDialog.close();
+          command.run();
+        }
+      });
+
+      document.addEventListener("keydown", (event) => {
+        const target = event.target;
+        const hotkeysOff = isHotkeysOffTarget(target);
+        if (
+          (event.ctrlKey || event.metaKey) &&
+          !event.shiftKey &&
+          !event.altKey &&
+          event.key.toLowerCase() === "k"
+        ) {
+          if (hotkeysOff) {
+            return;
+          }
+          event.preventDefault();
+          openPalette();
+          return;
+        }
+
+        if (
+          event.key === "/" &&
+          !event.ctrlKey &&
+          !event.metaKey &&
+          !event.altKey &&
+          !isEditableTarget(target) &&
+          !hotkeysOff
+        ) {
+          // Markdown Documents has no global search field.
+        }
+      });
+
+    </script>
+  </body>
+</html>

@@ -53,6 +53,7 @@ This document captures decisions, conventions, and architectural patterns that a
 - ZIP Workbench: `docs/zip-workbench.html` (uses IndexedDB `webutils-storage-v1` / `app-data` / `webutils.zip-workbench.v3`, with migration from legacy localStorage keys).
 - Repo2Prompt: `docs/repo2prompt.html` (uses IndexedDB `webutils-storage-v1` / `app-data` / `webutils.repo2prompt.v2`, with migration from legacy localStorage key `webutils.repo2prompt.v1`).
 - Regex Workbench: `docs/regex-workbench.html` (uses localStorage key `webutils.regex-workbench.v1`).
+- Markdown Documents: `docs/markdown-documents.html` (uses localStorage key `webutils.markdown-documents.v1`). Preview and exports use pinned CDN dependencies. Internet access is required to load them.
 
 ## Adding a New App
 

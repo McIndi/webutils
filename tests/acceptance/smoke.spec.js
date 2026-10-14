@@ -9,6 +9,7 @@ const expectations = {
   'regex-workbench.html': /Regex Workbench/i,
   'notes.html': /Notes Wiki/i,
   'static-page-generator.html': /Static Page Generator/i,
+  'markdown-documents.html': /Markdown Documents/i,
   'contentstudio.html': /Content Studio/i,
   'thegym.html': /TheGym/i,
   'secret-share.html': /Secret Share/i,
