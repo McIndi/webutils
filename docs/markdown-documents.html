@@ -585,14 +585,15 @@
 
       const headingSizes = [20, 16, 13, 11, 11, 11];
       const pdfRuns = (runs) => runs.map((run) => ({ text: run.text, bold: run.bold, italics: run.italics, decoration: run.strike && run.link ? ["lineThrough", "underline"] : run.strike ? "lineThrough" : run.link ? "underline" : undefined, link: run.link || undefined, background: run.code ? "#F3F3F3" : undefined, preserveLeadingSpaces: true }));
-      const pdfBlocks = (blocks) => blocks.map((block) => {
+      // List items are tight (2 pt apart); the list itself keeps the normal 8 pt gap after it.
+      const pdfBlocks = (blocks, inList = false) => blocks.map((block) => {
         switch (block.type) {
           case "heading": return { text: pdfRuns(block.runs), fontSize: headingSizes[block.level - 1], bold: true, margin: [0, 14, 0, 7], headlineLevel: block.level };
-          case "paragraph": return { text: pdfRuns(block.runs), margin: [0, 0, 0, 8] };
+          case "paragraph": return { text: pdfRuns(block.runs), margin: [0, 0, 0, inList ? 2 : 8] };
           case "code": return { text: block.text || " ", fontSize: 9, background: "#F3F3F3", preserveLeadingSpaces: true, margin: [0, 4, 0, 10] };
           case "quote": return { stack: pdfBlocks(block.blocks), margin: [16, 0, 0, 8] };
           case "rule": return { canvas: [{ type: "line", x1: 0, y1: 0, x2: 120, y2: 0, lineWidth: .5, lineColor: "#CCCCCC" }], margin: [0, 8, 0, 12] };
-          case "list": return { [block.ordered ? "ol" : "ul"]: block.items.map((item) => ({ stack: pdfBlocks(item) })), ...(block.ordered ? { start: block.start } : {}), margin: [0, 0, 0, 8] };
+          case "list": return { [block.ordered ? "ol" : "ul"]: block.items.map((item) => ({ stack: pdfBlocks(item, true) })), ...(block.ordered ? { start: block.start } : {}), margin: [0, 0, 0, 8] };
           case "table": return {
             table: { headerRows: 1, widths: block.rows[0].map(() => "*"), body: block.rows.map((row, rowIndex) => row.map((runs, cellIndex) => ({ text: pdfRuns(runs), fontSize: 10, bold: rowIndex === 0, fillColor: rowIndex === 0 ? "#F3F3F3" : undefined, alignment: block.align[cellIndex] || "left", margin: [3, 3, 3, 3] }))) },
             layout: { hLineWidth: () => .5, vLineWidth: () => .5, hLineColor: () => "#CCCCCC", vLineColor: () => "#CCCCCC" }, margin: [0, 4, 0, 12],
@@ -627,8 +628,10 @@
             case "list": {
               const reference = `markdown-list-${listId++}`;
               numbering.push({ reference, levels: Array.from({ length: 9 }, (_, level) => ({ level, format: block.ordered ? d.LevelFormat.DECIMAL : d.LevelFormat.BULLET, text: block.ordered ? `%${level + 1}.` : "•", start: block.start, alignment: d.AlignmentType.LEFT, style: { paragraph: { indent: { left: (level + 1) * 360 + inset, hanging: 240 } } } })) });
-              return block.items.flatMap((item) => {
-                const first = paragraph(item[0].runs, { numbering: { reference, level: Math.min(depth, 8) } });
+              return block.items.flatMap((item, itemIndex) => {
+                // Tight lists: 2 pt between items, the normal 8 pt after the last item of a top-level list.
+                const endsList = depth === 0 && itemIndex === block.items.length - 1 && item.length === 1;
+                const first = paragraph(item[0].runs, { numbering: { reference, level: Math.min(depth, 8) }, spacing: { after: endsList ? 160 : 40, line: 276 } });
                 const rest = item.slice(1).flatMap((child) => child.type === "list" ? blocks([child], depth + 1, inset) : blocks([child], depth, inset + (depth + 1) * 360));
                 return [first, ...rest];
               });

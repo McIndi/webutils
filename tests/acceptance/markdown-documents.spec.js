@@ -128,6 +128,8 @@ test.describe('markdown documents', () => {
     expect(xml).toContain('w:br');
     expect(xml).toContain('Nested ordered item');
     expect(xml).toContain('w:numPr');
+    // List items are tight: 2 pt (40 twips) between items instead of the 8 pt paragraph gap.
+    expect(xml).toMatch(/<w:numPr>(?:(?!<\/w:pPr>).)*<w:spacing w:after="40"/);
     expect(xml).toContain('w:w="11906"');
     expect(files['word/numbering.xml']).toContain('w:start w:val="3"');
     expect(files['word/_rels/document.xml.rels']).toContain('https://example.com/');
