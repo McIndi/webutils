@@ -232,6 +232,30 @@ test.describe('markdown documents', () => {
     const pageCounts = [...pdf.toString('latin1').matchAll(/\/Count (\d+)/g)].map(match => Number(match[1]));
     expect(Math.max(...pageCounts)).toBeGreaterThan(1);
   });
+
+  test('PDF page-break guides match the downloaded PDF and persist', async ({ page }, testInfo) => {
+    // Mix short sections with long paragraphs so some breaks fall between blocks and some inside one.
+    await page.getByLabel('Markdown', { exact: true }).fill('# Long document\n\n' + Array.from({ length: 60 }, (_, index) => `## Section ${index + 1}\n\nParagraph ${index + 1}: ` + 'content that must survive pagination. '.repeat(index % 9 === 0 ? 40 : 2)).join('\n\n'));
+    const toggle = page.getByLabel('Show PDF page breaks');
+    await expect(toggle).not.toBeChecked();
+    await expect(page.locator('#document-preview .page-break')).toHaveCount(0);
+    await toggle.check();
+    await expect(page.locator('#page-break-note')).toContainText('on Letter');
+    const pdf = await download(page, 'Download PDF', testInfo, 'document.pdf');
+    const pages = Math.max(...[...pdf.toString('latin1').matchAll(/\/Count (\d+)/g)].map(match => Number(match[1])));
+    expect(pages).toBeGreaterThan(2);
+    await expect(page.locator('#page-break-note')).toContainText(`PDF layout: ${pages} pages on Letter`);
+    // One guide per new page, in order, all inside the preview.
+    const guides = await page.locator('#document-preview .page-break').evaluateAll(elements => elements.map(element => ({ page: Number(element.dataset.page), top: element.offsetTop })));
+    expect(guides.map(guide => guide.page)).toEqual(Array.from({ length: pages - 1 }, (_, index) => index + 2));
+    expect(guides.every((guide, index) => guide.top > (index ? guides[index - 1].top : 0))).toBe(true);
+    await page.reload();
+    await expect(toggle).toBeChecked();
+    await expect(page.locator('#document-preview .page-break')).toHaveCount(pages - 1);
+    await toggle.uncheck();
+    await expect(page.locator('#document-preview .page-break')).toHaveCount(0);
+    await expect(page.locator('#page-break-note')).toHaveText('');
+  });
 });
 
 test('CDN failures keep the editor usable and permit preview and export retries', async ({ page, request }, testInfo) => {

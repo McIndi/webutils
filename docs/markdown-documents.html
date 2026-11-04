@@ -58,6 +58,14 @@
       #document-preview th { background: #f3f3f3; }
       #document-preview hr { border: 0; border-top: 1px solid #ccc; margin: 16px 0; }
       #document-preview .empty { color: #666; }
+      .preview-options { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-weight: 600; }
+      .preview-options input { width: auto; margin: 0; accent-color: var(--accent); }
+      #page-break-note { color: var(--muted); font-size: .85rem; }
+      /* Page-break guides sit on top of the preview and never change its layout. */
+      #document-preview { position: relative; }
+      #document-preview .page-break { position: absolute; left: 0; right: 0; height: 0; border-top: 2px dashed #0d6b6f; pointer-events: none; }
+      #document-preview .page-break.split { border-top-style: dotted; }
+      #document-preview .page-break span { position: absolute; right: 8px; top: -11px; padding: 0 8px; font: 600 11px/18px "Segoe UI", sans-serif; color: #0d6b6f; background: white; border: 1px solid #0d6b6f; border-radius: 9px; }
       #format-notes { color: var(--muted); font-size: .85rem; }
       footer { padding: 16px 28px 28px; color: var(--muted); font-size: .85rem; }
       /* Shared WebUtils backup, confirmation, and command palette styles. */
@@ -232,10 +240,12 @@
         </section>
         <section class="panel" aria-labelledby="preview-heading">
           <h2 id="preview-heading">Document preview</h2>
+          <label class="preview-options" for="show-page-breaks"><input id="show-page-breaks" type="checkbox" aria-describedby="page-break-note" /> Show PDF page breaks</label>
           <div class="preview-shell"><article id="document-preview" aria-label="Document preview"></article></div>
           <p class="note">11 pt body text, modest headings, and 1 inch margins. Page breaks can differ between Word and PDF.</p>
           <p class="note">Images export as text labels. Raw HTML appears as text.</p>
           <p id="format-notes" role="status"></p>
+          <p id="page-break-note" class="note" role="status"></p>
         </section>
       </div>
     </main>
@@ -260,13 +270,15 @@
         fonts: { url: "https://cdn.jsdelivr.net/npm/pdfmake@0.3.11/build/vfs_fonts.js", integrity: "sha384-pkBUW1wxcm6m7ZjKDxADnNHqnz+Sx9sAL1ndsLNv/GZnWZgodPYsju1yxeyQnn0c", ready: () => fontsLoaded },
       };
       const SAMPLE = "# Working notes\n\nA plain document with **bold text**, *italics*, and [links](https://www.mcindi.com).\n\n## Next steps\n\n1. Write in Markdown.\n2. Choose Letter or A4.\n3. Download a Word document or PDF.\n\n> Your content stays on this device.\n\n| Format | Purpose |\n| --- | --- |\n| DOCX | Edit and share |\n| PDF | Read and print |\n\n```\nA small code example\n  with indentation\n```";
-      const state = { markdown: SAMPLE, fileName: "document", paperSize: "LETTER" };
+      const state = { markdown: SAMPLE, fileName: "document", paperSize: "LETTER", showPageBreaks: false };
       const markdownInput = document.getElementById("markdown-input");
       const fileNameInput = document.getElementById("file-name");
       const paperSizeInput = document.getElementById("paper-size");
       const preview = document.getElementById("document-preview");
       const statusEl = document.getElementById("status");
       const formatNotes = document.getElementById("format-notes");
+      const pageBreakToggle = document.getElementById("show-page-breaks");
+      const pageBreakNote = document.getElementById("page-break-note");
       const retryButton = document.getElementById("retry-preview");
       const confirmDialog = document.getElementById("confirm-dialog");
       const confirmTitle = document.getElementById("confirm-title");
@@ -321,10 +333,11 @@
             if (typeof saved.markdown === "string") state.markdown = saved.markdown;
             if (typeof saved.fileName === "string") state.fileName = saved.fileName;
             if (["LETTER", "A4"].includes(saved.paperSize)) state.paperSize = saved.paperSize;
+            if (typeof saved.showPageBreaks === "boolean") state.showPageBreaks = saved.showPageBreaks;
           }
         } catch { setStatus("The saved draft could not be read. You can restore a backup from the index.", true); }
       };
-      const syncInputs = () => { markdownInput.value = state.markdown; fileNameInput.value = state.fileName; paperSizeInput.value = state.paperSize; };
+      const syncInputs = () => { markdownInput.value = state.markdown; fileNameInput.value = state.fileName; paperSizeInput.value = state.paperSize; pageBreakToggle.checked = state.showPageBreaks; };
 
       const requestConfirmation = ({ title, message, confirmText }) => {
         if (!confirmDialog || typeof confirmDialog.showModal !== "function") {
@@ -572,9 +585,10 @@
         preview.replaceChildren();
         preview.style.maxWidth = state.paperSize === "A4" ? "794px" : "816px";
         formatNotes.textContent = "";
+        schedulePageBreaks(null);
         if (!state.markdown.trim()) { const p = document.createElement("p"); p.className = "empty"; p.textContent = "Write or open Markdown to preview your document."; preview.appendChild(p); return; }
         if (!window.marked?.lexer) { const pre = document.createElement("pre"); pre.textContent = state.markdown; preview.appendChild(pre); return; }
-        try { const documentModel = parseDocument(state.markdown); appendBlocks(preview, documentModel.blocks); formatNotes.textContent = documentModel.warnings.join(" "); }
+        try { const documentModel = parseDocument(state.markdown); appendBlocks(preview, documentModel.blocks); formatNotes.textContent = documentModel.warnings.join(" "); schedulePageBreaks(documentModel); }
         catch { preview.textContent = state.markdown; setStatus("This Markdown could not be previewed. Your draft is still available in the editor.", true); }
       };
       const preparePreview = async () => {
@@ -600,14 +614,118 @@
           };
         }
       });
-      const buildPdf = (documentModel, draft) => window.pdfMake.createPdf({
-        pageSize: draft.paperSize, pageMargins: [72, 72, 72, 72],
+      // observe(node, breakBefore) is optional. Page-break guides use it to read
+      // where pdfmake placed each top-level block; exports leave it out.
+      const pdfDefinition = (documentModel, draft, observe) => ({
+        pageSize: draft.paperSize, pageMargins: [PDF_MARGIN, PDF_MARGIN, PDF_MARGIN, PDF_MARGIN],
         info: { title: draft.fileName || "Document", creator: "WebUtils Markdown Documents" },
         defaultStyle: { font: "Roboto", fontSize: 11, lineHeight: 1.15, color: "#171717" },
-        content: pdfBlocks(documentModel.blocks),
+        content: pdfBlocks(documentModel.blocks).map((node, index) => observe ? { ...node, id: `preview-block-${index}` } : node),
         // pdfmake 0.3 supplies node/container objects instead of the 0.2 arrays.
-        pageBreakBefore: (node, container) => !!node.headlineLevel && container.getFollowingNodesOnPage().length === 0,
-      }).getBlob();
+        pageBreakBefore: (node, container) => {
+          const breakBefore = !!node.headlineLevel && container.getFollowingNodesOnPage().length === 0;
+          if (observe) observe(node, breakBefore);
+          return breakBefore;
+        },
+      });
+      const buildPdf = (documentModel, draft) => window.pdfMake.createPdf(pdfDefinition(documentModel, draft)).getBlob();
+
+      // Page-break guides. pdfmake lays the document out exactly as Download PDF
+      // does and reports each node's pages to pageBreakBefore. A node that
+      // returns true is moved to the next page and pdfmake does not report it
+      // again, so record it one page later. Word lays pages out on its own and
+      // can break differently.
+      const PDF_MARGIN = 72;
+      const PDF_PAGE_HEIGHTS = { LETTER: 792, A4: 841.89 };
+      let pageBreakRun = 0;
+      let pageBreakTimer;
+      let pageBreakLayout = null;
+      const measurePdfPages = async (documentModel, draft) => {
+        const placements = [];
+        let pageCount = 1;
+        const observe = (node, breakBefore) => {
+          if (Number.isFinite(node.pages)) pageCount = Math.max(pageCount, node.pages);
+          const match = /^preview-block-(\d+)$/.exec(node.id || "");
+          const start = node.startPosition;
+          const pages = (node.pageNumbers || []).filter(Number.isFinite);
+          if (!match || !start || !Number.isFinite(start.pageNumber) || !pages.length) return;
+          const first = start.pageNumber + (breakBefore ? 1 : 0);
+          placements[Number(match[1])] = { first, last: first + Math.max(...pages) - start.pageNumber, top: breakBefore ? PDF_MARGIN : start.top };
+        };
+        await window.pdfMake.createPdf(pdfDefinition(documentModel, draft, observe)).getBlob();
+        placements.forEach((placement) => { if (placement) pageCount = Math.max(pageCount, placement.last); });
+        return { placements, pageCount, paperSize: draft.paperSize };
+      };
+      const addPageBreakGuide = (top, page, split) => {
+        const guide = document.createElement("div");
+        guide.className = split ? "page-break split" : "page-break";
+        guide.setAttribute("aria-hidden", "true");
+        guide.dataset.page = String(page);
+        guide.style.top = `${Math.round(top)}px`;
+        guide.title = split ? `This block continues on page ${page}` : `Page ${page} starts here`;
+        const label = document.createElement("span"); label.textContent = `Page ${page}`; guide.appendChild(label);
+        preview.appendChild(guide);
+      };
+      // Guides go between the same blocks as in the PDF. Inside a block that
+      // spans pages, the split point is estimated from the space pdfmake used on
+      // each page, because preview and PDF line heights differ.
+      const drawPageBreaks = () => {
+        preview.querySelectorAll(".page-break").forEach((guide) => guide.remove());
+        if (!pageBreakLayout || !state.showPageBreaks) return;
+        const { placements, pageCount, paperSize } = pageBreakLayout;
+        const elements = [...preview.children].filter((element) => !element.classList.contains("page-break"));
+        const pageBottom = PDF_PAGE_HEIGHTS[paperSize] - PDF_MARGIN;
+        const fullPage = pageBottom - PDF_MARGIN;
+        let reachedPage = 1;
+        let missing = 0;
+        elements.forEach((element, index) => {
+          const placement = placements[index];
+          if (!placement) { missing += 1; return; }
+          if (placement.first > reachedPage && index > 0) {
+            const previous = elements[index - 1];
+            addPageBreakGuide((previous.offsetTop + previous.offsetHeight + element.offsetTop) / 2, placement.first, false);
+          }
+          if (placement.last > placement.first) {
+            const next = placements[index + 1];
+            const spans = [Math.max(1, pageBottom - placement.top)];
+            for (let page = placement.first + 1; page < placement.last; page += 1) spans.push(fullPage);
+            spans.push(next && next.first === placement.last ? Math.max(1, next.top - PDF_MARGIN) : Math.max(1, element.offsetHeight * .75 - spans.reduce((sum, value) => sum + value, 0)));
+            const total = spans.reduce((sum, value) => sum + value, 0);
+            // Snap estimated splits to the preview line grid so guides fall between lines.
+            const lineHeight = parseFloat(getComputedStyle(element).lineHeight) || 0;
+            let used = 0;
+            for (let page = placement.first + 1; page <= placement.last; page += 1) {
+              used += spans[page - placement.first - 1];
+              const offset = element.offsetHeight * used / total;
+              addPageBreakGuide(element.offsetTop + (lineHeight > 0 ? Math.round(offset / lineHeight) * lineHeight : offset), page, true);
+            }
+          }
+          reachedPage = Math.max(reachedPage, placement.last);
+        });
+        const paper = paperSize === "A4" ? "A4" : "Letter";
+        pageBreakNote.textContent = elements.length && missing === elements.length
+          ? "PDF page breaks could not be read from the PDF library."
+          : `PDF layout: ${pageCount} ${pageCount === 1 ? "page" : "pages"} on ${paper}. Dashed lines mark where a new PDF page starts; dotted lines are estimated splits inside a block. Word can break pages differently.`;
+      };
+      const schedulePageBreaks = (documentModel) => {
+        clearTimeout(pageBreakTimer);
+        const run = ++pageBreakRun;
+        pageBreakLayout = null;
+        if (!state.showPageBreaks || !documentModel) { pageBreakNote.textContent = ""; return; }
+        pageBreakNote.textContent = "Measuring PDF pages...";
+        const draft = { ...state };
+        pageBreakTimer = setTimeout(async () => {
+          try {
+            await loadDependency("pdfmake"); await loadDependency("fonts");
+            const layout = await measurePdfPages(documentModel, draft);
+            if (run !== pageBreakRun) return;
+            pageBreakLayout = layout;
+            drawPageBreaks();
+          } catch (error) {
+            if (run === pageBreakRun) pageBreakNote.textContent = error.message || "PDF page breaks could not be measured.";
+          }
+        }, 400);
+      };
 
       const buildDocx = (documentModel, draft) => {
         const d = window.docx;
@@ -681,6 +799,9 @@
       markdownInput.addEventListener("input", () => { state.markdown = markdownInput.value; saveState(); clearTimeout(renderTimer); renderTimer = setTimeout(updatePreview, 150); });
       fileNameInput.addEventListener("input", () => { state.fileName = fileNameInput.value; saveState(); });
       paperSizeInput.addEventListener("change", () => { state.paperSize = paperSizeInput.value; saveState(); updatePreview(); });
+      pageBreakToggle.addEventListener("change", () => { state.showPageBreaks = pageBreakToggle.checked; saveState(); updatePreview(); });
+      // Wrapping changes when the preview width changes; redraw from the last layout.
+      if (typeof ResizeObserver === "function") new ResizeObserver(() => { if (pageBreakLayout) drawPageBreaks(); }).observe(preview);
       document.getElementById("download-docx").addEventListener("click", () => exportDocument("docx"));
       document.getElementById("download-pdf").addEventListener("click", () => exportDocument("pdf"));
       document.getElementById("backup-chip-export").addEventListener("click", exportBackupSnapshot);
@@ -703,7 +824,7 @@
       });
       window.addEventListener("storage", (event) => {
         if (event.key === BACKUP_STATUS_KEY) renderBackupChip();
-        if (event.key === STORAGE_KEY || event.key === null) { Object.assign(state, { markdown: "", fileName: "document", paperSize: "LETTER" }); loadState(); syncInputs(); updatePreview(); renderBackupChip(); }
+        if (event.key === STORAGE_KEY || event.key === null) { Object.assign(state, { markdown: "", fileName: "document", paperSize: "LETTER", showPageBreaks: false }); loadState(); syncInputs(); updatePreview(); renderBackupChip(); }
       });
       const APP_THEME_KEY = "webutils.theme.v1";
       const getAppTheme = () => {
@@ -829,6 +950,7 @@
         const appSpecific = [
           { label: "Download DOCX", hint: "Markdown Documents", run: () => clickElementById("download-docx") },
           { label: "Download PDF", hint: "Markdown Documents", run: () => clickElementById("download-pdf") },
+          { label: "Toggle PDF page breaks", hint: "Markdown Documents", run: () => clickElementById("show-page-breaks") },
           { label: "Open Markdown file", hint: "Markdown Documents", run: () => clickElementById("open-markdown") },
           { label: "Focus Markdown editor", hint: "Markdown Documents", run: () => document.getElementById("markdown-input")?.focus() },
         ];

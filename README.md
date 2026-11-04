@@ -95,6 +95,7 @@ Turn Markdown into plain Word and PDF documents:
 - Preview headings, paragraphs, emphasis, links, lists, quotes, code, and tables
 - Download a real DOCX or a PDF with selectable text
 - Choose Letter or A4 paper with 1 inch margins and restrained styling
+- Optionally show PDF page breaks in the preview, measured with the same PDF layout engine as **Download PDF**
 - Save drafts locally and include them in index backups
 - Images export as text labels; raw HTML appears as text
 
@@ -104,7 +105,7 @@ Turn Markdown into plain Word and PDF documents:
 
 Preview and export libraries load from a CDN. Internet access is required to load them; browser caching does not guarantee offline access.
 Conversion runs locally. The app does not upload Markdown or fetch document images.
-The preview shows formatting. Page breaks and fonts can differ between Word and PDF.
+The preview shows formatting. Turn on **Show PDF page breaks** to see where PDF pages start; this loads the PDF library. Breaks inside a long paragraph, list, or table are estimated. Word lays out pages on its own, so DOCX page breaks and fonts can differ from the PDF.
 DOCX and PDF downloads do not count as draft backups. Use **Back up** to save a restorable JSON snapshot.
 
 ### Content Studio

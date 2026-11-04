@@ -1004,6 +1004,7 @@
             markdown: { type: "string", required: true },
             fileName: { type: "string", required: true },
             paperSize: { type: "string", required: true },
+            showPageBreaks: { type: "boolean", required: false },
           }, `${appLabel}: `);
           if (!["LETTER", "A4"].includes(parsed.paperSize)) check.issues.push(`${appLabel}: paperSize must be LETTER or A4.`);
           return check;
