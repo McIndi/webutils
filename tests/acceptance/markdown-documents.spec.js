@@ -4,12 +4,15 @@ const path = require('node:path');
 const { inflateRawSync } = require('node:zlib');
 const { clearWebUtilsStorage, acceptConfirmDialog } = require('./helpers/storage');
 
-const KEY = 'webutils.markdown-documents.v1';
+const KEY = 'webutils.markdown-documents.v2';
+const LEGACY_KEY = 'webutils.markdown-documents.v1';
 const DEPENDENCIES = [
   'https://cdn.jsdelivr.net/npm/marked@18.1.1/lib/marked.umd.js',
   'https://unpkg.com/docx@9.11.0/dist/index.umd.cjs',
   'https://cdn.jsdelivr.net/npm/pdfmake@0.3.11/build/pdfmake.min.js',
   'https://cdn.jsdelivr.net/npm/pdfmake@0.3.11/build/vfs_fonts.js',
+  'https://cdn.jsdelivr.net/npm/pdfmake@0.3.11/build/standard-fonts/Times.js',
+  'https://cdn.jsdelivr.net/npm/pdfmake@0.3.11/build/standard-fonts/Courier.js',
 ];
 const SAMPLE = `# Export check
 
@@ -185,6 +188,8 @@ test.describe('markdown documents', () => {
 
   test('backup round-trips through the index and validates paper size', async ({ page }, testInfo) => {
     await page.getByLabel('Markdown', { exact: true }).fill('# Backed up draft');
+    await page.getByText('Document formatting', { exact: true }).click();
+    await page.getByLabel('Body size (pt)').fill('16');
     const pending = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Back up', exact: true }).click();
     const file = await pending;
@@ -193,7 +198,7 @@ test.describe('markdown documents', () => {
     const snapshot = JSON.parse(fs.readFileSync(saved, 'utf8'));
     expect(snapshot.apps['markdown-documents'].key).toBe(KEY);
     await expect(page.locator('#backup-chip-status')).toContainText('Backed up');
-    await page.getByLabel('Markdown', { exact: true }).fill('# Changed');
+    await page.getByLabel('Body size (pt)').fill('12');
     await expect(page.locator('#backup-chip-status')).toHaveText('Changes not backed up');
     await page.goto('/docs/index.html');
     const row = page.locator('#app-list .app-row').filter({ hasText: 'Markdown Documents' });
@@ -204,6 +209,18 @@ test.describe('markdown documents', () => {
     await expect(page.locator('#data-status')).toContainText('Imported');
     await page.goto('/docs/markdown-documents.html');
     await expect(page.getByLabel('Markdown', { exact: true })).toHaveValue('# Backed up draft');
+    await expect(page.getByLabel('Body size (pt)')).toHaveValue('16');
+    const entry = snapshot.apps['markdown-documents'];
+    entry.key = LEGACY_KEY;
+    entry.value = JSON.stringify({ markdown: '# Older backup', fileName: 'older', paperSize: 'A4' });
+    await page.goto('/docs/index.html');
+    await page.locator('#import-file').setInputFiles({ name: 'legacy.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(snapshot)) });
+    await page.locator('#import-button').click();
+    await acceptConfirmDialog(page);
+    await expect(page.locator('#data-status')).toContainText('Imported');
+    await page.goto('/docs/markdown-documents.html');
+    await expect(page.getByLabel('Markdown', { exact: true })).toHaveValue('# Older backup');
+    await expect(page.getByLabel('Body size (pt)')).toHaveValue('11');
     snapshot.apps['markdown-documents'].value = JSON.stringify({ markdown: 'bad', fileName: 'bad', paperSize: 'POSTCARD' });
     await page.goto('/docs/index.html');
     await page.locator('#import-file').setInputFiles({ name: 'invalid.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(snapshot)) });
@@ -214,6 +231,8 @@ test.describe('markdown documents', () => {
   test('mobile layout fits the viewport and palette exports DOCX', async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByLabel('Markdown', { exact: true }).fill('# Mobile document');
+    await page.getByText('Document formatting', { exact: true }).click();
+    await page.getByLabel('Orientation').selectOption('landscape');
     const size = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, width: window.innerWidth }));
     expect(size.scroll).toBeLessThanOrEqual(size.width);
     await page.getByRole('button', { name: 'Open command palette' }).click();
@@ -223,6 +242,83 @@ test.describe('markdown documents', () => {
     const file = await pending;
     await file.saveAs(testInfo.outputPath('mobile.docx'));
     expect(file.suggestedFilename()).toBe('document.docx');
+  });
+
+  test('formatting changes the preview, DOCX styles, and measured PDF pagination', async ({ page }, testInfo) => {
+    const markdown = '# Formatting check\n\n' + Array.from({ length: 36 }, (_, index) => `## Section ${index + 1}\n\nParagraph ${index + 1} with enough text to exercise wrapping and spacing.`).join('\n\n') + '\n\nΕλληνικά';
+    await page.getByLabel('Markdown', { exact: true }).fill(markdown);
+    await page.getByLabel('Show PDF page breaks').check();
+    const note = page.locator('#page-break-note');
+    await expect(note).toContainText('on Letter');
+    const initialPages = Number((await note.textContent()).match(/PDF layout: (\d+)/)[1]);
+
+    await page.getByText('Document formatting', { exact: true }).click();
+    await page.getByLabel('Orientation').selectOption('landscape');
+    await page.getByLabel('Margins (inches)').fill('1.5');
+    await page.getByLabel('Font family').selectOption('serif');
+    await page.getByLabel('Body size (pt)').fill('16');
+    await page.getByLabel('Paragraph alignment').selectOption('justify');
+    await page.getByLabel('Paragraph line spacing').fill('1.75');
+    await page.getByLabel('After paragraphs (pt)').fill('14');
+    await page.getByLabel('Heading size (%)').fill('125');
+    await page.getByLabel('Before headings (pt)').fill('24');
+    await page.getByLabel('After headings (pt)').fill('10');
+    const preview = page.locator('#document-preview');
+    await expect(preview).toHaveCSS('padding-top', '144px');
+    await expect(preview.locator('h1')).toHaveCSS('margin-top', '32px');
+    await expect(preview.locator('h1')).toHaveCSS('margin-bottom', '13.3333px');
+    await expect(preview.locator('p').first()).toHaveCSS('text-align', 'justify');
+    await expect(preview).toHaveCSS('font-family', '"Times New Roman", serif');
+
+    const files = readDocx(await download(page, 'Download DOCX', testInfo, 'document.docx'));
+    expect(files['word/document.xml']).toMatch(/<w:pgSz w:w="15840" w:h="12240" w:orient="landscape"/);
+    expect(files['word/document.xml']).toContain('w:top="2160"');
+    expect(files['word/document.xml']).toContain('w:jc w:val="both"');
+    expect(files['word/document.xml']).toMatch(/<w:spacing(?=[^>]*w:before="480")(?=[^>]*w:after="200")/);
+    expect(files['word/document.xml']).toMatch(/<w:spacing(?=[^>]*w:after="280")(?=[^>]*w:line="420")/);
+    expect(files['word/styles.xml']).toContain('Times New Roman');
+    expect(files['word/styles.xml']).toContain('<w:sz w:val="32"');
+    expect(files['word/styles.xml']).toContain('<w:sz w:val="73"');
+
+    const pdf = (await download(page, 'Download PDF', testInfo, 'document.pdf')).toString('latin1');
+    expect(pdf).toMatch(/\/MediaBox\s*\[0 0 792 612\]/);
+    expect(pdf).toContain('/BaseFont /Times-Roman');
+    expect(pdf).toContain('/FontFile2');
+    const pages = Math.max(...[...pdf.matchAll(/\/Count (\d+)/g)].map(match => Number(match[1])));
+    expect(pages).toBeGreaterThan(initialPages);
+    await expect(note).toContainText(`PDF layout: ${pages} pages on Letter`);
+    await expect(preview.locator('.page-break')).toHaveCount(pages - 1);
+    await page.reload();
+    await expect(page.getByLabel('Orientation')).toHaveValue('landscape');
+    await expect(page.getByLabel('Paragraph line spacing')).toHaveValue('1.75');
+    await expect(note).toContainText(`PDF layout: ${pages} pages on Letter`);
+    await page.getByText('Document formatting', { exact: true }).click();
+    await page.getByRole('button', { name: 'Reset formatting', exact: true }).click();
+    await acceptConfirmDialog(page);
+    await expect(page.getByLabel('Body size (pt)')).toHaveValue('11');
+    await expect(note).toContainText(`PDF layout: ${initialPages} pages on Letter`);
+    await expect(page.getByLabel('Markdown', { exact: true })).toHaveValue(markdown);
+
+    await page.getByLabel('Markdown', { exact: true }).fill('# Standalone heading');
+    await page.getByLabel('Font family').selectOption('mono');
+    await page.getByLabel('Download filename').fill('mono');
+    await expect(note).toContainText('PDF layout: 1 page on Letter');
+    const monoPdf = (await download(page, 'Download PDF', testInfo, 'mono.pdf')).toString('latin1');
+    expect(monoPdf).toContain('/BaseFont /Courier-Bold');
+    expect(monoPdf).toMatch(/\/Count 1\b/);
+  });
+
+  test('migrates a locally saved v1 draft with default formatting', async ({ page }) => {
+    await page.evaluate(({ legacyKey, key }) => {
+      localStorage.removeItem(key);
+      localStorage.setItem(legacyKey, JSON.stringify({ markdown: '# Old draft', fileName: 'old', paperSize: 'A4' }));
+    }, { legacyKey: LEGACY_KEY, key: KEY });
+    await page.reload();
+    await expect(page.locator('#document-preview h1')).toHaveText('Old draft');
+    await expect(page.getByLabel('Paper size')).toHaveValue('A4');
+    await expect(page.getByLabel('Body size (pt)')).toHaveValue('11');
+    expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)).markdown, KEY)).toBe('# Old draft');
+    expect(await page.evaluate(key => localStorage.getItem(key), LEGACY_KEY)).toBeNull();
   });
 
   test('Letter PDF paginates long content and includes the final paragraph', async ({ page }, testInfo) => {
@@ -304,7 +400,10 @@ test('live pinned CDN scripts produce both downloads without response overrides'
   await expect(page.locator('#document-preview h1')).toHaveText('Working notes', { timeout: 25_000 });
   const files = readDocx(await download(page, 'Download DOCX', testInfo, 'document.docx'));
   expect(files['word/document.xml']).toContain('Working notes');
+  await page.getByText('Document formatting', { exact: true }).click();
+  await page.getByLabel('Font family').selectOption('serif');
   const pdf = await download(page, 'Download PDF', testInfo, 'document.pdf');
   expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
+  expect(pdf.toString('latin1')).toContain('/BaseFont /Times-Roman');
   await page.screenshot({ path: testInfo.outputPath('preview.png'), fullPage: true });
 });

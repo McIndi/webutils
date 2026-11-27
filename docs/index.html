@@ -893,9 +893,10 @@
         {
           id: "markdown-documents",
           label: "Markdown Documents",
-          key: "webutils.markdown-documents.v1",
+          key: "webutils.markdown-documents.v2",
+          legacyKey: "webutils.markdown-documents.v1",
           href: "markdown-documents.html",
-          description: "Turn Markdown into plain Word and PDF documents with modest styling.",
+          description: "Format Markdown for Word and PDF with typography and page layout controls.",
         },
         {
           id: "content-studio",
@@ -1005,6 +1006,7 @@
             fileName: { type: "string", required: true },
             paperSize: { type: "string", required: true },
             showPageBreaks: { type: "boolean", required: false },
+            formatting: { type: "object", required: false },
           }, `${appLabel}: `);
           if (!["LETTER", "A4"].includes(parsed.paperSize)) check.issues.push(`${appLabel}: paperSize must be LETTER or A4.`);
           return check;
@@ -1478,7 +1480,7 @@
         if (descriptor.type === "indexedDB") {
           return readIndexedDbRecord(descriptor);
         }
-        return localStorage.getItem(descriptor.key);
+        return localStorage.getItem(descriptor.key) ?? (app.legacyKey ? localStorage.getItem(app.legacyKey) : null);
       };
 
       const writeAppData = async (app, value) => {
@@ -1488,6 +1490,7 @@
           return;
         }
         localStorage.setItem(descriptor.key, value);
+        if (app.legacyKey) localStorage.removeItem(app.legacyKey);
       };
 
       const clearAppData = async (app) => {
@@ -1495,6 +1498,7 @@
         if (descriptor.type === "indexedDB") {
           await deleteIndexedDbRecord(descriptor);
         } else {
+          if (app.legacyKey) localStorage.removeItem(app.legacyKey);
           localStorage.removeItem(descriptor.key);
         }
         clearExtraData(app);
